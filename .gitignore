@@ -12,3 +12,12 @@ wheels/
 .env
 
 .idea
+
+# bd geldata
+geldata/dbschema/migrations/
+geldata/dbschema/default.esdl.bak
+
+# Docker volumes и данные БД
+postgres_data/
+postgresql/
+*.log

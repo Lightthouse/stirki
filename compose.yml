@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: stirki-db
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_DB: stirki
+      POSTGRES_USER: ${POSTGRES_USER:-stirki}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data          # ← данные БД
+      - ./pg_init:/docker-entrypoint-initdb.d     # ← сюда кидаем .sql файлы (один раз при первом запуске)
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-stirki}", "-d", "stirki"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  adminer:
+    image: adminer:latest
+    container_name: stirki-adminer
+    restart: unless-stopped
+    ports:
+      - "${ADMINER_PORT:-8081}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ADMINER_DESIGN: pepa-linha-dark
+
+  baserow:
+    image: baserow/baserow:2.0.3
+    container_name: stirki-baserow
+    restart: unless-stopped
+    ports:
+      - "${BASEROW_PORT:-8082}:80"
+    volumes:
+      - baserow_data:/baserow/data
+    environment:
+      BASEROW_PUBLIC_URL: http://localhost:${BASEROW_PORT:-8082}
+      BASEROW_DISABLE_TELEMETRY: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pg_data:          # ← теперь данные БД не смешиваются с init-скриптами
+  baserow_data:
