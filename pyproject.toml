@@ -5,8 +5,10 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "fastapi>=0.124.2",
     "httpx>=0.28.1",
     "ipython>=8.37.0",
+    "py-trello>=0.20.1",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.12.0",
     "python-dotenv>=1.1.1",
@@ -14,6 +16,7 @@ dependencies = [
     "requests>=2.32.5",
     "sqlalchemy>=2.0.45",
     "tortoise-orm[asyncpg]>=0.25.1",
+    "uvicorn>=0.38.0",
 ]
 
 [dependency-groups]
