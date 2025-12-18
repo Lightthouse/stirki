@@ -14,6 +14,7 @@ create table clients (
     house text not null,
     entrance text,
     floor text,
+    apartment int not null,
     comment text,
     registered_at timestamptz default now(),
     total_orders int default 0
@@ -41,6 +42,7 @@ create table orders (
     house text not null,
     entrance text,
     floor text,
+    apartment int not null,
     comment text,
 
     weight_kg int default 3 check (weight_kg > 0),
@@ -54,6 +56,8 @@ create table orders (
     total_price_rub int not null check (total_price_rub >= 0),
     payment_id text,
     payment_status text default 'pending' check (payment_status in ('pending', 'waiting_for_capture', 'succeeded', 'canceled')),
+
+    kaiten_card_id int,
 
     created_at timestamptz default now(),
     updated_at timestamptz default now()

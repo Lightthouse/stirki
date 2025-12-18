@@ -492,6 +492,18 @@ wheels = [
 ]
 
 [[package]]
+name = "kaiten"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/65/33/fc6bd765bbb0d495093d8180ec80e37d79c20fd64098c60aa77543999ac4/kaiten-1.0.0.tar.gz", hash = "sha256:21afc64ce94cb38e192bb9ed2a2d253355ab18d94b6bfaa6550e3b02123ccbf4", size = 17207, upload-time = "2023-07-10T00:13:24.604Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/96/bc/47f5b48caaa9689d67a41095b18e824cc5cb531c5fb22c13b1a6107fc53a/kaiten-1.0.0-py3-none-any.whl", hash = "sha256:7b2daf0f608b5a1b57a4adb82a871d13b5534c9981a5959c5fad5d6c59403330", size = 19282, upload-time = "2023-07-10T00:13:22.825Z" },
+]
+
+[[package]]
 name = "matplotlib-inline"
 version = "0.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -942,6 +954,7 @@ dependencies = [
     { name = "httpx" },
     { name = "ipython", version = "8.37.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "ipython", version = "9.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "kaiten" },
     { name = "py-trello" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -964,6 +977,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.124.2" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "ipython", specifier = ">=8.37.0" },
+    { name = "kaiten", specifier = ">=1.0.0" },
     { name = "py-trello", specifier = ">=0.20.1" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },

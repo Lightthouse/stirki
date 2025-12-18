@@ -19,11 +19,14 @@ class Client(Model):
     telegram_id = fields.BigIntField(unique=True)
     name = fields.TextField(null=True)
     phone = fields.TextField()
+
     street = fields.ForeignKeyField("models.Street", related_name="clients", null=True)
     house = fields.TextField()
     entrance = fields.TextField(null=True)
     floor = fields.TextField(null=True)
+    apartment = fields.IntField()
     comment = fields.TextField(null=True)
+
     registered_at = fields.DatetimeField(auto_now_add=True)
     total_orders = fields.IntField(default=0)
 
@@ -46,6 +49,7 @@ class Order(Model):
     house = fields.TextField()
     entrance = fields.TextField(null=True)
     floor = fields.TextField(null=True)
+    apartment = fields.IntField()
     comment = fields.TextField(null=True)
 
     weight_kg = fields.IntField(default=3)
@@ -60,7 +64,7 @@ class Order(Model):
     payment_id = fields.TextField(null=True)
     payment_status = fields.TextField(default="pending")
 
-    trello_card_id = fields.TextField(null=True)
+    kaiten_card_id = fields.IntField(null=True)
 
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)

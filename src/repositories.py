@@ -8,7 +8,7 @@ from typing import Optional
 from src.models import Client, Order, OrderStatus, Street, OrderStatusHistory
 from src.enums import ServiceSlug, OrderStatusName, PaymentStatus
 from src.services.pricing import Pricing
-from src.services.kanban import Kanban
+from src.services.kaiten_kanban import KaitenOrder
 
 
 
@@ -44,6 +44,7 @@ class Repository:
             house: str,
             entrance: str | None,
             floor: str | None,
+            apartment: int,
             comment: str | None,
     ) -> Client:
         return await Client.create(
@@ -54,6 +55,7 @@ class Repository:
             house=house,
             entrance=entrance,
             floor=floor,
+            apartment=apartment,
             comment=comment,
         )
 
@@ -124,6 +126,7 @@ class Repository:
             house=client.house,
             entrance=client.entrance,
             floor=client.floor,
+            apartment=client.apartment,
 
             weight_kg=weight_kg,
             need_ironing=need_ironing,
@@ -134,10 +137,8 @@ class Repository:
             delivery_exact_time=delivery_exact_time,
         )
 
-        # Создаём trello карточку
-        print('card creating')
-        Kanban.configure()
-        Kanban.enqueue_create_card(order)
+        # Создаём kaiten карточку
+        await KaitenOrder.add_card_to_order(order)
 
         # История статуса
         await OrderStatusHistory.create(

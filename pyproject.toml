@@ -8,6 +8,7 @@ dependencies = [
     "fastapi>=0.124.2",
     "httpx>=0.28.1",
     "ipython>=8.37.0",
+    "kaiten>=1.0.0",
     "py-trello>=0.20.1",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.12.0",

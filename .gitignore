@@ -21,3 +21,7 @@ geldata/dbschema/default.esdl.bak
 postgres_data/
 postgresql/
 *.log
+
+
+*trello_kanban.py
+kanban.py

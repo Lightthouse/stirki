@@ -19,6 +19,7 @@ TEST_CLIENTS = [
         "house": "7к1",
         "entrance": "2",
         "floor": "5",
+        "apartment": 228,
         "comment": f"{TEST_MARKER} Первый тестовый клиент",
     },
     {
@@ -29,6 +30,7 @@ TEST_CLIENTS = [
         "house": "12",
         "entrance": "1",
         "floor": "3",
+        "apartment": 322,
         "comment": f"{TEST_MARKER} Второй тестовый клиент",
     },
     {
@@ -39,6 +41,7 @@ TEST_CLIENTS = [
         "house": "9",
         "entrance": None,
         "floor": None,
+        "apartment": 2,
         "comment": f"{TEST_MARKER} Третий тестовый клиент",
     },
 ]
