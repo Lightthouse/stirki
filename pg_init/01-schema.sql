@@ -10,12 +10,14 @@ create table clients (
     telegram_id bigint unique not null,
     name text,
     phone text not null,
+
     street_id int references streets(id),
     house text not null,
     entrance text,
     floor text,
     apartment int not null,
     comment text,
+
     registered_at timestamptz default now(),
     total_orders int default 0
 );
@@ -58,6 +60,8 @@ create table orders (
     payment_status text default 'pending' check (payment_status in ('pending', 'waiting_for_capture', 'succeeded', 'canceled')),
 
     kaiten_card_id int,
+    telegram_chat_id BIGINT not null,
+    telegram_message_id BIGINT not null,
 
     created_at timestamptz default now(),
     updated_at timestamptz default now()
@@ -94,7 +98,7 @@ create table promo_code_uses (
 insert into streets (name) values ('Новорождественская'), ('Мытищинская');
 
 insert into order_statuses (name) values
-('new'), ('courier_pickup'), ('picked_up'), ('washing'), ('drying'),
+('waiting_for_capture'), ('new'), ('courier_pickup'), ('picked_up'), ('washing'), ('drying'),
 ('ironing'), ('packing'), ('courier_delivery'), ('delivered'), ('canceled');
 
 insert into services (name, slug, price_rub) values

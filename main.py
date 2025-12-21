@@ -1,8 +1,8 @@
-from src.services.kaiten_kanban import KaitenClient
-from src.enums import KaitenTagsNames
+from src.services.kaiten_kanban import Kaiten
+from src.enums import KaitenTagsNames, KaitenColumns
 from icecream import ic
 
-with KaitenClient() as kc:
+with Kaiten() as kc:
     description = (
         'Заказ #132 \n'
         '- Имя: Виктория Прутковская\n'
@@ -13,13 +13,15 @@ with KaitenClient() as kc:
         '2. Мешок  \n'
     )
 
+    card_id = 59086284
+
     tags = [
         {'name': KaitenTagsNames.IRONING},
         {'name': KaitenTagsNames.UV},
     ]
-
-    create_card = kc.create_card(title='From api 4222', description=description, tags=tags)
+    change_card = kc.change_card_status(card_id, KaitenColumns.DRYING)
+    # create_card = kc.create_card(title='From api 4222', description=description, tags=tags)
     # tags = kc.get_tags()
     # card = kc.get_card(create_card['id'])
 
-    ic(create_card)
+    ic(change_card)

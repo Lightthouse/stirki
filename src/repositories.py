@@ -1,15 +1,14 @@
-# src/repositories.py
+import logging
 import asyncio
 from datetime import datetime
 from typing import Optional
 
-
-
 from src.models import Client, Order, OrderStatus, Street, OrderStatusHistory
-from src.enums import ServiceSlug, OrderStatusName, PaymentStatus
+from src.enums import ServiceSlug, OrderStatusName, PaymentStatus, KaitenColumns, KaitenTagsNames
 from src.services.pricing import Pricing
-from src.services.kaiten_kanban import KaitenOrder
+from src.services.kaiten_kanban import Kaiten
 
+logger = logging.getLogger(__name__)
 
 
 class Repository:
@@ -30,20 +29,27 @@ class Repository:
 
         return client.street
 
+    @staticmethod
+    async def resolve_street_by_name(street_name: str) -> Street:
+        street = await Street.get_or_none(name=street_name)
+        if not street:
+            raise ValueError(f"Unknown street: {street_name}")
+        return street
+
     # ── Клиенты ─────────────────────────────────────
     @staticmethod
     async def get_client_by_telegram_id(telegram_id: int) -> Client | None:
         return await Client.get_or_none(telegram_id=telegram_id)
 
     @staticmethod
-    async def create_client(
+    async def fill_client(
             telegram_id: int,
             phone: str,
-            name: str | None,
-            street: Street | None,
+            name: str,
+            street: Street,
             house: str,
-            entrance: str | None,
-            floor: str | None,
+            entrance: str,
+            floor: str,
             apartment: int,
             comment: str | None,
     ) -> Client:
@@ -60,21 +66,59 @@ class Repository:
         )
 
     @staticmethod
-    async def update_client_address(
-            client: Client,
-            street: Street | None,
+    async def create_client(
+            telegram_id: int,
+            phone: str,
+            name: str,
+            street: str,
             house: str,
+            entrance: str,
+            floor: str,
+            apartment: int,
+            comment: str | None,
+    ) -> Client:
+
+        street = await Repository.resolve_street_by_name(street)
+
+
+        return await Client.create(
+            telegram_id=telegram_id,
+            phone=phone,
+            name=name,
+            street=street,
+            house=house,
+            entrance=entrance,
+            floor=floor,
+            apartment=apartment,
+            comment=comment,
+        )
+
+    @staticmethod
+    async def update_client(
+            telegram_id: int,
+            phone: str | None,
+            name: str | None,
+            street: str | None,
+            house: str,
+            apartment: int,
             entrance: str | None,
             floor: str | None,
             comment: str | None,
     ) -> Client:
+
+        client = await Client.get(telegram_id=telegram_id)
+
+        client.phone = phone
+        client.name = name
+
         client.street = street
         client.house = house
+        client.apartment = apartment
         client.entrance = entrance
         client.floor = floor
         client.comment = comment
         await client.save(
-            update_fields=["street", "house", "entrance", "floor", "comment"]
+            update_fields=["phone", "name", "street", "apartment", "house", "entrance", "floor", "comment"]
         )
         return client
 
@@ -87,6 +131,9 @@ class Repository:
     @staticmethod
     async def create_order(
             client: Client,
+            telegram_chat_id: int,
+            telegram_message_id: int,
+
             comment: Optional[str],
             weight_kg: int = 3,
             need_ironing: bool = False,
@@ -98,8 +145,6 @@ class Repository:
     ) -> Order:
 
         street = await Repository.resolve_client_street(client)
-        if street is None or not client.house:
-            raise ValueError("У клиента не указан корректный адрес. Обновите адрес перед созданием заказа.")
 
         # Считаем цену заказа
         total = Pricing.calculate_order_total(
@@ -112,15 +157,18 @@ class Repository:
         )
 
         # Берём самый первый статус
-        status_new = await OrderStatus.get(name=OrderStatusName.NEW)
+        status_new = await OrderStatus.get(name=OrderStatusName.WAITING_FOR_CAPTURE)
 
         # Создаём заказ
         order = await Order.create(
             client=client,
             status=status_new,
             total_price_rub=total,
-            payment_status=PaymentStatus.PENDING,
+            payment_status=PaymentStatus.WAITING_FOR_CAPTURE,
             comment=comment,
+
+            telegram_chat_id=telegram_chat_id,
+            telegram_message_id=telegram_message_id,
 
             street=street,
             house=client.house,
@@ -138,7 +186,8 @@ class Repository:
         )
 
         # Создаём kaiten карточку
-        await KaitenOrder.add_card_to_order(order)
+        with Kaiten() as k:
+            await k.add_card_to_order(order)
 
         # История статуса
         await OrderStatusHistory.create(
@@ -150,21 +199,36 @@ class Repository:
         return order
 
     @staticmethod
-    async def update_status(
-            order: Order,
-            new_status_name: str,
+    async def attach_telegram_message(order_id: int, chat_id: int, message_id: int) -> Optional[Order]:
+        order = await Order.get(id=order_id)
+        order.telegram_chat_id = chat_id
+        order.telegram_message_id = message_id
+        await order.save(update_fields=["telegram_chat_id", "telegram_message_id"])
+        return order
+
+    @staticmethod
+    async def update_order_status(
+            order_id: int,
+            order_status: OrderStatusName,
+            payment_status: PaymentStatus,
             changed_by: str = "system",
     ) -> Order:
-        new_status = await OrderStatus.get(name=new_status_name)
-        if order.status == new_status:
-            return order
 
-        order.status = new_status
-        await order.save(update_fields=["status"])
+        order = await Order.get(id=order_id)
 
-        await OrderStatusHistory.create(
-            order=order, status=new_status, changed_by=changed_by
-        )
+        order_status_id = await OrderStatus.get(name=order_status)
+        order.status = order_status_id
+        order.payment_status = payment_status
+        await order.save(update_fields=["status", "payment_status"])
+        await OrderStatusHistory.create(order=order, status=order_status_id, changed_by=changed_by)
+
+        # продвинем карточку в новую колонку
+        with Kaiten() as k:
+            card_status = KaitenColumns.NEW if order_status == OrderStatusName.NEW  else KaitenColumns.CANCELED
+            card_id = order.kaiten_card_id
+            changed_result = k.change_card_status(card_id, card_status)
+            logger.info(f'Card {card_id} changed to {order_status}. \n')
+
         return order
 
     @staticmethod

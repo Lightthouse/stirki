@@ -1,9 +1,12 @@
+import logging
 import httpx
 from typing import Any, Dict, Optional
 
 from src.settings import KaitenSettings
 from src.enums import KaitenColumns, KaitenTagsNames, KaitenTagsIds
 from src.models import Order
+
+logger = logging.getLogger(__name__)
 
 
 class KaitenAPIError(Exception):
@@ -19,7 +22,7 @@ class KaitenAPIError(Exception):
         super().__init__(message or f"Kaiten API error {response.status_code}: {response.text}")
 
 
-class KaitenClient:
+class Kaiten:
     def __init__(
             self,
             timeout: float = 30.0,
@@ -63,10 +66,20 @@ class KaitenClient:
         self._raise_for_status(response)
         return response.json()
 
+    def change_card_status(
+            self,
+            card_id: int,
+            status: KaitenColumns = KaitenColumns.NEW,
+    ):
+        response = self.client.patch(f"/cards/{card_id}", json={'column_id': status})
+        self._raise_for_status(response)
+        return response.json()
+
     def create_card(
             self,
             title: str,
             description: str = '',
+            column_id: int = KaitenColumns.WAITING_FOR_CAPTURE,
             owner_id: int | None = None,
             responsible_id: int | None = None,
             due_date: str | None = None,  # формат YYYY-MM-DD
@@ -82,7 +95,7 @@ class KaitenClient:
             "title": title,
             "description": description,
             "board_id": self.settings.BOARD,
-            "column_id": KaitenColumns.NEW,
+            "column_id": column_id,
             "expires_later": False,
         }
 
@@ -122,14 +135,12 @@ class KaitenClient:
     def close(self) -> None:
         self.client.close()
 
-    def __enter__(self) -> KaitenClient:
+    def __enter__(self) -> Kaiten:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.close()
 
-
-class KaitenOrder:
 
     @classmethod
     def _maker_descriptions(
@@ -165,9 +176,9 @@ class KaitenOrder:
             f"{option_text}"
         )
 
-    @classmethod
+
     async def add_card_to_order(
-            cls,
+            self,
             order: Order
     ):
         """
@@ -186,12 +197,13 @@ class KaitenOrder:
         }
         tags = [{'name': op_name} for op_name, op_status in options.items() if op_status]
         title = f'Заказ #{order.id}'
-        description = cls._maker_descriptions(title, options, order)
+        description = self._maker_descriptions(title, options, order)
 
-        with KaitenClient() as kc:
-            card = kc.create_card(title=title, description=description, tags=tags)
-            card_id = card.get("id")
 
+        card = self.create_card(title=title, description=description, tags=tags)
+        card_id = card.get("id")
+
+        # Добавляем id карточки в поле заказа
         if card_id:
             fresh = await Order.get(id=order.id)
             fresh.kaiten_card_id = card_id

@@ -55,6 +55,8 @@ TEST_ORDERS = [
         "need_uv": False,
         "need_wash_bag": False,
         "delivery_exact_time": None,
+        "telegram_chat_id": 111,
+        "telegram_message_id": 1231,
         "comment": f"{TEST_MARKER} Заказ без доп. опций",
     },
     # заказ с глажкой и кондиционером
@@ -65,6 +67,8 @@ TEST_ORDERS = [
         "need_uv": False,
         "need_wash_bag": False,
         "delivery_exact_time": None,
+        "telegram_chat_id": 222,
+        "telegram_message_id": 1232,
         "comment": f"{TEST_MARKER} Стирка + глажка + кондиционер",
     },
     # заказ с доставкой ко времени и мешком
@@ -75,6 +79,8 @@ TEST_ORDERS = [
         "need_uv": False,
         "need_wash_bag": True,
         "delivery_exact_time": datetime(2025, 12, 15, 18, 0),
+        "telegram_chat_id": 333,
+        "telegram_message_id": 1233,
         "comment": f"{TEST_MARKER} Доставка ко времени + мешок",
     },
 ]

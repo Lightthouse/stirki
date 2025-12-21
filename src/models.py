@@ -65,6 +65,8 @@ class Order(Model):
     payment_status = fields.TextField(default="pending")
 
     kaiten_card_id = fields.IntField(null=True)
+    telegram_chat_id = fields.IntField()
+    telegram_message_id = fields.IntField()
 
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)

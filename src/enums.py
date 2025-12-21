@@ -1,6 +1,7 @@
 from enum import StrEnum, IntEnum
 
 class OrderStatusName(StrEnum):
+    WAITING_FOR_CAPTURE = "waiting_for_capture"
     NEW = "new"
     COURIER_PICKUP = "courier_pickup"
     PICKED_UP = "picked_up"
@@ -31,6 +32,7 @@ class ServiceSlug(StrEnum):
 
 
 class KaitenColumns(StrEnum):
+    WAITING_FOR_CAPTURE = "5558704"
     NEW = "5554116"
     COURIER_PICKUP = "5554117"
     PICKED_UP = "5554118"
@@ -57,18 +59,4 @@ class KaitenTagsNames(StrEnum):
     EXACT_TIME = 'ко времени'
     UV = 'ультрафиолет'
     WASH_BAG = 'мешок'
-
-
-class TrelloColumns(StrEnum):
-    NEW = "6937fbb94729e78b4259f9ab"
-    COURIER_PICKUP = "6937fbbecd4f38c1355942e6"
-    PICKED_UP = "693ae340f54ee66d6e8e8590"
-    WASHING = "6937fbac2dcd2ca31a7e3f0a"
-    DRYING = "693ae31a19f29ad53f5e635a"
-    IRONING = "693ae3132e84c05d441a16aa"
-    PACKING = "693ae330c43f8bb0a4d5b957"
-    COURIER_DELIVERY = "693bf73ab7d5554458197c2d"
-    DELIVERED = "6937fbc6b8b81dd552509545"
-    CANCELED = "6937fbcfaba20bba23941dd2"
-
 
