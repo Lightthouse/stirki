@@ -22,13 +22,29 @@ class PaymentStatus(StrEnum):
 
 
 class ServiceSlug(StrEnum):
-    BASE = "base"
     IRONING = "ironing"
     CONDITIONER = "conditioner"
     VACUUM_PACK = "vacuum_pack"
     EXACT_TIME = "exact_time"
     UV = "uv"
     WASH_BAG = "wash_bag"
+
+class ServiceCyrillic(StrEnum):
+    IRONING = "Глажка"
+    CONDITIONER = "Кондиционер"
+    VACUUM_PACK = "Вакуумный пакет"
+    EXACT_TIME = "Ко времени"
+    UV = "Ультрафиолет"
+    WASH_BAG = "Мешок для стирки"
+
+ServiceCyrillicSlugMap: dict[ServiceCyrillic, ServiceSlug] = {
+    ServiceCyrillic.IRONING: ServiceSlug.IRONING,
+    ServiceCyrillic.CONDITIONER: ServiceSlug.CONDITIONER,
+    ServiceCyrillic.VACUUM_PACK: ServiceSlug.VACUUM_PACK,
+    ServiceCyrillic.EXACT_TIME: ServiceSlug.EXACT_TIME,
+    ServiceCyrillic.UV: ServiceSlug.UV,
+    ServiceCyrillic.WASH_BAG: ServiceSlug.WASH_BAG,
+}
 
 
 class KaitenColumns(StrEnum):

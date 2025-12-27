@@ -1,8 +1,10 @@
+from icecream import ic
+
 from telegram import Update, ReplyKeyboardRemove
 from telegram.ext import ContextTypes, ConversationHandler
 
 from src.repositories import Repository
-from src.enums import PaymentStatus, OrderStatusName
+from src.enums import PaymentStatus, OrderStatusName, ServiceCyrillic, ServiceSlug, ServiceCyrillicSlugMap
 
 from src.bot.states import OrderStates
 from src.bot import texts
@@ -11,8 +13,12 @@ from src.bot.keyboards import (
     streets_keyboard,
     yes_no_keyboard,
     confirm_keyboard,
-    client_confirm_keyboard
+    client_confirm_keyboard,
+    services_keyboard,
+    services_keyboard_compact
 )
+
+from src.services.pricing import Pricing
 
 
 async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -21,7 +27,6 @@ async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     telegram_id = query.from_user.id
     client = await Repository.get_client_by_telegram_id(telegram_id)
-
 
     if client:
         # Клиент найден
@@ -34,25 +39,21 @@ async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
             name=client.name,
             street=street,
             apartment=client.apartment,
-            house=client.house
+            house=client.house,
+            phone=client.phone
         )
 
-        await query.edit_message_text(
-            text,
-            reply_markup=client_confirm_keyboard(),
-        )
-        return OrderStates.CLIENT_CONFIRM
+        await query.edit_message_text(text, reply_markup=client_confirm_keyboard())
+        return OrderStates.REUSE_QUESTION
 
     # Клиента нет — идём стандартным путём
     context.user_data["client_exists"] = False
     context.user_data["client_changed"] = True
 
     # await query.edit_message_text(texts.ASK_PHONE_TEXT)
-    await query.message.reply_text(
-        texts.ASK_PHONE_TEXT,
-        reply_markup=phone_keyboard(),
-    )
+    await query.message.reply_text(texts.ASK_PHONE_TEXT, reply_markup=phone_keyboard())
     return OrderStates.GET_PHONE
+
 
 async def client_confirm_ok(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -74,16 +75,9 @@ async def client_confirm_ok(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
     )
 
-    await query.edit_message_text(
-        "Отлично 👍\n\nПерейдём к дополнительным услугам."
-    )
+    await query.message.reply_text( "Отлично! Теперь можете выбрать дополнительные услуги\n", reply_markup=services_keyboard())
+    return OrderStates.SELECT_SERVICES
 
-    # Переходим сразу к первому вопросу заказа
-    await query.message.reply_text(
-        "Нужна глажка?",
-        reply_markup=yes_no_keyboard("ironing"),
-    )
-    return OrderStates.NEED_IRONING
 
 async def client_confirm_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -91,23 +85,17 @@ async def client_confirm_edit(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     context.user_data["client_changed"] = True
 
-
-    # await query.edit_message_text(texts.ASK_PHONE_TEXT)
-    await query.message.reply_text(
-        texts.CONFIRM_TEXT,
-        reply_markup=phone_keyboard(),
-    )
+    await query.message.reply_text(texts.ASK_PHONE_TEXT, reply_markup=phone_keyboard())
     return OrderStates.GET_PHONE
+
 
 async def get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["phone"] = update.message.contact.phone_number
     context.user_data["client_changed"] = True
 
-    await update.message.reply_text(
-        texts.ASK_NAME_TEXT,
-        reply_markup=ReplyKeyboardRemove(),
-    )
+    await update.message.reply_text(texts.ASK_NAME_TEXT, reply_markup=ReplyKeyboardRemove())
     return OrderStates.GET_NAME
+
 
 async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["name"] = update.message.text.strip()
@@ -141,110 +129,66 @@ async def get_apartment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(texts.ASK_ENTRANCE_TEXT)
     return OrderStates.GET_ENTRANCE
 
+
 async def get_entrance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["entrance"] = update.message.text.strip()
-    await update.message.reply_text(
-        "Нужна глажка?",
-        reply_markup=yes_no_keyboard("ironing"),
-    )
-    return OrderStates.NEED_IRONING
 
-async def set_ironing(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.callback_query.answer()
-    context.user_data["need_ironing"] = update.callback_query.data.endswith("yes")
-    await update.callback_query.edit_message_text(
-        "Использовать ультрафиолет?",
-        reply_markup=yes_no_keyboard("uv"),
-    )
-    return OrderStates.NEED_UV
+    await update.message.reply_text(texts.ASK_SERVICES, reply_markup=services_keyboard())
+    return OrderStates.SELECT_SERVICES
 
-async def set_uv(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.callback_query.answer()
-    context.user_data["need_uv"] = update.callback_query.data.endswith("yes")
-    await update.callback_query.edit_message_text(
-        "Добавить кондиционер?",
-        reply_markup=yes_no_keyboard("conditioner"),
-    )
-    return OrderStates.NEED_CONDITIONER
 
-async def set_conditioner(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.callback_query.answer()
-    context.user_data["need_conditioner"] = update.callback_query.data.endswith("yes")
-    await update.callback_query.edit_message_text(
-        "Использовать мешок для стирки?",
-        reply_markup=yes_no_keyboard("wash_bag"),
-    )
-    return OrderStates.NEED_WASH_BAG
+async def select_services(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+    services = context.user_data.get("services", {service: False for service in ServiceSlug})
 
-async def set_wash_bag(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.callback_query.answer()
-    context.user_data["need_wash_bag"] = update.callback_query.data.endswith("yes")
-    await update.callback_query.edit_message_text(
-        "Упаковать в вакуумный пакет?",
-        reply_markup=yes_no_keyboard("vacuum_pack"),
-    )
-    return OrderStates.NEED_VACUUM_PACK
 
-async def set_vacuum_pack(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.callback_query.answer()
-    context.user_data["need_vacuum_pack"] = update.callback_query.data.endswith("yes")
+    if "Готово" in text:
+        current_services_text = Pricing.total_price_message(services)
+        order_total_price = f"{current_services_text}\n\n"
 
-    # Переходим сразу к подтверждению
-    services = []
-    for key, label in [
-        ("need_ironing", "Глажка"),
-        ("need_uv", "УФ обработка"),
-        ("need_conditioner", "Кондиционер"),
-        ("need_wash_bag", "Мешок для стирки"),
-        ("need_vacuum_pack", "Вакуумный пакет"),
-    ]:
-        if context.user_data.get(key):
-            services.append(f"• {label}")
+        confirm_text = texts.ORDER_CHECKUP_TEXT.format(
+            name=context.user_data["name"],
+            phone=context.user_data["phone"],
+            street=context.user_data["street"],
+            house=context.user_data["house"],
+            apartment=context.user_data["apartment"],
+            entrance=context.user_data["entrance"],
+            services=order_total_price,
+        )
 
-    text = texts.CONFIRM_TEXT.format(
-        name=context.user_data["name"],
-        phone=context.user_data["phone"],
-        street=context.user_data["street"],
-        house=context.user_data["house"],
-        apartment=context.user_data["apartment"],
-        entrance=context.user_data.get("entrance"),
-        services="\n".join(services) or "Нет",
-    )
+        context.user_data['order_price'] = current_services_text
 
-    await update.callback_query.edit_message_text(
-        text,
-        reply_markup=confirm_keyboard(),
-    )
-    return OrderStates.CONFIRM
+        await update.message.reply_text(confirm_text, reply_markup=ReplyKeyboardRemove())
+        await update.message.reply_text("Всё верно?\nПодтвердите заказ:", reply_markup=confirm_keyboard())
+
+        return OrderStates.CONFIRM
+
+    if text in ServiceCyrillic:
+        services[ServiceCyrillicSlugMap[text]] = not services[ServiceCyrillicSlugMap[text]]
+
+        context.user_data['services'] = services
+
+        current_services_text = Pricing.services_price_message(services)
+        services_price = f"{current_services_text}\n\nПродолжайте выбор или нажмите «Готово»"
+        await update.message.reply_text(services_price, reply_markup=services_keyboard(services))
+
+
+    return OrderStates.SELECT_SERVICES
+
 
 async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    services = []
-    for key, label in [
-        ("need_ironing", "Глажка"),
-        ("need_uv", "УФ обработка"),
-        ("need_conditioner", "Кондиционер"),
-        ("need_wash_bag", "Мешок для стирки"),
-        ("need_vacuum_pack", "Вакуумный пакет"),
-    ]:
-        if context.user_data.get(key):
-            services.append(f"• {label}")
-
     text = texts.CONFIRM_TEXT.format(
         name=context.user_data["name"],
         phone=context.user_data["phone"],
         street=context.user_data["street"],
         house=context.user_data["house"],
         apartment=context.user_data["apartment"],
-        entrance=context.user_data.get("entrance"),
-        services="\n".join(services) or "Нет",
+        entrance=context.user_data["entrance"],
+        services=context.user_data["order_price"],
     )
 
-    await update.callback_query.edit_message_text(
-        text,
-        reply_markup=confirm_keyboard(),
-    )
+    await update.callback_query.edit_message_text(text, reply_markup=confirm_keyboard())
     return OrderStates.CONFIRM
-
 
 
 async def payment_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -278,41 +222,22 @@ async def payment_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     order = await Repository.create_order(
         client=client,
-
         telegram_chat_id=chat_id,
         telegram_message_id=message_id,
-
-        need_ironing=context.user_data.get('need_ironing', False),
-        need_conditioner=context.user_data.get('need_conditioner', False),
-        need_vacuum_pack=context.user_data.get('need_vacuum_pack', False),
-        need_uv=context.user_data.get('need_uv', False),
-        need_wash_bag=context.user_data.get('need_wash_bag', False),
+        services=context.user_data['services']
     )
 
     context.user_data["order_id"] = order.id
 
     await update.callback_query.answer()
-    await update.callback_query.edit_message_text(
-        texts.PAYMENT_QUESTION_TEXT,
-        reply_markup=yes_no_keyboard("paid"),
-    )
+    await update.callback_query.edit_message_text(texts.PAYMENT_QUESTION_TEXT, reply_markup=yes_no_keyboard("paid"))
 
     return OrderStates.PAYMENT_QUESTION
+
 
 async def payment_yes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
-    services = []
-    for key, label in [
-        ("need_ironing", "Глажка"),
-        ("need_uv", "УФ обработка"),
-        ("need_conditioner", "Кондиционер"),
-        ("need_wash_bag", "Мешок для стирки"),
-        ("need_vacuum_pack", "Вакуумный пакет"),
-    ]:
-        if context.user_data.get(key):
-            services.append(f"• {label}")
 
     text = texts.SUCCESS_TEXT.format(
         name=context.user_data["name"],
@@ -320,19 +245,17 @@ async def payment_yes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         street=context.user_data["street"],
         house=context.user_data["house"],
         apartment=context.user_data["apartment"],
-        entrance=context.user_data.get("entrance") or "-",
-        services="\n".join(services) or "Нет",
+        entrance=context.user_data["entrance"],
+        services=context.user_data["order_price"],
     )
-
 
     order_id = context.user_data["order_id"]
     update_order = await Repository.update_order_status(order_id, OrderStatusName.NEW, PaymentStatus.SUCCEEDED)
 
-    await query.edit_message_text(
-        text
-    )
+    await query.edit_message_text(text)
 
     return ConversationHandler.END
+
 
 async def payment_no(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -341,9 +264,6 @@ async def payment_no(update: Update, context: ContextTypes.DEFAULT_TYPE):
     order_id = context.user_data["order_id"]
     update_order = await Repository.update_order_status(order_id, OrderStatusName.CANCELED, PaymentStatus.CANCELED)
 
-
-    await query.edit_message_text(
-        texts.CANCEL_TEXT
-    )
+    await query.edit_message_text(texts.CANCEL_TEXT)
 
     return ConversationHandler.END

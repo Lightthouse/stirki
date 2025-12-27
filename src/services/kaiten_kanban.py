@@ -109,8 +109,6 @@ class Kaiten:
         if tags:
             payload["tags"] = tags
 
-        print(payload)
-
         response = self.client.post("/cards", json=payload)
         self._raise_for_status(response)
         return response.json()
@@ -177,10 +175,7 @@ class Kaiten:
         )
 
 
-    async def add_card_to_order(
-            self,
-            order: Order
-    ):
+    async def add_card_to_order(self, order: Order) -> int:
         """
         Создание карточки с доставкой и добавление её id в заказ.
         :param order:
@@ -188,11 +183,11 @@ class Kaiten:
         """
 
         options = {
-            KaitenTagsNames.IRONING: order.need_ironing,
-            KaitenTagsNames.UV: order.need_uv,
-            KaitenTagsNames.VACUUM_PACK: order.need_vacuum_pack,
-            KaitenTagsNames.WASH_BAG: order.need_wash_bag,
-            KaitenTagsNames.CONDITIONER: order.need_conditioner,
+            KaitenTagsNames.IRONING: order.ironing,
+            KaitenTagsNames.UV: order.uv,
+            KaitenTagsNames.VACUUM_PACK: order.vacuum_pack,
+            KaitenTagsNames.WASH_BAG: order.wash_bag,
+            KaitenTagsNames.CONDITIONER: order.conditioner,
             KaitenTagsNames.EXACT_TIME: order.delivery_exact_time,
         }
         tags = [{'name': op_name} for op_name, op_status in options.items() if op_status]

@@ -12,6 +12,7 @@ from src.bot.settings import tg_settings
 from src.bot.states import OrderStates
 from src.bot.handlers.start import start
 from src.bot.handlers.reset import reset
+from src.bot.handlers.help import help
 from src.bot.handlers.order import (
     ask_phone,
 
@@ -26,11 +27,7 @@ from src.bot.handlers.order import (
     get_apartment,
     get_entrance,
 
-    set_ironing,
-    set_uv,
-    set_conditioner,
-    set_wash_bag,
-    set_vacuum_pack,
+    select_services,
 
     payment_question,
     payment_yes,
@@ -66,7 +63,7 @@ def main():
             ],
 
             # ── подтверждение существующего клиента ─
-            OrderStates.CLIENT_CONFIRM: [
+            OrderStates.REUSE_QUESTION: [
                 CallbackQueryHandler(client_confirm_ok, pattern="^client_ok$"),
                 CallbackQueryHandler(client_confirm_edit, pattern="^client_edit$"),
             ],
@@ -92,20 +89,8 @@ def main():
             ],
 
             # ── услуги ────────────────────────────
-            OrderStates.NEED_IRONING: [
-                CallbackQueryHandler(set_ironing, pattern="^ironing_"),
-            ],
-            OrderStates.NEED_UV: [
-                CallbackQueryHandler(set_uv, pattern="^uv_"),
-            ],
-            OrderStates.NEED_CONDITIONER: [
-                CallbackQueryHandler(set_conditioner, pattern="^conditioner_"),
-            ],
-            OrderStates.NEED_WASH_BAG: [
-                CallbackQueryHandler(set_wash_bag, pattern="^wash_bag_"),
-            ],
-            OrderStates.NEED_VACUUM_PACK: [
-                CallbackQueryHandler(set_vacuum_pack, pattern="^vacuum_pack_"),
+            OrderStates.SELECT_SERVICES: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, select_services),
             ],
 
             # ── подтверждение и оплата ─────────────
@@ -123,6 +108,7 @@ def main():
 
     app.add_handler(conv)
     app.add_handler(CommandHandler('reset', reset))
+    app.add_handler(CommandHandler('help', help))
 
     app.run_polling()
 

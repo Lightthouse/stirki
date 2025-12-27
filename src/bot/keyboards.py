@@ -4,6 +4,7 @@ from telegram import (
     KeyboardButton,
     ReplyKeyboardMarkup,
 )
+from src.enums import ServiceCyrillicSlugMap
 
 
 def start_keyboard():
@@ -37,6 +38,49 @@ def client_confirm_keyboard():
                 InlineKeyboardButton("✏️ Изменить", callback_data="client_edit"),
             ]
         ]
+    )
+
+def services_keyboard(selected: dict[str, bool] | None = None) -> ReplyKeyboardMarkup:
+    if selected is None:
+        selected = {}
+
+    def btn_text(name: str, key: str) -> str:
+        mark = "✅" if selected.get(key, False) else "⬜"
+        return f"{mark} {name}"
+
+    keyboard = [[KeyboardButton(name)] for name, slug in ServiceCyrillicSlugMap.items()]
+    keyboard.append([KeyboardButton("✅ Готово")])
+
+    return ReplyKeyboardMarkup(
+        keyboard,
+        resize_keyboard=True,
+        one_time_keyboard=False,  # остаётся до конца выбора
+    )
+
+def services_keyboard_compact(selected: dict[str, bool] | None = None) -> ReplyKeyboardMarkup:
+    if selected is None:
+        selected = {}
+
+    def mark(key: str) -> str:
+        return "✅" if selected.get(key, False) else ""
+
+    return ReplyKeyboardMarkup(
+        [
+            [
+                f"{mark('need_ironing')} Глажка",
+                f"{mark('need_uv')} УФ",
+            ],
+            [
+                f"{mark('need_conditioner')} Кондиционер",
+                f"{mark('need_wash_bag')} Мешок",
+            ],
+            [
+                f"{mark('need_vacuum_pack')} Вакуум",
+                "✅ Готово",
+            ],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False,
     )
 
 def yes_no_keyboard(prefix: str):

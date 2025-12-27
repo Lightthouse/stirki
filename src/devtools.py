@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List
 
-from src.enums import OrderStatusName
+from src.enums import ServiceSlug
 from src.models import Street, Client, Order
 from src.repositories import Repository
 
@@ -49,36 +49,42 @@ TEST_CLIENTS = [
 TEST_ORDERS = [
     # базовый заказ без опций
     {
-        "need_ironing": False,
-        "need_conditioner": False,
-        "need_vacuum_pack": False,
-        "need_uv": False,
-        "need_wash_bag": False,
-        "delivery_exact_time": None,
+        "services": {
+            ServiceSlug.UV: True,
+            ServiceSlug.IRONING: False,
+            ServiceSlug.CONDITIONER: False,
+            ServiceSlug.EXACT_TIME: False,
+            ServiceSlug.WASH_BAG: True,
+
+        },
         "telegram_chat_id": 111,
         "telegram_message_id": 1231,
         "comment": f"{TEST_MARKER} Заказ без доп. опций",
     },
     # заказ с глажкой и кондиционером
     {
-        "need_ironing": True,
-        "need_conditioner": True,
-        "need_vacuum_pack": False,
-        "need_uv": False,
-        "need_wash_bag": False,
-        "delivery_exact_time": None,
+        "services": {
+            ServiceSlug.UV: False,
+            ServiceSlug.IRONING: False,
+            ServiceSlug.CONDITIONER: True,
+            ServiceSlug.EXACT_TIME: False,
+            ServiceSlug.WASH_BAG: False,
+
+        },
         "telegram_chat_id": 222,
         "telegram_message_id": 1232,
         "comment": f"{TEST_MARKER} Стирка + глажка + кондиционер",
     },
     # заказ с доставкой ко времени и мешком
     {
-        "need_ironing": False,
-        "need_conditioner": False,
-        "need_vacuum_pack": False,
-        "need_uv": False,
-        "need_wash_bag": True,
-        "delivery_exact_time": datetime(2025, 12, 15, 18, 0),
+        "services": {
+            ServiceSlug.UV: True,
+            ServiceSlug.IRONING: True,
+            ServiceSlug.CONDITIONER: False,
+            ServiceSlug.EXACT_TIME: False,
+            ServiceSlug.WASH_BAG: False,
+
+        },
         "telegram_chat_id": 333,
         "telegram_message_id": 1233,
         "comment": f"{TEST_MARKER} Доставка ко времени + мешок",

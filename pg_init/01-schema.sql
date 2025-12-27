@@ -48,11 +48,11 @@ create table orders (
     comment text,
 
     weight_kg int default 3 check (weight_kg > 0),
-    need_ironing boolean default false,
-    need_conditioner boolean default false,
-    need_vacuum_pack boolean default false,
-    need_uv boolean default false,
-    need_wash_bag boolean default false,
+    ironing boolean default false,
+    conditioner boolean default false,
+    vacuum_pack boolean default false,
+    uv boolean default false,
+    wash_bag boolean default false,
     delivery_exact_time timestamptz,
 
     total_price_rub int not null check (total_price_rub >= 0),

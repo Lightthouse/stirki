@@ -53,11 +53,11 @@ class Order(Model):
     comment = fields.TextField(null=True)
 
     weight_kg = fields.IntField(default=3)
-    need_ironing = fields.BooleanField(default=False)
-    need_conditioner = fields.BooleanField(default=False)
-    need_vacuum_pack = fields.BooleanField(default=False)
-    need_uv = fields.BooleanField(default=False)
-    need_wash_bag = fields.BooleanField(default=False)
+    ironing = fields.BooleanField(default=False)
+    conditioner = fields.BooleanField(default=False)
+    vacuum_pack = fields.BooleanField(default=False)
+    uv = fields.BooleanField(default=False)
+    wash_bag = fields.BooleanField(default=False)
     delivery_exact_time = fields.DatetimeField(null=True)
 
     total_price_rub = fields.IntField()

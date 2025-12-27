@@ -2,6 +2,7 @@ import logging
 import asyncio
 from datetime import datetime
 from typing import Optional
+from icecream import ic
 
 from src.models import Client, Order, OrderStatus, Street, OrderStatusHistory
 from src.enums import ServiceSlug, OrderStatusName, PaymentStatus, KaitenColumns, KaitenTagsNames
@@ -135,29 +136,14 @@ class Repository:
             client: Client,
             telegram_chat_id: int,
             telegram_message_id: int,
-
-            weight_kg: int = 3,
-            need_ironing: bool = False,
-            need_conditioner: bool = False,
-            need_vacuum_pack: bool = False,
-            need_uv: bool = False,
-            need_wash_bag: bool = False,
-            delivery_exact_time: Optional[datetime] = None,
-
+            services: dict[ServiceSlug, bool],
             comment: str = None,
     ) -> Order:
 
         street = await Repository.resolve_client_street(client)
 
         # Считаем цену заказа
-        total = Pricing.calculate_order_total(
-            need_ironing=need_ironing,
-            need_conditioner=need_conditioner,
-            need_vacuum_pack=need_vacuum_pack,
-            need_uv=need_uv,
-            need_wash_bag=need_wash_bag,
-            delivery_exact_time=delivery_exact_time,
-        )
+        total = Pricing.calculate_order_price(services)
 
         # Берём самый первый статус
         status_new = await OrderStatus.get(name=OrderStatusName.WAITING_FOR_CAPTURE)
@@ -179,13 +165,7 @@ class Repository:
             floor=client.floor,
             apartment=client.apartment,
 
-            weight_kg=weight_kg,
-            need_ironing=need_ironing,
-            need_conditioner=need_conditioner,
-            need_vacuum_pack=need_vacuum_pack,
-            need_uv=need_uv,
-            need_wash_bag=need_wash_bag,
-            delivery_exact_time=delivery_exact_time,
+            **services
         )
 
         # Создаём kaiten карточку
