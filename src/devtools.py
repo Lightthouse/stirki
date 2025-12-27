@@ -15,7 +15,7 @@ TEST_CLIENTS = [
         "telegram_id": 100001,
         "name": "Иван Петров",
         "phone": "+79990000001",
-        "street_name": "Новорождественская",
+        "street": "Новорождественская",
         "house": "7к1",
         "entrance": "2",
         "floor": "5",
@@ -26,7 +26,7 @@ TEST_CLIENTS = [
         "telegram_id": 100002,
         "name": "Анна Смирнова",
         "phone": "+79990000002",
-        "street_name": "Мытищинская",
+        "street": "Мытищинская",
         "house": "12",
         "entrance": "1",
         "floor": "3",
@@ -37,7 +37,7 @@ TEST_CLIENTS = [
         "telegram_id": 100003,
         "name": "Сергей Тест",
         "phone": "+79990000003",
-        "street_name": "Новорождественская",
+        "street": "Новорождественская",
         "house": "9",
         "entrance": None,
         "floor": None,
@@ -91,10 +91,7 @@ async def create_test_clients() -> List[Client]:
 
     for data in TEST_CLIENTS:
 
-        street = await Street.get(name=data["street_name"])
-        del data["street_name"]
-
-        client = await Repository.create_client(**data, street=street)
+        client = await Repository.create_client(**data)
         clients.append(client)
 
     print(f"Создано/найдено тестовых клиентов: {len(clients)}")
@@ -123,6 +120,11 @@ async def delete_test_data() -> None:
 
     print(f"Удалено тестовых заказов: {deleted_orders}")
     print(f"Удалено тестовых клиентов: {deleted_clients}")
+
+async def delete_all_data() -> None:
+    await Repository.reset_db()
+
+    print(f"База очищена!")
 
 
 async def show_summary() -> None:

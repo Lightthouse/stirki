@@ -23,8 +23,8 @@ def phone_keyboard():
 def streets_keyboard():
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("Новорождественская", callback_data="Новорождественская")],
-            [InlineKeyboardButton("Мытищинская", callback_data="Мытищинская")],
+            [InlineKeyboardButton("Новорождественская", callback_data="street_nov")],
+            [InlineKeyboardButton("Мытищинская", callback_data="street_mit")],
         ]
     )
 

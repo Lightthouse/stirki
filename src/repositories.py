@@ -71,11 +71,12 @@ class Repository:
             phone: str,
             name: str,
             street: str,
-            house: str,
-            entrance: str,
-            floor: str,
             apartment: int,
-            comment: str | None,
+            house: str,
+
+            entrance: str = None,
+            floor: str = None,
+            comment: str = None,
     ) -> Client:
 
         street = await Repository.resolve_street_by_name(street)
@@ -86,10 +87,11 @@ class Repository:
             phone=phone,
             name=name,
             street=street,
+            apartment=apartment,
             house=house,
+
             entrance=entrance,
             floor=floor,
-            apartment=apartment,
             comment=comment,
         )
 
@@ -99,7 +101,7 @@ class Repository:
             phone: str | None,
             name: str | None,
             street: str | None,
-            house: str,
+            house: str | None,
             apartment: int,
             entrance: str | None,
             floor: str | None,
@@ -134,7 +136,6 @@ class Repository:
             telegram_chat_id: int,
             telegram_message_id: int,
 
-            comment: Optional[str],
             weight_kg: int = 3,
             need_ironing: bool = False,
             need_conditioner: bool = False,
@@ -142,6 +143,8 @@ class Repository:
             need_uv: bool = False,
             need_wash_bag: bool = False,
             delivery_exact_time: Optional[datetime] = None,
+
+            comment: str = None,
     ) -> Order:
 
         street = await Repository.resolve_client_street(client)
@@ -209,25 +212,37 @@ class Repository:
     @staticmethod
     async def update_order_status(
             order_id: int,
-            order_status: OrderStatusName,
+            status: OrderStatusName,
             payment_status: PaymentStatus,
             changed_by: str = "system",
     ) -> Order:
-
         order = await Order.get(id=order_id)
 
-        order_status_id = await OrderStatus.get(name=order_status)
-        order.status = order_status_id
-        order.payment_status = payment_status
-        await order.save(update_fields=["status", "payment_status"])
-        await OrderStatusHistory.create(order=order, status=order_status_id, changed_by=changed_by)
+        order_status_obj = await OrderStatus.get(name=status)
 
-        # продвинем карточку в новую колонку
+        # Самый понятный и надёжный способ:
+        order.status_id = order_status_obj.id
+        order.payment_status = payment_status
+
+        await order.save(update_fields=["status_id", "payment_status"])
+
+        # история статусов
+        await OrderStatusHistory.create(
+            order=order,
+            status=order_status_obj,  # здесь объект — нормально
+            changed_by=changed_by
+        )
+
+        # Kaiten-логика...
         with Kaiten() as k:
-            card_status = KaitenColumns.NEW if order_status == OrderStatusName.NEW  else KaitenColumns.CANCELED
-            card_id = order.kaiten_card_id
-            changed_result = k.change_card_status(card_id, card_status)
-            logger.info(f'Card {card_id} changed to {order_status}. \n')
+            card_status = (
+                KaitenColumns.NEW
+                if status == OrderStatusName.NEW
+                else KaitenColumns.CANCELED
+            )
+            if order.kaiten_card_id:
+                k.change_card_status(order.kaiten_card_id, card_status)
+                logger.info(f"Card {order.kaiten_card_id} → {status}")
 
         return order
 
@@ -238,6 +253,14 @@ class Repository:
             .prefetch_related("client", "status", "street")
             .first()
         )
+
+    @staticmethod
+    async def reset_db() -> str:
+        await Order.all().delete()
+        await Client.all().delete()
+        await OrderStatusHistory.all().delete()
+
+        return 'Всё уничтожено!'
 
 
 # Удобный экземпляр

@@ -14,15 +14,6 @@ from src.bot.keyboards import (
     client_confirm_keyboard
 )
 
-# await query.edit_message_text(
-#     '👍'
-#     # texts.ASK_PHONE_TEXT
-# )
-#
-# await query.message.reply_text(
-#     texts.ASK_REUSE_USER_SETTINGS_TEXT,
-#     reply_markup=yes_no_keyboard('reuse'),
-# )
 
 async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -31,18 +22,19 @@ async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = query.from_user.id
     client = await Repository.get_client_by_telegram_id(telegram_id)
 
+
     if client:
         # Клиент найден
         context.user_data["client_id"] = client.id
         context.user_data["client_exists"] = True
         context.user_data["client_changed"] = False
 
-        text = (
-            "Мы нашли ваши данные:\n\n"
-            f"Имя: {client.name}\n"
-            f"Телефон: {client.phone}\n"
-            f"Адрес: {client.street.name}, дом {client.house}, кв. {client.apartment}\n\n"
-            "Всё верно?"
+        street = await Repository.resolve_client_street(client)
+        text = texts.ASK_REUSE_USER_SETTINGS_TEXT.format(
+            name=client.name,
+            street=street,
+            apartment=client.apartment,
+            house=client.house
         )
 
         await query.edit_message_text(
@@ -55,9 +47,9 @@ async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["client_exists"] = False
     context.user_data["client_changed"] = True
 
-    await query.edit_message_text(texts.ASK_PHONE_TEXT)
+    # await query.edit_message_text(texts.ASK_PHONE_TEXT)
     await query.message.reply_text(
-        'ttt',
+        texts.ASK_PHONE_TEXT,
         reply_markup=phone_keyboard(),
     )
     return OrderStates.GET_PHONE
@@ -68,13 +60,14 @@ async def client_confirm_ok(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     telegram_id = query.from_user.id
     client = await Repository.get_client_by_telegram_id(telegram_id)
+    street = await Repository.resolve_client_street(client)
 
     # Кладём данные клиента в context, чтобы дальше всё было единообразно
     context.user_data.update(
         {
             "name": client.name,
             "phone": client.phone,
-            "street": client.street.id,
+            "street": street,
             "house": client.house,
             "apartment": client.apartment,
             "entrance": client.entrance,
@@ -98,9 +91,10 @@ async def client_confirm_edit(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     context.user_data["client_changed"] = True
 
-    await query.edit_message_text(texts.ASK_PHONE_TEXT)
+
+    # await query.edit_message_text(texts.ASK_PHONE_TEXT)
     await query.message.reply_text(
-        'xhc',
+        texts.CONFIRM_TEXT,
         reply_markup=phone_keyboard(),
     )
     return OrderStates.GET_PHONE
@@ -125,7 +119,13 @@ async def get_street(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    context.user_data["street"] = query.data.split("_")[1]
+    street_name = query.data.split('_')[1]
+    street_map = {
+        'nov': 'Новорождественская',
+        'mit': 'Мытищинская',
+    }
+
+    context.user_data["street"] = street_map.get(street_name, 'Мытищинская')
     await query.edit_message_text(texts.ASK_HOUSE_TEXT)
     return OrderStates.GET_HOUSE
 

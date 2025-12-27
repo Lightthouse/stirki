@@ -11,6 +11,7 @@ from src.database import init_db, close_db
 from src.bot.settings import tg_settings
 from src.bot.states import OrderStates
 from src.bot.handlers.start import start
+from src.bot.handlers.reset import reset
 from src.bot.handlers.order import (
     ask_phone,
 
@@ -121,6 +122,8 @@ def main():
     )
 
     app.add_handler(conv)
+    app.add_handler(CommandHandler('reset', reset))
+
     app.run_polling()
 
 

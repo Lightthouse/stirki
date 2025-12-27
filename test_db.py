@@ -3,7 +3,7 @@ import asyncio
 import sys
 
 from src.database import init_db, close_db
-from src.devtools import create_test_clients, create_test_orders, delete_test_data, show_summary
+from src.devtools import create_test_clients, create_test_orders, delete_test_data, show_summary, delete_all_data
 
 
 async def main():
@@ -12,6 +12,7 @@ async def main():
         print("  python test_db.py seed      # создать тестовые данные")
         print("  python test_db.py clear     # удалить тестовые данные")
         print("  python test_db.py summary   # показать сводку")
+        print("  python test_db.py reset   # удалить всё")
         return
 
     command = sys.argv[1]
@@ -28,6 +29,8 @@ async def main():
             await show_summary()
         elif command == "summary":
             await show_summary()
+        elif command == "reset":
+            await delete_all_data()
         else:
             print(f"Неизвестная команда: {command}")
     finally:

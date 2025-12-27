@@ -22,9 +22,9 @@ class Client(Model):
 
     street = fields.ForeignKeyField("models.Street", related_name="clients", null=True)
     house = fields.TextField()
+    apartment = fields.IntField()
     entrance = fields.TextField(null=True)
     floor = fields.TextField(null=True)
-    apartment = fields.IntField()
     comment = fields.TextField(null=True)
 
     registered_at = fields.DatetimeField(auto_now_add=True)
