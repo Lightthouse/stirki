@@ -4,8 +4,8 @@ from typing import Optional
 
 class Pricing:
     """
-    Простая реализация прайсинга на основе констант.
-    Потом её легко будет заменить на загрузку цен из БД.
+    Работа с ценами через константы.
+    Возможен дальнейший перенос в БД.
     """
 
     WASHING_PRICE: int = 990
@@ -38,10 +38,11 @@ class Pricing:
         return message
 
     @classmethod
-    def total_price_message(cls, services: dict[ServiceSlug, bool]) -> str:
+    def total_price_message(cls, bags_number: int, services: dict[ServiceSlug, bool]) -> str:
         """
         Создаём текст с итоговой ценой за все услуги
-        :param services:
+        :param bags_number: количество пакетов с одеждой
+        :param services: выбранные клиентом сервисы
         :return:
         """
 
@@ -52,12 +53,16 @@ class Pricing:
         if services_message:
             message += f'Доп. услуги:\n{services_message}'
 
-        message += f'Итого: {total_price}\n'
+        message += (
+            f'Количество пакетов с одеждой: {bags_number}\n'
+            f'Цена с услугами за один пакет: {total_price / 2}\n'
+            f'Итого: {total_price}\n'
+        )
 
         return message
 
     @classmethod
-    def calculate_order_price(cls, services: dict[ServiceSlug, bool]) -> int:
+    def calculate_order_price(cls, bags_number: int, services: dict[ServiceSlug, bool]) -> int:
         """
         Считает итоговую стоимость заказа по набору флагов.
         Вся формула сосредоточена здесь.
@@ -65,5 +70,5 @@ class Pricing:
         total = cls.WASHING_PRICE
         total += sum( cls.SERVICE_PRICES[name] for name, picked in services.items() if picked)
 
-        return total
+        return total * bags_number
 

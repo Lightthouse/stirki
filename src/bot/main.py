@@ -27,6 +27,8 @@ from src.bot.handlers.order import (
     get_apartment,
     get_entrance,
 
+    get_bags_number,
+
     select_services,
 
     payment_question,
@@ -86,6 +88,9 @@ def main():
             ],
             OrderStates.GET_ENTRANCE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_entrance),
+            ],
+            OrderStates.GET_BAGS_NUMBER: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, get_bags_number),
             ],
 
             # ── услуги ────────────────────────────

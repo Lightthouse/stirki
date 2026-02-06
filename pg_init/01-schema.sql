@@ -1,9 +1,4 @@
 -- init-db/01-schema.sql
-create table streets (
-    id serial primary key,
-    name text not null unique,
-    houses text[] default '{}'
-);
 
 create table clients (
     id bigserial primary key,
@@ -11,10 +6,10 @@ create table clients (
     name text,
     phone text not null,
 
-    street_id int references streets(id),
+    street text not null,
     house text not null,
-    entrance text,
-    floor text,
+    entrance int not null,
+    floor int not null,
     apartment int not null,
     comment text,
 
@@ -40,14 +35,14 @@ create table orders (
     client_id bigint not null references clients(id),
     status_id int not null references order_statuses(id),
 
-    street_id int references streets(id),
+    street text not null ,
     house text not null,
-    entrance text,
-    floor text,
+    entrance int not null,
+    floor int not null,
     apartment int not null,
     comment text,
 
-    weight_kg int default 3 check (weight_kg > 0),
+    bags_number int default 1,
     ironing boolean default false,
     conditioner boolean default false,
     vacuum_pack boolean default false,
@@ -94,18 +89,16 @@ create table promo_code_uses (
     primary key (promo_code_id, client_id)
 );
 
--- Начальные данные
-insert into streets (name) values ('Новорождественская'), ('Мытищинская');
 
 insert into order_statuses (name) values
 ('waiting_for_capture'), ('new'), ('courier_pickup'), ('picked_up'), ('washing'), ('drying'),
 ('ironing'), ('packing'), ('courier_delivery'), ('delivered'), ('canceled');
 
 insert into services (name, slug, price_rub) values
-('Стирка + сушка (3 кг)', 'base', 990),
+('Стирка ', 'base', 990),
 ('Глажка', 'ironing', 990),
 ('Кондиционер для белья', 'conditioner', 200),
 ('Вакуумный пакет', 'vacuum_pack', 400),
-('Доставка ко времени (±3 ч)', 'exact_time', 300),
+('Доставка ко времени', 'exact_time', 300),
 ('Ультрафиолетовая обработка', 'uv', 300),
 ('Мешок для стирки', 'wash_bag', 300);

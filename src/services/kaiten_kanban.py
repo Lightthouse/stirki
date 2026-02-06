@@ -133,7 +133,7 @@ class Kaiten:
     def close(self) -> None:
         self.client.close()
 
-    def __enter__(self) -> Kaiten:
+    def __enter__(self) -> "Kaiten":
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
@@ -164,10 +164,11 @@ class Kaiten:
 
         return (
             f"{title}\n"
-            f"- Адрес: {street_name}, дом {order.house or ''}, квартира {order.apartment}, подъезд {order.entrance or '—'}, этаж {order.floor or '—'}\n"
-            f"- Телефон: {order.client.phone or '—'}\n"
-            f"- Имя: {order.client.name or '—'}\n"
-            f"- Телеграм id: {order.client.telegram_id or '—'}\n"
+            f"- Адрес: {street_name}, дом {order.house}, квартира {order.apartment}, подъезд {order.entrance}, этаж {order.floor}\n"
+            f"- Телефон: {order.client.phone}\n"
+            f"- Имя: {order.client.name}\n"
+            f"- Телеграм id: {order.client.telegram_id}\n"
+            f"- Количество пакетов: {order.bags_number}\n"
             f"- Стоимость: {order.total_price_rub} руб\n"
             f"- Комментарий: {order.comment or '—'}\n\n"
             f"**Дополнительно**\n"

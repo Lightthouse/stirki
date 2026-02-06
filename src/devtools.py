@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import List
 
 from src.enums import ServiceSlug
-from src.models import Street, Client, Order
+from src.models import Client, Order
 from src.repositories import Repository
 
 TEST_MARKER = "[TEST]"
@@ -17,8 +17,8 @@ TEST_CLIENTS = [
         "phone": "+79990000001",
         "street": "Новорождественская",
         "house": "7к1",
-        "entrance": "2",
-        "floor": "5",
+        "entrance": 2,
+        "floor": 5,
         "apartment": 228,
         "comment": f"{TEST_MARKER} Первый тестовый клиент",
     },
@@ -28,8 +28,8 @@ TEST_CLIENTS = [
         "phone": "+79990000002",
         "street": "Мытищинская",
         "house": "12",
-        "entrance": "1",
-        "floor": "3",
+        "entrance": 1,
+        "floor": 3,
         "apartment": 322,
         "comment": f"{TEST_MARKER} Второй тестовый клиент",
     },
@@ -39,8 +39,8 @@ TEST_CLIENTS = [
         "phone": "+79990000003",
         "street": "Новорождественская",
         "house": "9",
-        "entrance": None,
-        "floor": None,
+        "entrance": 3,
+        "floor": 4,
         "apartment": 2,
         "comment": f"{TEST_MARKER} Третий тестовый клиент",
     },
@@ -57,6 +57,7 @@ TEST_ORDERS = [
             ServiceSlug.WASH_BAG: True,
 
         },
+        "bags_number": 1,
         "telegram_chat_id": 111,
         "telegram_message_id": 1231,
         "comment": f"{TEST_MARKER} Заказ без доп. опций",
@@ -71,20 +72,22 @@ TEST_ORDERS = [
             ServiceSlug.WASH_BAG: False,
 
         },
+        "bags_number": 3,
         "telegram_chat_id": 222,
         "telegram_message_id": 1232,
         "comment": f"{TEST_MARKER} Стирка + глажка + кондиционер",
     },
-    # заказ с доставкой ко времени и мешком
+    # заказ со всеми опциями
     {
         "services": {
             ServiceSlug.UV: True,
             ServiceSlug.IRONING: True,
-            ServiceSlug.CONDITIONER: False,
-            ServiceSlug.EXACT_TIME: False,
-            ServiceSlug.WASH_BAG: False,
+            ServiceSlug.CONDITIONER: True,
+            ServiceSlug.EXACT_TIME: True,
+            ServiceSlug.WASH_BAG: True,
 
         },
+        "bags_number": 1,
         "telegram_chat_id": 333,
         "telegram_message_id": 1233,
         "comment": f"{TEST_MARKER} Доставка ко времени + мешок",

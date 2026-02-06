@@ -34,10 +34,9 @@ async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["client_exists"] = True
         context.user_data["client_changed"] = False
 
-        street = await Repository.resolve_client_street(client)
         text = texts.ASK_REUSE_USER_SETTINGS_TEXT.format(
             name=client.name,
-            street=street,
+            street=client.street,
             apartment=client.apartment,
             house=client.house,
             phone=client.phone
@@ -61,14 +60,13 @@ async def client_confirm_ok(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     telegram_id = query.from_user.id
     client = await Repository.get_client_by_telegram_id(telegram_id)
-    street = await Repository.resolve_client_street(client)
 
     # Кладём данные клиента в context, чтобы дальше всё было единообразно
     context.user_data.update(
         {
             "name": client.name,
             "phone": client.phone,
-            "street": street,
+            "street": client.street,
             "house": client.house,
             "apartment": client.apartment,
             "entrance": client.entrance,
@@ -133,9 +131,14 @@ async def get_apartment(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def get_entrance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["entrance"] = update.message.text.strip()
 
+    await update.message.reply_text(texts.ASK_BAGS_NUMBER)
+    return OrderStates.GET_BAGS_NUMBER
+
+async def get_bags_number(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["bags_number"] = update.message.text.strip()
+
     await update.message.reply_text(texts.ASK_SERVICES, reply_markup=services_keyboard())
     return OrderStates.SELECT_SERVICES
-
 
 async def select_services(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
@@ -143,7 +146,7 @@ async def select_services(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
     if "Готово" in text:
-        current_services_text = Pricing.total_price_message(services)
+        current_services_text = Pricing.total_price_message(context.user_data["bags_number"], services)
         order_total_price = f"{current_services_text}\n\n"
 
         confirm_text = texts.ORDER_CHECKUP_TEXT.format(

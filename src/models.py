@@ -1,18 +1,7 @@
-# src/models/models.py
 from tortoise.models import Model
 from tortoise import fields
 from typing import Optional
 
-class Street(Model):
-    id = fields.IntField(pk=True)
-    name = fields.CharField(max_length=50, unique=True)
-    #houses = fields.JSONField(default=list)
-    
-    class Meta:
-        table = "streets"
-        
-    def __str__(self):
-        return self.name
 
 class Client(Model):
     id = fields.BigIntField(pk=True)
@@ -20,11 +9,11 @@ class Client(Model):
     name = fields.TextField(null=True)
     phone = fields.TextField()
 
-    street = fields.ForeignKeyField("models.Street", related_name="clients", null=True)
+    street = fields.TextField()
     house = fields.TextField()
     apartment = fields.IntField()
-    entrance = fields.TextField(null=True)
-    floor = fields.TextField(null=True)
+    entrance = fields.IntField()
+    floor = fields.IntField()
     comment = fields.TextField(null=True)
 
     registered_at = fields.DatetimeField(auto_now_add=True)
@@ -45,14 +34,14 @@ class Order(Model):
     client = fields.ForeignKeyField("models.Client", related_name="orders")
     status = fields.ForeignKeyField("models.OrderStatus", related_name="orders")
     
-    street = fields.ForeignKeyField("models.Street", null=True)
+    street = fields.TextField()
     house = fields.TextField()
-    entrance = fields.TextField(null=True)
-    floor = fields.TextField(null=True)
+    entrance = fields.IntField()
+    floor = fields.IntField()
     apartment = fields.IntField()
     comment = fields.TextField(null=True)
 
-    weight_kg = fields.IntField(default=3)
+    bags_number = fields.IntField(default=1)
     ironing = fields.BooleanField(default=False)
     conditioner = fields.BooleanField(default=False)
     vacuum_pack = fields.BooleanField(default=False)

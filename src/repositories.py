@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 from icecream import ic
 
-from src.models import Client, Order, OrderStatus, Street, OrderStatusHistory
+from src.models import Client, Order, OrderStatus, OrderStatusHistory
 from src.enums import ServiceSlug, OrderStatusName, PaymentStatus, KaitenColumns, KaitenTagsNames
 from src.services.pricing import Pricing
 from src.services.kaiten_kanban import Kaiten
@@ -14,28 +14,6 @@ logger = logging.getLogger(__name__)
 
 class Repository:
 
-    @staticmethod
-    async def resolve_client_street(client: Client) -> Optional[Street]:
-        """
-        Гарантированно получить объект Street для клиента.
-
-        Поведение:
-        - пытаемся сделать client.fetch_related("street") и вернуть client.street;
-        - если всё ещё None, кидаем ошибку;
-        """
-        await client.fetch_related("street")
-
-        if client.street is None:
-            raise ValueError("У клиента не указан адрес")
-
-        return client.street
-
-    @staticmethod
-    async def resolve_street_by_name(street_name: str) -> Street:
-        street = await Street.get_or_none(name=street_name)
-        if not street:
-            raise ValueError(f"Unknown street: {street_name}")
-        return street
 
     # ── Клиенты ─────────────────────────────────────
     @staticmethod
@@ -47,10 +25,10 @@ class Repository:
             telegram_id: int,
             phone: str,
             name: str,
-            street: Street,
-            house: str,
-            entrance: str,
-            floor: str,
+            street: str,
+            house: int,
+            entrance: int,
+            floor: int,
             apartment: int,
             comment: str | None,
     ) -> Client:
@@ -80,19 +58,18 @@ class Repository:
             comment: str = None,
     ) -> Client:
 
-        street = await Repository.resolve_street_by_name(street)
-
 
         return await Client.create(
             telegram_id=telegram_id,
             phone=phone,
             name=name,
+
             street=street,
             apartment=apartment,
             house=house,
-
             entrance=entrance,
             floor=floor,
+
             comment=comment,
         )
 
@@ -103,9 +80,9 @@ class Repository:
             name: str | None,
             street: str | None,
             house: str | None,
-            apartment: int,
-            entrance: str | None,
-            floor: str | None,
+            apartment: int | None,
+            entrance: int | None,
+            floor: int | None,
             comment: str | None,
     ) -> Client:
 
@@ -136,14 +113,13 @@ class Repository:
             client: Client,
             telegram_chat_id: int,
             telegram_message_id: int,
+            bags_number: int,
             services: dict[ServiceSlug, bool],
             comment: str = None,
     ) -> Order:
 
-        street = await Repository.resolve_client_street(client)
-
         # Считаем цену заказа
-        total = Pricing.calculate_order_price(services)
+        total = Pricing.calculate_order_price(bags_number, services)
 
         # Берём самый первый статус
         status_new = await OrderStatus.get(name=OrderStatusName.WAITING_FOR_CAPTURE)
@@ -159,11 +135,13 @@ class Repository:
             telegram_chat_id=telegram_chat_id,
             telegram_message_id=telegram_message_id,
 
-            street=street,
+            street=client.street,
             house=client.house,
             entrance=client.entrance,
             floor=client.floor,
             apartment=client.apartment,
+
+            bags_number=bags_number,
 
             **services
         )

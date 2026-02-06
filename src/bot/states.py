@@ -17,6 +17,7 @@ class OrderStates(IntEnum):
     GET_APARTMENT = 9
     GET_ENTRANCE = 10
 
+    GET_BAGS_NUMBER = 11
 
     SELECT_SERVICES = 12
 
