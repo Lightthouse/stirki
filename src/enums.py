@@ -25,25 +25,28 @@ class ServiceSlug(StrEnum):
     IRONING = "ironing"
     CONDITIONER = "conditioner"
     VACUUM_PACK = "vacuum_pack"
-    EXACT_TIME = "exact_time"
-    UV = "uv"
+    STAIN_REMOVER = "stain_remover"
     WASH_BAG = "wash_bag"
+    BLEACH = "bleach"
+    COLOR_CATCHER_SHEETS = 'Color_catcher_sheets '
 
 class ServiceCyrillic(StrEnum):
     IRONING = "Глажка"
     CONDITIONER = "Кондиционер"
     VACUUM_PACK = "Вакуумный пакет"
-    EXACT_TIME = "Ко времени"
-    UV = "Ультрафиолет"
+    STAIN_REMOVER = "Пятновыводитель"
     WASH_BAG = "Мешок для стирки"
+    BLEACH = "Отбеливатель"
+    COLOR_CATCHER_SHEETS = "Салфетки против окрашивания"
 
 ServiceCyrillicSlugMap: dict[ServiceCyrillic, ServiceSlug] = {
     ServiceCyrillic.IRONING: ServiceSlug.IRONING,
     ServiceCyrillic.CONDITIONER: ServiceSlug.CONDITIONER,
     ServiceCyrillic.VACUUM_PACK: ServiceSlug.VACUUM_PACK,
-    ServiceCyrillic.EXACT_TIME: ServiceSlug.EXACT_TIME,
-    ServiceCyrillic.UV: ServiceSlug.UV,
+    ServiceCyrillic.STAIN_REMOVER: ServiceSlug.STAIN_REMOVER,
     ServiceCyrillic.WASH_BAG: ServiceSlug.WASH_BAG,
+    ServiceCyrillic.BLEACH: ServiceSlug.BLEACH,
+    ServiceCyrillic.COLOR_CATCHER_SHEETS: ServiceSlug.COLOR_CATCHER_SHEETS,
 }
 
 
@@ -64,15 +67,17 @@ class KaitenTagsIds(IntEnum):
     IRONING = 973971
     CONDITIONER = 973972
     VACUUM_PACK = 973973
-    EXACT_TIME = 973979
-    UV = 973969
+    BLEACH = 973979
+    STAIN_REMOVER = 973969
     WASH_BAG = 973975
+    COLOR_CATCHER_SHEETS = 1003744
 
 class KaitenTagsNames(StrEnum):
     IRONING = 'глажка'
     CONDITIONER = 'кондиционер'
     VACUUM_PACK = 'вакуумный пакет'
-    EXACT_TIME = 'ко времени'
-    UV = 'ультрафиолет'
+    BLEACH = 'отбеливатель'
+    STAIN_REMOVER = 'пятновыводитель'
     WASH_BAG = 'мешок'
+    COLOR_CATCHER_SHEETS = 'салфетки'
 

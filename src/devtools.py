@@ -7,38 +7,39 @@ from typing import List
 from src.enums import ServiceSlug
 from src.models import Client, Order
 from src.repositories import Repository
+from src.addresses import STREETS_SLUG, STREETS, HOUSE_STREET_MAP
 
 TEST_MARKER = "[TEST]"
 
 TEST_CLIENTS = [
     {
-        "telegram_id": 100001,
+        "telegram_id": 100011,
         "name": "Иван Петров",
         "phone": "+79990000001",
-        "street": "Новорождественская",
-        "house": "7к1",
+        "street": STREETS[0],
+        "house":  list(HOUSE_STREET_MAP.items())[0][1][0],
         "entrance": 2,
         "floor": 5,
         "apartment": 228,
         "comment": f"{TEST_MARKER} Первый тестовый клиент",
     },
     {
-        "telegram_id": 100002,
+        "telegram_id": 100022,
         "name": "Анна Смирнова",
         "phone": "+79990000002",
-        "street": "Мытищинская",
-        "house": "12",
+        "street": STREETS[1],
+        "house":  list(HOUSE_STREET_MAP.items())[1][1][0],
         "entrance": 1,
         "floor": 3,
         "apartment": 322,
         "comment": f"{TEST_MARKER} Второй тестовый клиент",
     },
     {
-        "telegram_id": 100003,
+        "telegram_id": 100033,
         "name": "Сергей Тест",
         "phone": "+79990000003",
-        "street": "Новорождественская",
-        "house": "9",
+        "street": STREETS[2],
+        "house": list(HOUSE_STREET_MAP.items())[2][1][0],
         "entrance": 3,
         "floor": 4,
         "apartment": 2,
@@ -50,10 +51,6 @@ TEST_ORDERS = [
     # базовый заказ без опций
     {
         "services": {
-            ServiceSlug.UV: True,
-            ServiceSlug.IRONING: False,
-            ServiceSlug.CONDITIONER: False,
-            ServiceSlug.EXACT_TIME: False,
             ServiceSlug.WASH_BAG: True,
 
         },
@@ -65,11 +62,9 @@ TEST_ORDERS = [
     # заказ с глажкой и кондиционером
     {
         "services": {
-            ServiceSlug.UV: False,
-            ServiceSlug.IRONING: False,
+            ServiceSlug.STAIN_REMOVER: True,
             ServiceSlug.CONDITIONER: True,
-            ServiceSlug.EXACT_TIME: False,
-            ServiceSlug.WASH_BAG: False,
+            ServiceSlug.WASH_BAG: True,
 
         },
         "bags_number": 3,
@@ -80,11 +75,12 @@ TEST_ORDERS = [
     # заказ со всеми опциями
     {
         "services": {
-            ServiceSlug.UV: True,
+            ServiceSlug.STAIN_REMOVER: True,
             ServiceSlug.IRONING: True,
             ServiceSlug.CONDITIONER: True,
-            ServiceSlug.EXACT_TIME: True,
+            ServiceSlug.BLEACH: True,
             ServiceSlug.WASH_BAG: True,
+            ServiceSlug.COLOR_CATCHER_SHEETS: True,
 
         },
         "bags_number": 1,

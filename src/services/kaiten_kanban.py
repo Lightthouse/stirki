@@ -152,7 +152,6 @@ class Kaiten:
         :param order:
         :return:
         """
-        street_name = order.street.name if getattr(order, "street", None) else getattr(order, "street_id", "")
 
         option_num = 1
         option_text = ""
@@ -164,7 +163,7 @@ class Kaiten:
 
         return (
             f"{title}\n"
-            f"- Адрес: {street_name}, дом {order.house}, квартира {order.apartment}, подъезд {order.entrance}, этаж {order.floor}\n"
+            f"- Адрес: {order.street}, дом {order.house}, квартира {order.apartment}, подъезд {order.entrance}, этаж {order.floor}\n"
             f"- Телефон: {order.client.phone}\n"
             f"- Имя: {order.client.name}\n"
             f"- Телеграм id: {order.client.telegram_id}\n"
@@ -185,11 +184,12 @@ class Kaiten:
 
         options = {
             KaitenTagsNames.IRONING: order.ironing,
-            KaitenTagsNames.UV: order.uv,
-            KaitenTagsNames.VACUUM_PACK: order.vacuum_pack,
-            KaitenTagsNames.WASH_BAG: order.wash_bag,
             KaitenTagsNames.CONDITIONER: order.conditioner,
-            KaitenTagsNames.EXACT_TIME: order.delivery_exact_time,
+            KaitenTagsNames.VACUUM_PACK: order.vacuum_pack,
+            KaitenTagsNames.BLEACH: order.bleach,
+            KaitenTagsNames.STAIN_REMOVER: order.stain_remover,
+            KaitenTagsNames.WASH_BAG: order.wash_bag,
+            KaitenTagsNames.COLOR_CATCHER_SHEETS: order.color_catcher_sheets,
         }
         tags = [{'name': op_name} for op_name, op_status in options.items() if op_status]
         title = f'Заказ #{order.id}'

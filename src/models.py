@@ -45,9 +45,11 @@ class Order(Model):
     ironing = fields.BooleanField(default=False)
     conditioner = fields.BooleanField(default=False)
     vacuum_pack = fields.BooleanField(default=False)
-    uv = fields.BooleanField(default=False)
+    stain_remover = fields.BooleanField(default=False)
     wash_bag = fields.BooleanField(default=False)
-    delivery_exact_time = fields.DatetimeField(null=True)
+    bleach = fields.BooleanField(default=False)
+    color_catcher_sheets = fields.BooleanField(default=False)
+
 
     total_price_rub = fields.IntField()
     payment_id = fields.TextField(null=True)

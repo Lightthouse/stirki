@@ -23,9 +23,8 @@ from src.bot.handlers.order import (
     get_name,
 
     get_street,
-    get_house,
     get_apartment,
-    get_entrance,
+    get_house,
 
     get_bags_number,
 
@@ -80,15 +79,15 @@ def main():
             OrderStates.GET_STREET: [
                 CallbackQueryHandler(get_street, pattern="^street_"),
             ],
+
             OrderStates.GET_HOUSE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, get_house),
+                CallbackQueryHandler(get_house, pattern="^house_"),
             ],
+
             OrderStates.GET_APARTMENT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_apartment),
             ],
-            OrderStates.GET_ENTRANCE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, get_entrance),
-            ],
+
             OrderStates.GET_BAGS_NUMBER: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, get_bags_number),
             ],

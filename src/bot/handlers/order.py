@@ -5,6 +5,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from src.repositories import Repository
 from src.enums import PaymentStatus, OrderStatusName, ServiceCyrillic, ServiceSlug, ServiceCyrillicSlugMap
+from src.addresses import STREETS_SLUG
 
 from src.bot.states import OrderStates
 from src.bot import texts
@@ -15,7 +16,9 @@ from src.bot.keyboards import (
     confirm_keyboard,
     client_confirm_keyboard,
     services_keyboard,
-    services_keyboard_compact
+    services_keyboard_compact,
+    bags_numbers_keyboard,
+    house_keyboard
 )
 
 from src.services.pricing import Pricing
@@ -105,37 +108,33 @@ async def get_street(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    street_name = query.data.split('_')[1]
-    street_map = {
-        'nov': 'Новорождественская',
-        'mit': 'Мытищинская',
-    }
+    street_slug = query.data.split('_')[1]
+    street_map = {slug: street for street, slug in STREETS_SLUG.items()}
+    street = street_map[street_slug]
 
-    context.user_data["street"] = street_map.get(street_name, 'Мытищинская')
-    await query.edit_message_text(texts.ASK_HOUSE_TEXT)
+    context.user_data["street"] = street
+    await query.message.reply_text(texts.ASK_HOUSE_TEXT, reply_markup=house_keyboard(street))
+
     return OrderStates.GET_HOUSE
 
-
 async def get_house(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["house"] = update.message.text.strip()
-    await update.message.reply_text(texts.ASK_APARTMENT_TEXT)
-    return OrderStates.GET_APARTMENT
+    query = update.callback_query
+    await query.answer()
 
+    house = query.data.split('_')[1]
+    context.user_data["house"] = house
+
+    await query.edit_message_text(texts.ASK_APARTMENT_TEXT)
+    return OrderStates.GET_APARTMENT
 
 async def get_apartment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["apartment"] = update.message.text.strip()
-    await update.message.reply_text(texts.ASK_ENTRANCE_TEXT)
-    return OrderStates.GET_ENTRANCE
-
-
-async def get_entrance(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["entrance"] = update.message.text.strip()
-
-    await update.message.reply_text(texts.ASK_BAGS_NUMBER)
+    await update.message.reply_text(texts.ASK_BAGS_NUMBER, reply_markup=bags_numbers_keyboard())
     return OrderStates.GET_BAGS_NUMBER
 
 async def get_bags_number(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["bags_number"] = update.message.text.strip()
+    text = update.message.text.strip()
+    context.user_data["bags_number"] = int(text)
 
     await update.message.reply_text(texts.ASK_SERVICES, reply_markup=services_keyboard())
     return OrderStates.SELECT_SERVICES
@@ -146,6 +145,9 @@ async def select_services(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
     if "Готово" in text:
+        context.user_data["entrance"] = 1
+        context.user_data["floor"] = 1
+
         current_services_text = Pricing.total_price_message(context.user_data["bags_number"], services)
         order_total_price = f"{current_services_text}\n\n"
 
@@ -156,6 +158,8 @@ async def select_services(update: Update, context: ContextTypes.DEFAULT_TYPE):
             house=context.user_data["house"],
             apartment=context.user_data["apartment"],
             entrance=context.user_data["entrance"],
+            floor=context.user_data["floor"],
+            bags_number=context.user_data["bags_number"],
             services=order_total_price,
         )
 
@@ -179,14 +183,15 @@ async def select_services(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return OrderStates.SELECT_SERVICES
 
 
-async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = texts.CONFIRM_TEXT.format(
+async def confirm_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = texts.ORDER_CHECKUP_TEXT.format(
         name=context.user_data["name"],
         phone=context.user_data["phone"],
         street=context.user_data["street"],
         house=context.user_data["house"],
         apartment=context.user_data["apartment"],
         entrance=context.user_data["entrance"],
+        floor=context.user_data["floor"],
         services=context.user_data["order_price"],
     )
 
@@ -209,6 +214,7 @@ async def payment_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
             house=context.user_data["house"],
             apartment=context.user_data["apartment"],
             entrance=context.user_data["entrance"],
+            floor=context.user_data["floor"],
         )
     elif context.user_data["client_changed"]:
         client = await Repository.update_client(
@@ -219,6 +225,7 @@ async def payment_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
             house=context.user_data["house"],
             apartment=context.user_data["apartment"],
             entrance=context.user_data["entrance"],
+            floor=context.user_data["floor"],
         )
     else:
         client = await Repository.get_client_by_telegram_id(telegram_id)
@@ -227,6 +234,7 @@ async def payment_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
         client=client,
         telegram_chat_id=chat_id,
         telegram_message_id=message_id,
+        bags_number=context.user_data['bags_number'],
         services=context.user_data['services']
     )
 
@@ -250,6 +258,7 @@ async def payment_yes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         apartment=context.user_data["apartment"],
         entrance=context.user_data["entrance"],
         services=context.user_data["order_price"],
+        bags_number=context.user_data["bags_number"],
     )
 
     order_id = context.user_data["order_id"]

@@ -5,6 +5,7 @@ from telegram import (
     ReplyKeyboardMarkup,
 )
 from src.enums import ServiceCyrillicSlugMap
+from src.addresses import STREETS_SLUG, HOUSE_STREET_MAP
 
 
 def start_keyboard():
@@ -22,11 +23,28 @@ def phone_keyboard():
 
 
 def streets_keyboard():
-    return InlineKeyboardMarkup(
+    street_buttons = [[InlineKeyboardButton(street, callback_data=f'street_{slug}')] for street, slug in
+                      STREETS_SLUG.items()]
+
+    return InlineKeyboardMarkup(street_buttons)
+
+
+def house_keyboard(street: str):
+    houses_buttons = [[InlineKeyboardButton(house, callback_data=f'house_{house}')] for house in
+                      HOUSE_STREET_MAP[street]]
+
+    return InlineKeyboardMarkup(houses_buttons)
+
+
+def bags_numbers_keyboard():
+    return ReplyKeyboardMarkup(
         [
-            [InlineKeyboardButton("Новорождественская", callback_data="street_nov")],
-            [InlineKeyboardButton("Мытищинская", callback_data="street_mit")],
-        ]
+            ['1', '2', '3'],
+            ['4', '5', '6'],
+            ['7', '8', '9'],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True,
     )
 
 
@@ -39,6 +57,7 @@ def client_confirm_keyboard():
             ]
         ]
     )
+
 
 def services_keyboard(selected: dict[str, bool] | None = None) -> ReplyKeyboardMarkup:
     if selected is None:
@@ -56,6 +75,7 @@ def services_keyboard(selected: dict[str, bool] | None = None) -> ReplyKeyboardM
         resize_keyboard=True,
         one_time_keyboard=False,  # остаётся до конца выбора
     )
+
 
 def services_keyboard_compact(selected: dict[str, bool] | None = None) -> ReplyKeyboardMarkup:
     if selected is None:
@@ -82,6 +102,7 @@ def services_keyboard_compact(selected: dict[str, bool] | None = None) -> ReplyK
         resize_keyboard=True,
         one_time_keyboard=False,
     )
+
 
 def yes_no_keyboard(prefix: str):
     return InlineKeyboardMarkup(

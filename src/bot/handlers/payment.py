@@ -7,7 +7,7 @@ from telegram.ext import ContextTypes
 
 from src.repositories import Repository
 from src.enums import PaymentStatus
-from src.bot.texts import ORDER_CREATED_TEXT
+from src.bot.texts import ORDER_CHECKUP_TEXT
 
 
 async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -27,7 +27,7 @@ async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # 2. Отправляем статусное сообщение
     msg = await update.message.reply_text(
-        ORDER_CREATED_TEXT.format(status="заказ оплачен")
+        "заказ что-то там, куда-то там"
     )
 
     # 3. Сохраняем message_id для дальнейших апдейтов

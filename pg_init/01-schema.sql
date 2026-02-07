@@ -1,5 +1,3 @@
--- init-db/01-schema.sql
-
 create table clients (
     id bigserial primary key,
     telegram_id bigint unique not null,
@@ -35,7 +33,7 @@ create table orders (
     client_id bigint not null references clients(id),
     status_id int not null references order_statuses(id),
 
-    street text not null ,
+    street text not null,
     house text not null,
     entrance int not null,
     floor int not null,
@@ -46,9 +44,10 @@ create table orders (
     ironing boolean default false,
     conditioner boolean default false,
     vacuum_pack boolean default false,
-    uv boolean default false,
+    stain_remover boolean default false,
     wash_bag boolean default false,
-    delivery_exact_time timestamptz,
+    bleach boolean default false,
+    color_catcher_sheets boolean default false,
 
     total_price_rub int not null check (total_price_rub >= 0),
     payment_id text,

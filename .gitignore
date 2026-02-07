@@ -25,3 +25,5 @@ postgresql/
 
 *trello_kanban.py
 kanban.py
+
+.python-version

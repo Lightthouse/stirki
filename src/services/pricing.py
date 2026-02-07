@@ -8,15 +8,16 @@ class Pricing:
     Возможен дальнейший перенос в БД.
     """
 
-    WASHING_PRICE: int = 990
+    WASHING_PRICE: int = 890
 
     SERVICE_PRICES: dict[ServiceSlug, int] = {
         ServiceSlug.IRONING: 990,
-        ServiceSlug.CONDITIONER: 200,
-        ServiceSlug.VACUUM_PACK: 400,
-        ServiceSlug.EXACT_TIME: 300,
-        ServiceSlug.UV: 300,
-        ServiceSlug.WASH_BAG: 300,
+        ServiceSlug.CONDITIONER: 50,
+        ServiceSlug.VACUUM_PACK: 150,
+        ServiceSlug.BLEACH: 80,
+        ServiceSlug.STAIN_REMOVER: 80,
+        ServiceSlug.COLOR_CATCHER_SHEETS: 30,
+        ServiceSlug.WASH_BAG: 30,
     }
 
     @classmethod
@@ -47,7 +48,7 @@ class Pricing:
         """
 
         services_message = cls.services_price_message(services)
-        total_price = cls.calculate_order_price(services)
+        total_price = cls.calculate_order_price(bags_number, services)
 
         message = f'Стирка: {cls.WASHING_PRICE}\n'
         if services_message:
@@ -55,7 +56,7 @@ class Pricing:
 
         message += (
             f'Количество пакетов с одеждой: {bags_number}\n'
-            f'Цена с услугами за один пакет: {total_price / 2}\n'
+            f'Цена с услугами за один пакет: {total_price // 2}\n'
             f'Итого: {total_price}\n'
         )
 
@@ -70,5 +71,7 @@ class Pricing:
         total = cls.WASHING_PRICE
         total += sum( cls.SERVICE_PRICES[name] for name, picked in services.items() if picked)
 
+        print(services)
+        print([cls.SERVICE_PRICES[name] for name, picked in services.items() if picked])
         return total * bags_number
 

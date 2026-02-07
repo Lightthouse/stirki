@@ -219,7 +219,3 @@ class Repository:
         await OrderStatusHistory.all().delete()
 
         return 'Всё уничтожено!'
-
-
-# Удобный экземпляр
-repo = Repository()

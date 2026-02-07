@@ -1,15 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from src.bot.texts import WELCOME_TEXT
-from src.bot.keyboards import start_keyboard
-from src.bot.states import OrderStates
-
+from src.bot.texts import HELP_TEXT
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data.clear()
-    await update.message.reply_text(
-        WELCOME_TEXT,
-        reply_markup=start_keyboard(),
-    )
-    return OrderStates.INFO
+    await update.message.reply_text(HELP_TEXT)
