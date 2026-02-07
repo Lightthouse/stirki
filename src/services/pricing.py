@@ -9,6 +9,7 @@ class Pricing:
     """
 
     WASHING_PRICE: int = 890
+    WASHING_ONE_CLOTH_PRICE: int = 190
 
     SERVICE_PRICES: dict[ServiceSlug, int] = {
         ServiceSlug.IRONING: 990,

@@ -1,3 +1,6 @@
+from src.services.pricing import Pricing
+from src.enums import ServiceSlug
+
 WELCOME_TEXT = (
     "👋 Привет!\n\n"
     "Мы стираем, сушим и аккуратно доставляем ваши вещи прямо к двери.\n\n"
@@ -8,7 +11,7 @@ WELCOME_TEXT = (
     "5. Всё готово — можете следить за статусом заказа по последнему сообщению в диалоге"
 )
 
-WELCOME_NEW_TEXT = '''
+WELCOME_NEW_TEXT = f'''
 стиркаON – это сервис по стирке и глажке повседневной одежды за 3 часа.
 
 Как трудимся.
@@ -28,14 +31,14 @@ WELCOME_NEW_TEXT = '''
 Партия – 890 рублей (набивайте полный продуктовый пакет одеждой или постельным бельем - до 3 кг).
 Добавить к основному:
 Глажка:
-Штучно – 190 р.
-Партия – 890 р.
-Вакуумный пакет – 150 р.
-Кондиционер – 50 р.
-Отбеливатель – 80 р.
-Пятновыводитель – 80 р.
-Стирка в мешочке – 30 р.
-Тряпочка для цветного -30 р.
+Штучно – {Pricing.WASHING_ONE_CLOTH_PRICE} р.
+Партия – {Pricing.WASHING_PRICE} р.
+Вакуумный пакет – {Pricing.SERVICE_PRICES[ServiceSlug.VACUUM_PACK]} р.
+Кондиционер – {Pricing.SERVICE_PRICES[ServiceSlug.CONDITIONER]} р.
+Отбеливатель – {Pricing.SERVICE_PRICES[ServiceSlug.BLEACH]} р.
+Пятновыводитель – {Pricing.SERVICE_PRICES[ServiceSlug.STAIN_REMOVER]} р.
+Стирка в мешочке – {Pricing.SERVICE_PRICES[ServiceSlug.WASH_BAG]} р.
+Тряпочка для цветного -{Pricing.SERVICE_PRICES[ServiceSlug.COLOR_CATCHER_SHEETS]} р.
 
 Добавочно.
 Локация - гипермаркет «Базарбай»;
@@ -86,7 +89,8 @@ ORDER_CHECKUP_TEXT = (
     "Телефон: {phone}\n"
     "Адрес: {street}, дом {house}, кв. {apartment}, подъезд {entrance}\n\n"
     "Количество пакетов: {bags_number}\n\n"
-    "{services}\n\n"
+    "{services_price}\n\n"
+    "Итоговая цена: {total_price}\n\n"
 )
 
 PAYMENT_QUESTION_TEXT = "Вы оплатили заказ?"
@@ -97,7 +101,8 @@ SUCCESS_TEXT = (
     "Телефон: {phone}\n"
     "Адрес: {street}, дом {house}, кв. {apartment}, подъезд {entrance}\n\n"
     "Количество пакетов: {bags_number}\n\n"
-    "{services}\n\n"
+    "{services_price}\n\n"
+    "Итоговая цена: {total_price}\nn"
     "Отслеживать текущий статус заказа можно по этому сообщению\n\n"
     "При изменении статуса оно будет автоматически обновляться\n\n"
     "Статус заказа: заказ оплачен 🔵"
