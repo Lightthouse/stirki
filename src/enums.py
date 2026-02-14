@@ -28,7 +28,7 @@ class ServiceSlug(StrEnum):
     STAIN_REMOVER = "stain_remover"
     WASH_BAG = "wash_bag"
     BLEACH = "bleach"
-    COLOR_CATCHER_SHEETS = 'Color_catcher_sheets '
+    COLOR_CATCHER_SHEETS = 'color_catcher_sheets'
 
 class ServiceCyrillic(StrEnum):
     IRONING = "Глажка"

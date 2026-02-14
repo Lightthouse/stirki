@@ -1,17 +1,15 @@
-from tortoise import Tortoise
+from collections.abc import AsyncGenerator
+
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
 from src.settings import DBSettings
 
 db_settings = DBSettings()
 
-
-async def init_db() -> None:
-    await Tortoise.init(
-        db_url=db_settings.DATABASE_URL,
-        modules={"models": ["src.models"]},
-    )
-    # При первом запуске можно раскомментировать, чтобы создать таблицы (но у нас уже есть через init.sql)
-    # await Tortoise.generate_schemas()
+engine = create_async_engine(db_settings.ASYNC_DATABASE_URL, echo=False)
+async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
-async def close_db() -> None:
-    await Tortoise.close_connections()
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session() as session:
+        yield session

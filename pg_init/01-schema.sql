@@ -1,14 +1,18 @@
 create table clients (
     id bigserial primary key,
-    telegram_id bigint unique not null,
+    phone text unique not null,
     name text,
-    phone text not null,
 
-    street text not null,
-    house text not null,
-    entrance int not null,
-    floor int not null,
-    apartment int not null,
+    auth_token text unique,
+    is_verified boolean default false,
+    verification_code text,
+    verification_expires_at timestamptz,
+
+    street text not null default '',
+    house text not null default '',
+    entrance int not null default 1,
+    floor int not null default 1,
+    apartment int not null default 0,
     comment text,
 
     registered_at timestamptz default now(),
@@ -35,8 +39,8 @@ create table orders (
 
     street text not null,
     house text not null,
-    entrance int not null,
-    floor int not null,
+    entrance int not null default 1,
+    floor int not null default 1,
     apartment int not null,
     comment text,
 
@@ -50,12 +54,11 @@ create table orders (
     color_catcher_sheets boolean default false,
 
     total_price_rub int not null check (total_price_rub >= 0),
-    payment_id text,
     payment_status text default 'pending' check (payment_status in ('pending', 'waiting_for_capture', 'succeeded', 'canceled')),
+    yookassa_payment_id text,
+    yookassa_confirmation_url text,
 
     kaiten_card_id int,
-    telegram_chat_id BIGINT not null,
-    telegram_message_id BIGINT not null,
 
     created_at timestamptz default now(),
     updated_at timestamptz default now()
@@ -94,10 +97,11 @@ insert into order_statuses (name) values
 ('ironing'), ('packing'), ('courier_delivery'), ('delivered'), ('canceled');
 
 insert into services (name, slug, price_rub) values
-('Стирка ', 'base', 990),
+('Стирка', 'base', 890),
 ('Глажка', 'ironing', 990),
-('Кондиционер для белья', 'conditioner', 200),
-('Вакуумный пакет', 'vacuum_pack', 400),
-('Доставка ко времени', 'exact_time', 300),
-('Ультрафиолетовая обработка', 'uv', 300),
-('Мешок для стирки', 'wash_bag', 300);
+('Кондиционер для белья', 'conditioner', 50),
+('Вакуумный пакет', 'vacuum_pack', 150),
+('Пятновыводитель', 'stain_remover', 80),
+('Отбеливатель', 'bleach', 80),
+('Салфетки против окрашивания', 'color_catcher_sheets', 30),
+('Мешок для стирки', 'wash_bag', 30);

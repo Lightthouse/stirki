@@ -1,3 +1,6 @@
+.idea
+
+
 # Python-generated files
 __pycache__/
 *.py[oc]
@@ -11,19 +14,14 @@ wheels/
 
 .env
 
-.idea
-
-# bd geldata
-geldata/dbschema/migrations/
-geldata/dbschema/default.esdl.bak
-
 # Docker volumes и данные БД
 postgres_data/
 postgresql/
 *.log
 
-
-*trello_kanban.py
-kanban.py
-
 .python-version
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
