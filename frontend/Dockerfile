@@ -5,5 +5,6 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM scratch
+FROM busybox:stable
 COPY --from=build /app/dist /dist
+CMD ["true"]
