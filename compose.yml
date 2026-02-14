@@ -29,7 +29,7 @@ services:
     env_file: .env
     environment:
       DB_HOST: postgres
-      APP_ENV: production
+      APP_ENV: ${APP_ENV:-development}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
       YOOKASSA_RETURN_URL: ${YOOKASSA_RETURN_URL:-http://localhost}
     ports:

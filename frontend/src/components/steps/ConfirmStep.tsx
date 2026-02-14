@@ -76,7 +76,7 @@ export function ConfirmStep({ formData, onPaymentUrl, onOrderCreated, onBack }: 
       <div className="step-buttons">
         <Button variant="outline" onClick={onBack}>Назад</Button>
         <Button onClick={handleConfirm} disabled={loading}>
-          {loading ? 'Создание заказа...' : 'Оплатить'}
+          {loading ? 'Создание заказа...' : 'Оформить заказ'}
         </Button>
       </div>
     </div>

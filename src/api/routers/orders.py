@@ -12,6 +12,8 @@ from src.schemas.order import CreateOrderIn, OrderOut, OrderListOut
 from src.schemas.payment import PaymentOut
 from src.services.pricing import PricingService
 from src.services.payment import PaymentService
+from src.settings import AppSettings
+from src.enums import OrderStatusName, PaymentStatus
 
 logger = logging.getLogger(__name__)
 
@@ -68,23 +70,35 @@ async def create_order(
         comment=body.comment,
     )
 
-    # Создаём платёж в ЮKassa
+    # Создаём платёж или пропускаем оплату в зависимости от APP_ENV
+    app_settings = AppSettings()
     confirmation_url = None
-    try:
-        payment_service = PaymentService()
-        payment_result = payment_service.create_payment(
-            amount=total_price,
-            order_id=order.id,
-            description=f"Стирки ON — заказ #{order.id}",
-        )
-        await order_repo.update_payment(
+
+    if app_settings.APP_ENV == "production":
+        # Создаём платёж в ЮKassa
+        try:
+            payment_service = PaymentService()
+            payment_result = payment_service.create_payment(
+                amount=total_price,
+                order_id=order.id,
+                description=f"Стирки ON — заказ #{order.id}",
+            )
+            await order_repo.update_payment(
+                order,
+                yookassa_payment_id=payment_result["payment_id"],
+                yookassa_confirmation_url=payment_result.get("confirmation_url"),
+            )
+            confirmation_url = payment_result.get("confirmation_url")
+        except Exception:
+            logger.exception("Failed to create YooKassa payment for order %s", order.id)
+    else:
+        # Dev/local: автоматически помечаем как оплаченный
+        await order_repo.update_status(
             order,
-            yookassa_payment_id=payment_result["payment_id"],
-            yookassa_confirmation_url=payment_result.get("confirmation_url"),
+            status_name=OrderStatusName.NEW,
+            payment_status=PaymentStatus.SUCCEEDED,
+            changed_by="dev-auto",
         )
-        confirmation_url = payment_result.get("confirmation_url")
-    except Exception:
-        logger.exception("Failed to create YooKassa payment for order %s", order.id)
 
     return PaymentOut(
         order_id=order.id,

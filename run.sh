@@ -4,15 +4,16 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 usage() {
-    echo "Использование: ./run.sh {dev|prod|stop}"
+    echo "Использование: ./run.sh {local|dev|prod|stop}"
     echo ""
-    echo "  dev   — БД + adminer + baserow в docker, backend и frontend локально с hot-reload"
-    echo "  prod  — весь стек в docker (включая backend, frontend, caddy)"
+    echo "  local — БД + adminer + baserow в docker, backend и frontend локально с hot-reload, без оплаты"
+    echo "  dev   — весь стек в docker (включая backend, frontend, caddy), без оплаты"
+    echo "  prod  — весь стек в docker (включая backend, frontend, caddy), с реальной оплатой"
     echo "  stop  — остановить всё"
     exit 1
 }
 
-cmd_dev() {
+cmd_local() {
     echo "==> Запуск инфраструктуры (postgres, adminer, baserow)..."
     docker compose up -d
 
@@ -24,7 +25,9 @@ cmd_dev() {
 
     trap 'echo ""; echo "==> Остановка процессов..."; kill 0; exit 0' INT TERM
 
-    echo "==> Запуск backend (uvicorn --reload) на :8000..."
+    export APP_ENV=development
+
+    echo "==> Запуск backend (uvicorn --reload) на :8000 (APP_ENV=development)..."
     uv run uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload &
 
     echo "==> Запуск frontend (npm run dev) на :5173..."
@@ -33,10 +36,14 @@ cmd_dev() {
     wait
 }
 
+cmd_dev() {
+    echo "==> Запуск в dev-режиме (без оплаты)..."
+    APP_ENV=development docker compose --profile prod up -d --build
+}
+
 cmd_prod() {
-    echo "==> Запуск всего стека в docker..."
-    docker compose --profile prod up -d --build
-    echo "==> Готово. Caddy на :80, backend на :8000"
+    echo "==> Запуск в prod-режиме..."
+    APP_ENV=production docker compose --profile prod up -d --build
 }
 
 cmd_stop() {
@@ -46,8 +53,9 @@ cmd_stop() {
 }
 
 case "${1:-}" in
-    dev)  cmd_dev  ;;
-    prod) cmd_prod ;;
-    stop) cmd_stop ;;
-    *)    usage    ;;
+    local) cmd_local ;;
+    dev)   cmd_dev   ;;
+    prod)  cmd_prod  ;;
+    stop)  cmd_stop  ;;
+    *)     usage     ;;
 esac
