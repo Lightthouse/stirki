@@ -1,11 +1,13 @@
-{$DOMAIN:localhost} {
-    # Frontend SPA
-    root * /srv
-    try_files {path} /index.html
-    file_server
+:80 {
+	# API proxy (first — so POST requests don't hit file_server)
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
 
-    # API proxy
-    handle /api/* {
-        reverse_proxy backend:8000
-    }
+	# Frontend SPA
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
 }

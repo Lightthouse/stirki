@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useOrderFlow } from '../hooks/useOrderFlow'
 import { isAuthenticated } from '../api/client'
 import { StepIndicator } from '../components/ui/StepIndicator'
+import { WelcomeStep } from '../components/steps/WelcomeStep'
 import { PhoneStep } from '../components/steps/PhoneStep'
 import { CodeStep } from '../components/steps/CodeStep'
 import { NameStep } from '../components/steps/NameStep'
@@ -27,6 +28,8 @@ export function OrderPage() {
 
   const renderStep = () => {
     switch (flow.step) {
+      case 'welcome':
+        return <WelcomeStep onNext={flow.nextStep} />
       case 'phone':
         return (
           <PhoneStep
@@ -99,6 +102,7 @@ export function OrderPage() {
             onToggle={toggleService}
             onNext={flow.nextStep}
             onBack={flow.prevStep}
+            bagsNumber={flow.formData.bags_number}
           />
         )
       case 'confirm':
@@ -137,7 +141,7 @@ export function OrderPage() {
           <Link to="/orders" className="nav-link">Мои заказы</Link>
         )}
       </header>
-      {flow.step !== 'status' && flow.step !== 'payment' && (
+      {flow.step !== 'welcome' && flow.step !== 'status' && flow.step !== 'payment' && (
         <StepIndicator current={flow.currentStepIndex} total={flow.totalSteps} />
       )}
       <main className="main">{renderStep()}</main>

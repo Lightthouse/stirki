@@ -16,22 +16,24 @@ const INITIAL_FORM: OrderFormData = {
 }
 
 const NEW_CLIENT_STEPS: Step[] = [
-  'phone', 'code', 'name', 'street', 'house', 'apartment', 'bags', 'services', 'confirm',
+  'welcome', 'phone', 'code', 'name', 'street', 'house', 'apartment', 'bags', 'services', 'confirm',
 ]
 
 const RETURNING_CLIENT_STEPS: Step[] = [
-  'phone', 'code', 'bags', 'services', 'confirm',
+  'welcome', 'phone', 'code', 'bags', 'services', 'confirm',
 ]
 
 export function useOrderFlow() {
-  const [step, setStep] = useState<Step>('phone')
+  const [step, setStep] = useState<Step>('welcome')
   const [formData, setFormData] = useState<OrderFormData>(INITIAL_FORM)
   const [isReturningClient, setIsReturningClient] = useState(false)
   const [orderId, setOrderId] = useState<number | null>(null)
 
   const steps = isReturningClient ? RETURNING_CLIENT_STEPS : NEW_CLIENT_STEPS
 
-  const currentStepIndex = steps.indexOf(step)
+  // welcome не учитывается в прогресс-баре, индекс начинается с phone
+  const stepsWithoutWelcome = steps.filter((s): s is Step => s !== 'welcome')
+  const currentStepIndex = stepsWithoutWelcome.indexOf(step)
 
   const updateField = useCallback(<K extends keyof OrderFormData>(
     key: K,
@@ -71,7 +73,7 @@ export function useOrderFlow() {
   const goToStatus = useCallback(() => setStep('status'), [])
 
   const reset = useCallback(() => {
-    setStep('phone')
+    setStep('welcome')
     setFormData(INITIAL_FORM)
     setIsReturningClient(false)
     setOrderId(null)
@@ -92,6 +94,6 @@ export function useOrderFlow() {
     goToStatus,
     reset,
     currentStepIndex,
-    totalSteps: steps.length,
+    totalSteps: stepsWithoutWelcome.length,
   }
 }

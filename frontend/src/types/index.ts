@@ -77,6 +77,7 @@ export interface OrderListItem {
 }
 
 export type Step =
+  | 'welcome'
   | 'phone'
   | 'code'
   | 'name'

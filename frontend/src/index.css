@@ -415,3 +415,173 @@ body {
 .nav-link:hover {
   text-decoration: underline;
 }
+
+/* Welcome */
+.welcome-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-top: 32px;
+}
+
+.welcome-hero {
+  margin-bottom: 32px;
+}
+
+.welcome-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 8px;
+}
+
+.welcome-subtitle {
+  font-size: 16px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.welcome-features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.welcome-feature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-align: left;
+  font-size: 15px;
+}
+
+.welcome-feature-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.welcome-info-link {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 12px;
+  padding: 8px;
+}
+
+.welcome-info-link:hover {
+  text-decoration: underline;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.modal-content {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 24px;
+  max-width: 480px;
+  width: 100%;
+  max-height: 85dvh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+.modal-content h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  padding-right: 32px;
+}
+
+.modal-section {
+  margin-bottom: 16px;
+}
+
+.modal-section h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--primary);
+}
+
+.modal-section ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.modal-section li {
+  font-size: 14px;
+  line-height: 1.5;
+  padding-left: 16px;
+  position: relative;
+}
+
+.modal-section li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--text-secondary);
+}
+
+.modal-section p {
+  font-size: 14px;
+  margin: 8px 0 4px;
+}
+
+.modal-section a {
+  color: var(--primary);
+}
+
+/* Price formula */
+.price-formula {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  background: #eff6ff;
+  border-radius: var(--radius);
+  margin-top: 8px;
+  font-size: 15px;
+}
+
+.price-formula-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.price-formula-calc {
+  font-size: 16px;
+}
