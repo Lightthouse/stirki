@@ -25,6 +25,7 @@ export default defineConfig({
             src: '/icons/icon-512.png',
             sizes: '512x512',
             type: 'image/png',
+            purpose: 'maskable',
           },
         ],
       },
@@ -33,7 +34,8 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     proxy: {
-      '/api': 'http://localhost:8000',
+      '/api': 'http://localhost:8001',
+      '/advertising': 'http://localhost:8001',
     },
   },
 })

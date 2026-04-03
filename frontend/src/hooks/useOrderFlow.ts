@@ -16,24 +16,29 @@ const INITIAL_FORM: OrderFormData = {
 }
 
 const NEW_CLIENT_STEPS: Step[] = [
-  'welcome', 'phone', 'code', 'name', 'street', 'house', 'apartment', 'bags', 'services', 'confirm',
+  'phone', 'code', 'name', 'street', 'house', 'apartment', 'bags', 'services', 'confirm',
 ]
 
 const RETURNING_CLIENT_STEPS: Step[] = [
-  'welcome', 'phone', 'code', 'bags', 'services', 'confirm',
+  'phone', 'code', 'bags', 'services', 'confirm',
 ]
 
-export function useOrderFlow() {
-  const [step, setStep] = useState<Step>('welcome')
+// Уже авторизован — пропускаем auth и ввод адреса
+const AUTH_STEPS: Step[] = [
+  'bags', 'services', 'confirm',
+]
+
+export function useOrderFlow(startAuthenticated = false) {
+  const [step, setStep] = useState<Step>(startAuthenticated ? 'bags' : 'phone')
   const [formData, setFormData] = useState<OrderFormData>(INITIAL_FORM)
-  const [isReturningClient, setIsReturningClient] = useState(false)
+  const [isReturningClient, setIsReturningClient] = useState(startAuthenticated)
   const [orderId, setOrderId] = useState<number | null>(null)
 
-  const steps = isReturningClient ? RETURNING_CLIENT_STEPS : NEW_CLIENT_STEPS
+  const steps = startAuthenticated
+    ? AUTH_STEPS
+    : (isReturningClient ? RETURNING_CLIENT_STEPS : NEW_CLIENT_STEPS)
 
-  // welcome не учитывается в прогресс-баре, индекс начинается с phone
-  const stepsWithoutWelcome = steps.filter((s): s is Step => s !== 'welcome')
-  const currentStepIndex = stepsWithoutWelcome.indexOf(step)
+  const currentStepIndex = steps.indexOf(step)
 
   const updateField = useCallback(<K extends keyof OrderFormData>(
     key: K,
@@ -73,11 +78,11 @@ export function useOrderFlow() {
   const goToStatus = useCallback(() => setStep('status'), [])
 
   const reset = useCallback(() => {
-    setStep('welcome')
+    setStep(startAuthenticated ? 'bags' : 'phone')
     setFormData(INITIAL_FORM)
-    setIsReturningClient(false)
+    setIsReturningClient(startAuthenticated)
     setOrderId(null)
-  }, [])
+  }, [startAuthenticated])
 
   return {
     step,
@@ -94,6 +99,6 @@ export function useOrderFlow() {
     goToStatus,
     reset,
     currentStepIndex,
-    totalSteps: stepsWithoutWelcome.length,
+    totalSteps: steps.length,
   }
 }

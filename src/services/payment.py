@@ -19,20 +19,32 @@ class PaymentService:
         amount: int,
         order_id: int,
         description: str = "Оплата заказа на стирку",
+        customer_email: str | None = None,
     ) -> dict:
         """Create a YooKassa payment with SBP method."""
-        payment = Payment.create(
-            {
-                "amount": {"value": str(amount), "currency": "RUB"},
-                "confirmation": {
-                    "type": "redirect",
-                    "return_url": f"{self.return_url}/orders/{order_id}",
-                },
-                "capture": True,
-                "description": description,
-                "metadata": {"order_id": str(order_id)},
+        payload: dict = {
+            "amount": {"value": str(amount), "currency": "RUB"},
+            "confirmation": {
+                "type": "redirect",
+                "return_url": f"{self.return_url}/orders/{order_id}",
+            },
+            "capture": True,
+            "description": description,
+            "metadata": {"order_id": str(order_id)},
+        }
+        if customer_email:
+            payload["receipt"] = {
+                "customer": {"email": customer_email},
+                "items": [
+                    {
+                        "description": description,
+                        "quantity": "1",
+                        "amount": {"value": str(amount), "currency": "RUB"},
+                        "vat_code": 1,
+                    }
+                ],
             }
-        )
+        payment = Payment.create(payload)
 
         return {
             "payment_id": payment.id,

@@ -1,0 +1,12 @@
+### GET request to example server
+GET https://examples.http-client.intellij.net/get
+    ?generated-in=PyCharm
+
+### Test auth
+GET https://stepanda96@yandex.ru:Zj_TiT8QK0gWRLkz9fiw_Dd8Fmi5hLgP@gate.smsaero.ru/v2/auth
+
+### Test auth
+GET https://stepanda96:Zj_TiT8QK0gWRLkz9fiw_Dd8Fmi5hLgP@gate.smsaero.ru/v2/auth
+
+### testsend
+GET https://stepanda96:Zj_TiT8QK0gWRLkz9fiw_Dd8Fmi5hLgP@gate.smsaero.ru/v2/sms/testsend?number=79068225814&text=Test+text&sign=BIZNES

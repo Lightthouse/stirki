@@ -6,10 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.dependencies import get_db, get_current_client
 from src.models.client import Client
 from src.repositories.client import ClientRepository
-from src.repositories.order import OrderRepository
 from src.repositories.service import ServiceRepository
 from src.schemas.order import CreateOrderIn, OrderOut, OrderListOut
 from src.schemas.payment import PaymentOut
+from src.services.order import OrderService
 from src.services.pricing import PricingService
 from src.services.payment import PaymentService
 from src.settings import AppSettings
@@ -57,33 +57,33 @@ async def create_order(
     base_price = await service_repo.get_base_price()
     pricing = PricingService(base_price, all_services)
 
-    total_price = pricing.calculate_order_price(body.bags_number, body.services)
+    total_price = pricing.calculate_order_price(body.bags_number, body.services, body.washing_type)
     service_flags = pricing.service_flags(body.services)
 
     # Создаём заказ
-    order_repo = OrderRepository(session)
-    order = await order_repo.create(
-        client=client,
-        bags_number=body.bags_number,
-        services=service_flags,
-        total_price_rub=total_price,
-        comment=body.comment,
-    )
-
-    # Создаём платёж или пропускаем оплату в зависимости от APP_ENV
     app_settings = AppSettings()
-    confirmation_url = None
+    order_service = OrderService(session)
 
     if app_settings.APP_ENV == "production":
-        # Создаём платёж в ЮKassa
+        order = await order_service.create(
+            client=client,
+            washing_type=body.washing_type,
+            bags_number=body.bags_number,
+            services=service_flags,
+            total_price_rub=total_price,
+            status_name=OrderStatusName.WAITING_FOR_CAPTURE,
+            comment=body.comment,
+        )
+        confirmation_url = None
         try:
             payment_service = PaymentService()
             payment_result = payment_service.create_payment(
                 amount=total_price,
                 order_id=order.id,
                 description=f"Стирки ON — заказ #{order.id}",
+                customer_email=client.email or None,
             )
-            await order_repo.update_payment(
+            await order_service.update_payment(
                 order,
                 yookassa_payment_id=payment_result["payment_id"],
                 yookassa_confirmation_url=payment_result.get("confirmation_url"),
@@ -92,13 +92,23 @@ async def create_order(
         except Exception:
             logger.exception("Failed to create YooKassa payment for order %s", order.id)
     else:
-        # Dev/local: автоматически помечаем как оплаченный
-        await order_repo.update_status(
+        # Dev: создаём заказ сразу как NEW и без оплаты
+        order = await order_service.create(
+            client=client,
+            washing_type=body.washing_type,
+            bags_number=body.bags_number,
+            services=service_flags,
+            total_price_rub=total_price,
+            status_name=OrderStatusName.NEW,
+            comment=body.comment,
+        )
+        await order_service.update_status(
             order,
             status_name=OrderStatusName.NEW,
             payment_status=PaymentStatus.SUCCEEDED,
             changed_by="dev-auto",
         )
+        confirmation_url = None
 
     return PaymentOut(
         order_id=order.id,
@@ -112,14 +122,15 @@ async def list_orders(
     client: Client = Depends(get_current_client),
     session: AsyncSession = Depends(get_db),
 ):
-    repo = OrderRepository(session)
-    orders = await repo.get_by_client_id(client.id)
+    order_service = OrderService(session)
+    orders = await order_service.get_by_client_id(client.id)
     return [
         OrderListOut(
             id=o.id,
             status=o.status.name,
             total_price_rub=o.total_price_rub,
             payment_status=o.payment_status,
+            washing_type=o.washing_type,
             bags_number=o.bags_number,
             created_at=o.created_at,
         )
@@ -133,8 +144,8 @@ async def get_order(
     client: Client = Depends(get_current_client),
     session: AsyncSession = Depends(get_db),
 ):
-    repo = OrderRepository(session)
-    order = await repo.get_by_id(order_id)
+    order_service = OrderService(session)
+    order = await order_service.get_by_id(order_id)
 
     if not order or order.client_id != client.id:
         raise HTTPException(
@@ -150,6 +161,7 @@ async def get_order(
         apartment=order.apartment,
         entrance=order.entrance,
         floor=order.floor,
+        washing_type=order.washing_type,
         bags_number=order.bags_number,
         services=_order_services_list(order),
         total_price_rub=order.total_price_rub,

@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>стиркаОН — стирка с доставкой</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0f1720;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: white;
+        }
+        .app {
+            width: 100%;
+            max-width: 380px;
+            height: 700px;
+            background: #0f1720;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 30px 60px -20px black;
+            border-radius: 32px;
+        }
+        .header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 30;
+            background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 100%);
+            pointer-events: none;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: 600;
+            color: white;
+            pointer-events: auto;
+            background: rgba(0,0,0,0.3);
+            padding: 6px 16px;
+            border-radius: 40px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .logo span { font-weight: 300; color: #ffd966; }
+        .header-actions { display: flex; gap: 12px; pointer-events: auto; }
+        .header-actions i {
+            font-size: 20px;
+            color: white;
+            cursor: pointer;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 50%;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: 0.2s;
+        }
+        .header-actions i:active { transform: scale(0.95); }
+        .start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0f1720;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .form-card {
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            padding: 24px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .input-field {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 25px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .input-field i { color: #ffd966; width: 24px; }
+        .input-field input, .input-field select {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 14px;
+            outline: none;
+            width: 100%;
+        }
+        button {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid #ffd966;
+            border-radius: 40px;
+            padding: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 8px;
+            transition: all 0.15s ease;
+        }
+        button:active { transform: scale(0.98); background: #ffd966; color: #000; }
+        .small-text { font-size: 12px; color: rgba(255,255,255,0.6); text-align: center; margin-top: 12px; }
+        .link-text { color: #ffd966; cursor: pointer; text-decoration: underline; }
+        .logo-large { text-align: center; margin-bottom: 24px; font-size: 48px; font-weight: 700; }
+        .main-app { width: 100%; height: 100%; position: relative; display: none; background: #0f1720; overflow: hidden; }
+        .swipe-container {
+            height: 100%;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .swipe-container::-webkit-scrollbar { display: none; }
+        .swipe-card {
+            height: 100%;
+            scroll-snap-align: start;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0 16px;
+        }
+        .card-content { position: relative; z-index: 10; }
+        .swipe-hint {
+            text-align: center;
+            font-size: 12px;
+            color: rgba(255,255,255,0.5);
+            margin-top: 20px;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+        .swipe-hint.active { color: #ffd966; }
+        .tariff-grid { display: flex; flex-direction: column; gap: 15px; }
+        .tariff-card {
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            padding: 20px;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .tariff-card.free { border-color: #4a9eff; }
+        .tariff-card.paid { border-color: #ffd966; }
+        .tariff-card.selected {
+            background: rgba(255,217,102,0.2);
+            border-color: #ffd966;
+            box-shadow: 0 0 0 1px #ffd966 inset;
+        }
+        .tariff-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .tariff-name { font-size: 24px; font-weight: 700; }
+        .tariff-price { font-size: 22px; font-weight: 700; color: #ffd966; }
+        .tariff-desc { font-size: 13px; color: rgba(255,255,255,0.8); margin-bottom: 15px; }
+        .like-button {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 40px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.15s;
+        }
+        .like-button.selected {
+            background: #ffd966;
+            color: #000;
+            border-color: white;
+        }
+        .like-button.selected i { color: #000; }
+        .machines-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 12px; 
+            margin: 20px 0;
+        }
+        .machine-mini {
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px); 
+            border-radius: 20px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .machine-mini.selected {
+            background: rgba(255,217,102,0.2);
+            border: 1px solid #ffd966;
+        }
+        .machine-mini button {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid #ffd966;
+            border-radius: 30px;
+            padding: 8px;
+            margin-top: 8px;
+            width: 100%;
+            cursor: pointer;
+        }
+        .machine-mini button:active { transform: scale(0.95); }
+        .machine-mini button.disabled { opacity: 0.5; pointer-events: none; }
+        .service-panel {
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 40px;
+            padding: 24px;
+        }
+        .service-selector { display: flex; gap: 16px; justify-content: center; margin-bottom: 20px; }
+        .service-option {
+            cursor: pointer;
+            padding: 8px 20px;
+            border-radius: 30px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .service-option.active { background: #ffd966; color: #000; }
+        .dops-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 20px 0; }
+        .dop-tag {
+            background: rgba(255,255,255,0.1);
+            border-radius: 30px;
+            padding: 8px 14px;
+            cursor: pointer;
+            font-size: 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .dop-tag.active { background: #ffd966; color: #000; }
+        .dop-tag.disabled { opacity: 0.5; cursor: pointer; pointer-events: auto; }
+        .add-to-cart-btn {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid #ffd966;
+            border-radius: 40px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .ad-block {
+            background: linear-gradient(90deg, #ff6b6b, #ffd966);
+            border-radius: 30px;
+            padding: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+        .cart-mini {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            right: 16px;
+            background: rgba(20,20,20,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            padding: 12px 16px;
+            z-index: 35;
+            border: 2px solid #ffd966;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+        }
+        .cart-mini-left { display: flex; align-items: center; gap: 16px; }
+        .cart-mini-left i { font-size: 22px; color: #ffd966; }
+        .cart-mini-total { font-size: 18px; font-weight: 700; color: #ffd966; }
+        .cart-mini-count { background: #ffd966; color: #000; padding: 4px 12px; border-radius: 30px; font-weight: 700; font-size: 14px; }
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            z-index: 40;
+            display: none;
+        }
+        .cart-expanded {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
+            border-radius: 30px 30px 0 0;
+            padding: 24px;
+            z-index: 50;
+            transform: translateY(100%);
+            transition: 0.3s;
+            border-top: 3px solid #ffd966;
+            max-height: 80%;
+            overflow-y: auto;
+        }
+        .cart-expanded.show { transform: translateY(0); }
+        .cart-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .cart-header h3 { color: #ffd966; font-size: 24px; }
+        .close-cart { font-size: 24px; cursor: pointer; color: rgba(255,255,255,0.5); }
+        .cart-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .cart-item-detail { font-size: 12px; color: #aaa; margin-top: 4px; }
+        .cart-item-price { font-weight: 700; color: #ffd966; }
+        .remove-item { background: none; border: none; color: rgba(255,255,255,0.3); cursor: pointer; font-size: 16px; }
+        .cart-total { display: flex; justify-content: space-between; margin: 20px 0; padding-top: 20px; border-top: 2px solid rgba(255,255,255,0.1); font-weight: 700; }
+        .cart-total span:last-child { font-size: 28px; color: #ffd966; }
+        .payment-options {
+            background: rgba(255,255,255,0.05);
+            border-radius: 24px;
+            padding: 16px;
+            margin: 15px 0;
+        }
+        .payment-title { font-size: 14px; font-weight: 600; color: #ffd966; margin-bottom: 12px; }
+        .payment-option { display: flex; align-items: center; gap: 12px; padding: 10px 0; cursor: pointer; }
+        .payment-option input { width: 18px; height: 18px; accent-color: #ffd966; margin: 0; cursor: pointer; }
+        .payment-option span { font-size: 14px; flex: 1; }
+        .legal-text { font-size: 10px; color: rgba(255,255,255,0.5); text-align: center; margin: 12px 0; line-height: 1.4; }
+        .legal-text a { color: #ffd966; text-decoration: underline; cursor: pointer; }
+        .clear-cart-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 30px;
+            padding: 12px;
+            width: 100%;
+            margin-bottom: 12px;
+        }
+        .checkout-btn { background: #ffd966; color: #000; border: none; width: 100%; padding: 14px; border-radius: 30px; font-weight: 700; cursor: pointer; }
+        .checkout-btn.disabled { opacity: 0.4; pointer-events: none; }
+        .progress-dots { display: flex; gap: 6px; justify-content: center; margin-top: 20px; }
+        .dot { width: 5px; height: 5px; border-radius: 10px; background: rgba(255,255,255,0.3); }
+        .dot.active { width: 16px; background: #ffd966; }
+        .modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1a2535;
+            border-radius: 30px;
+            padding: 24px;
+            z-index: 60;
+            width: 90%;
+            max-width: 340px;
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+            border: 1px solid rgba(255,255,255,0.2);
+            text-align: center;
+        }
+        .modal.show { display: flex; }
+        .modal h3 { color: #ffd966; font-size: 22px; margin-bottom: 8px; }
+        .modal p { font-size: 14px; line-height: 1.5; color: rgba(255,255,255,0.9); text-align: left; }
+        .modal button {
+            background: #ffd966;
+            color: #000;
+            border: none;
+            border-radius: 40px;
+            padding: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .history-item { background: rgba(255,255,255,0.05); border-radius: 16px; padding: 12px; margin-bottom: 8px; font-size: 13px; }
+        .strikethrough { text-decoration: line-through; opacity: 0.6; margin-right: 8px; }
+        .free-price { color: #ffd966; font-weight: 700; }
+        
+        /* СТАТУС ЭКРАН */
+        .status-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 32, 0.98);
+            backdrop-filter: blur(8px);
+            z-index: 200;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .status-container {
+            background: linear-gradient(135deg, #1e293b 0%, #0f1720 100%);
+            border-radius: 40px;
+            padding: 32px 24px;
+            max-width: 340px;
+            width: 100%;
+            text-align: center;
+            border: 1px solid rgba(255,217,102,0.3);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+        .status-checkmark { font-size: 64px; color: #4ade80; margin-bottom: 16px; }
+        .status-checkmark i { background: rgba(74,222,128,0.2); border-radius: 50%; padding: 12px; }
+        .status-title { font-size: 24px; font-weight: 700; color: #ffd966; margin-bottom: 12px; }
+        .status-message { font-size: 14px; color: rgba(255,255,255,0.8); margin-bottom: 16px; line-height: 1.5; }
+        .status-info {
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 12px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+        .status-timeline {
+            display: flex;
+            justify-content: space-between;
+            margin: 24px 0;
+            position: relative;
+        }
+        .status-timeline::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 10%;
+            right: 10%;
+            height: 2px;
+            background: rgba(255,255,255,0.2);
+            z-index: 0;
+        }
+        .timeline-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+        .timeline-step .step-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 8px;
+            font-size: 18px;
+            transition: all 0.3s;
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+        .timeline-step.active .step-icon {
+            background: #ffd966;
+            color: #000;
+            border-color: #ffd966;
+            box-shadow: 0 0 15px rgba(255,217,102,0.5);
+        }
+        .timeline-step .step-label { font-size: 10px; color: rgba(255,255,255,0.5); }
+        .timeline-step.active .step-label { color: #ffd966; font-weight: 600; }
+        .status-actions { display: flex; flex-direction: column; gap: 12px; margin: 20px 0 16px; }
+        .status-btn {
+            padding: 14px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .status-btn:active { transform: scale(0.98); }
+        .status-btn-primary { background: #ffd966; color: #000; }
+        .status-btn-secondary { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; }
+        .status-btn-outline { background: transparent; border: 1px solid rgba(255,255,255,0.3); color: rgba(255,255,255,0.7); }
+        .status-note {
+            font-size: 11px;
+            color: rgba(255,255,255,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .sms-code { font-size: 36px; font-weight: 800; color: #ffd966; letter-spacing: 6px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 20px; margin: 8px 0; }
+        .error-report { margin-top: 8px; }
+    </style>
+</head>
+<body>
+<div class="app">
+    <!-- СТАРТОВЫЙ ЭКРАН -->
+    <div class="start-screen" id="startScreen">
+        <div class="form-card">
+            <div class="logo-large">стирка<span style="color:#ffd966;">он</span></div>
+            <div id="authForm">
+                <div class="input-field"><i class="fas fa-phone"></i><input type="tel" id="regPhone" placeholder="Телефон" value="+7 925 123-45-67"></div>
+                <div class="input-field" id="codeField" style="display:none;"><i class="fas fa-key"></i><input type="text" id="regCode" placeholder="Код из смс"></div>
+                <button id="sendCodeBtn"><i class="fas fa-paper-plane"></i> Отправить смс код</button>
+                <button id="verifyBtn" style="display:none;"><i class="fas fa-check-circle"></i> Подтвердить код</button>
+                <div class="input-field"><i class="fas fa-user"></i><input type="text" id="regName" placeholder="Имя" value="Александр"></div>
+                <div class="input-field"><i class="fas fa-envelope"></i><input type="email" id="regEmail" placeholder="Email" value="alex@example.com"></div>
+            </div>
+            <div id="authButtons" style="display:none;">
+                <button id="historyBtn"><i class="fas fa-history"></i> История заказов</button>
+                <button id="newOrderBtn"><i class="fas fa-heart"></i> Сделать новый заказ</button>
+            </div>
+            <div class="small-text"><span class="link-text" id="switchAuthMode"> Войти/ Зарегестрироваться</span></div>
+            <div class="small-text"><span class="link-text" id="aboutServiceBtn">📖 Подробнее о сервисе</span></div>
+            <div class="small-text error-report"><span class="link-text" id="reportErrorBtn">⚠️ Сообщить об ошибке</span></div>
+        </div>
+    </div>
+
+    <!-- ОСНОВНОЕ ПРИЛОЖЕНИЕ -->
+    <div class="main-app" id="mainApp">
+        <div class="header">
+            <div class="logo">стирка<span>он</span></div>
+            <div class="header-actions">
+                <i class="fas fa-history" id="historyHeaderBtn" style="font-size: 18px;"></i>
+                <i class="fas fa-home" id="homeBtn"></i>
+            </div>
+        </div>
+        <div class="swipe-container" id="swipeContainer">
+            <!-- АДРЕС -->
+            <div class="swipe-card" id="addressCard">
+                <div class="card-content">
+                    <div class="form-card">
+                        <h3 style="color:#ffd966; margin-bottom:15px;"><i class="fas fa-map-marker-alt"></i> адрес доставки</h3>
+                        <div class="input-field"><i class="fas fa-street-view"></i><select id="street"><option>Новомытищинская</option><option>Рождественская</option></select></div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                            <div class="input-field"><i class="fas fa-building"></i><select id="house"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+                            <div class="input-field"><i class="fas fa-door-open"></i><select id="entrance"><option>1</option><option>2</option><option>3</option><option>4</option></select></div>
+                        </div>
+                        <div class="input-field"><i class="fas fa-home"></i><select id="apartment"></select></div>
+                        <div class="input-field"><i class="fas fa-comment"></i><input type="text" id="comment" placeholder="Комментарий для курьера" value="Оставить у двери"></div>
+                    </div>
+                    <div class="swipe-hint" id="addressHint"><i class="fas fa-chevron-up"></i> потяните вверх <i class="fas fa-chevron-up"></i></div>
+                    <div class="progress-dots"><span class="dot active"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                </div>
+            </div>
+            <!-- ТАРИФ -->
+            <div class="swipe-card" id="tariffCard">
+                <div class="card-content">
+                    <div class="tariff-grid">
+                        <div class="tariff-card free" id="tariffFreeCard"><div class="tariff-header"><span class="tariff-name"><i class="fas fa-gift"></i> Бесплатно</span><span class="tariff-price">0 ₽</span></div><div class="tariff-desc">только пакет · допы недоступны · 1 позиция</div><div class="like-button" id="chooseFree"><i class="far fa-heart"></i> выбрать</div></div>
+                        <div class="tariff-card paid" id="tariffPaidCard"><div class="tariff-header"><span class="tariff-name"><i class="fas fa-bolt"></i> Платно</span><span class="tariff-price">от 190 ₽</span></div><div class="tariff-desc">вещь или пакет · любые допы · до 3 позиций</div><div class="like-button" id="choosePaid"><i class="far fa-heart"></i> выбрать</div></div>
+                    </div>
+                    <div class="swipe-hint" id="tariffHint"><i class="fas fa-chevron-up"></i> потяните вверх <i class="fas fa-chevron-up"></i></div>
+                    <div class="progress-dots"><span class="dot"></span><span class="dot active"></span><span class="dot"></span><span class="dot"></span></div>
+                </div>
+            </div>
+            <!-- МАШИНКИ -->
+            <div class="swipe-card" id="machinesCard" style="display:none;">
+                <div class="card-content" style="display: flex; flex-direction: column; justify-content: center; min-height: 100%;">
+                    <h3 style="color:#ffd966; text-align:center; margin-bottom: 20px;"><i class="fas fa-tachometer-alt"></i> Статус машинок</h3>
+                    <div class="machines-grid" id="machinesGrid"></div>
+                    <div class="swipe-hint" id="machineHint"><i class="fas fa-chevron-up"></i> потяните вверх <i class="fas fa-chevron-up"></i></div>
+                    <div class="progress-dots"><span class="dot"></span><span class="dot"></span><span class="dot active"></span><span class="dot"></span></div>
+                </div>
+            </div>
+            <!-- УСЛУГИ (без подсказки) -->
+            <div class="swipe-card" id="serviceCard">
+                <div class="card-content">
+                    <div class="service-panel">
+                        <div id="adBlock" class="ad-block" style="display:none;"><span><i class="fas fa-play-circle"></i> СМОТРЕТЬ РЕКЛАМУ</span><span id="adCounter" class="ad-counter">0/3</span></div>
+                        <div class="service-selector">
+                            <span class="service-option" id="selectPiece"><i class="fas fa-tshirt"></i> вещь</span>
+                            <span class="service-option active" id="selectBag"><i class="fas fa-shopping-bag"></i> пакет</span>
+                        </div>
+                        <div id="serviceDisplay">
+                            <div style="font-size:48px;">🛍️</div>
+                            <div style="font-size:28px; font-weight:700;">Пакет</div>
+                            <div style="font-size:32px; color:#ffd966;" id="priceDisplay">990 ₽</div>
+                        </div>
+                        <div class="dops-row" id="dopsRow"></div>
+                        <div class="add-to-cart-btn" id="addToCartBtn"><i class="far fa-heart"></i> добавить в корзину</div>
+                    </div>
+                    <div class="progress-dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot active"></span></div>
+                </div>
+            </div>
+        </div>
+        <div class="cart-mini" id="cartMini">
+            <div class="cart-mini-left">
+                <i class="fas fa-shopping-bag"></i>
+                <span class="cart-mini-total" id="cartMiniTotal">0 ₽</span>
+            </div>
+            <div class="cart-mini-count" id="cartMiniCount">0</div>
+        </div>
+        <div class="overlay" id="overlay"></div>
+        <div class="cart-expanded" id="cartExpanded">
+            <div class="cart-header"><h3><i class="fas fa-shopping-cart"></i> корзина</h3><i class="fas fa-times close-cart" id="closeCart"></i></div>
+            <div id="cartItems" style="min-height:100px;"></div>
+            <div class="payment-options" id="paymentOptions" style="display:none;">
+                <div class="payment-title"><i class="fas fa-credit-card"></i> Способ оплаты</div>
+                <label class="payment-option"><input type="radio" name="payment" value="card" checked> <span><i class="fab fa-cc-visa"></i> Банковская карта</span></label>
+                <label class="payment-option"><input type="radio" name="payment" value="sbp"> <span><i class="fas fa-qrcode"></i> QR-код (СБП)</span></label>
+                <label class="payment-option"><input type="radio" name="payment" value="tpay"> <span><i class="fas fa-mobile-alt"></i> T‑Pay</span></label>
+            </div>
+            <div class="legal-text">
+                Нажимая «Оформить заказ», вы принимаете <a id="offerLink">условия публичной оферты</a>, соглашаетесь на <a id="policyLink">обработку персональных данных</a>.
+            </div>
+            <button class="clear-cart-btn" id="clearCartBtn"><i class="fas fa-trash-alt"></i> Очистить корзину</button>
+            <button class="checkout-btn" id="orderBtn" disabled><i class="fas fa-check-circle"></i> Оформить заказ</button>
+        </div>
+    </div>
+
+    <!-- СТАТУС ЗАКАЗА -->
+    <div class="status-screen" id="statusScreen">
+        <div class="status-container">
+            <div class="status-checkmark"><i class="fas fa-check-circle"></i></div>
+            <h3 class="status-title">✅ Заказ принят!</h3>
+            <p class="status-message" id="statusMessageText">Номер заказа: <strong id="orderNumber">#ST-2403</strong><br>Сумма: <strong id="orderTotal">0 ₽</strong></p>
+            <p class="status-info">🚚 Курьер приедет в течение 15 минут<br>📍 Заберёт вещи у двери, вернёт чистыми через 3-5 часов</p>
+            <div class="status-timeline" id="statusTimeline">
+                <div class="timeline-step active" data-step="1"><div class="step-icon"><i class="fas fa-check"></i></div><div class="step-label">Заказ принят</div></div>
+                <div class="timeline-step" data-step="2"><div class="step-icon"><i class="fas fa-person-walking"></i></div><div class="step-label">Курьер в пути</div></div>
+                <div class="timeline-step" data-step="3"><div class="step-icon"><i class="fas fa-soap"></i></div><div class="step-label">Стирка</div></div>
+                <div class="timeline-step" data-step="4"><div class="step-icon"><i class="fas fa-box-open"></i></div><div class="step-label">Доставлено</div></div>
+            </div>
+            <div class="status-actions">
+                <button class="status-btn status-btn-primary" id="trackOrderBtn"><i class="fas fa-map-marker-alt"></i> Отследить</button>
+                <button class="status-btn status-btn-secondary" id="contactSupportBtn"><i class="fas fa-headset"></i> Связаться</button>
+                <button class="status-btn status-btn-outline" id="closeStatusBtn"><i class="fas fa-times"></i> Закрыть</button>
+            </div>
+            <div class="status-note"><i class="fas fa-info-circle"></i> Вы можете закрыть сайт — мы пришлём уведомление, когда курьер будет рядом</div>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНЫЕ ОКНА -->
+    <div id="historyModal" class="modal"><h3><i class="fas fa-history"></i> История заказов</h3><div id="historyList"></div><button class="closeModal">Закрыть</button></div>
+    <div id="profileModal" class="modal"><h3><i class="fas fa-user-circle"></i> Профиль</h3><p id="profileInfo"></p><button id="switchAccountBtn">Сменить аккаунт</button><button class="closeModal">Закрыть</button></div>
+    <div id="offerModal" class="modal"><h3>Публичная оферта</h3><p>Оферта на оказание услуг по стирке. Акцепт — оформление заказа.</p><button class="closeModal">Закрыть</button></div>
+    <div id="policyModal" class="modal"><h3>Обработка персональных данных</h3><p>Ваши данные используются только для оказания услуг.</p><button class="closeModal">Закрыть</button></div>
+    <div id="infoModal" class="modal"><h3>Информация</h3><p id="infoModalText"></p><button class="closeModal">Закрыть</button></div>
+    <div id="smsCodeModal" class="modal"><h3><i class="fas fa-envelope"></i> Код подтверждения</h3><p>Ваш код для входа:</p><div class="sms-code">1234</div><p style="font-size: 12px;">Введите этот код в поле ниже</p><button class="closeModal">Понятно</button></div>
+    <div id="aboutServiceModal" class="modal"><h3><i class="fas fa-star"></i> о стиркаОН</h3><p><strong>стиркаОН</strong> — современная прачечная с доставкой.</p><p>📍 <strong>Как это работает:</strong><br>1. Выбираете тариф<br>2. Курьер забирает вещи у двери<br>3. Мы стираем, сушим и гладим<br>4. Возвращаем чистыми через 3-5 часов</p><p>🎁 <strong>Два тарифа:</strong><br>• Бесплатный — 3 рекламы, стирка бесплатна<br>• Платный — от 190₽, без очереди</p><button class="closeModal">Понятно</button></div>
+    <div id="errorReportModal" class="modal"><h3><i class="fas fa-bug"></i> Сообщить об ошибке</h3><p>Опишите проблему, и мы постараемся исправить её в ближайшее время.</p><textarea id="errorText" rows="3" style="width:100%; padding:12px; border-radius:20px; background:#0f1720; border:1px solid #ffd966; color:white; margin:8px 0;"></textarea><button id="sendErrorBtn">Отправить</button><button class="closeModal">Отмена</button></div>
+</div>
+
+<script>
+(function() {
+    // ---------- КОНФИГ ----------
+    const PRICES = { piece:190, bag:990, cond:100, vacuum:150, ironP:190, ironB:990 };
+    const LIMITS = { free: 1, paid: 3 };
+    
+    // ---------- СОСТОЯНИЕ ----------
+    let cart = [];
+    let currentTariff = null;
+    let adWatched = 0;
+    let machineSelected = false;
+    let selectedMachineElement = null;
+    let userData = null;
+    let ordersHistory = [
+        { date: "25 марта 2025, 14:30", items: "Пакет + глажка", total: "1 980 ₽" },
+        { date: "22 марта 2025, 10:15", items: "Вещь + кондиционер", total: "290 ₽" }
+    ];
+    let currentService = 'bag';
+    let freeModeActive = false;
+    
+    // Заполнение квартир
+    const apt = document.getElementById('apartment');
+    if (apt) {
+        for (let i = 1; i <= 90; i++) {
+            let opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = i;
+            if (i === 42) opt.selected = true;
+            apt.appendChild(opt);
+        }
+    }
+    
+    // Элементы подсказок
+    const hints = {
+        address: document.getElementById('addressHint'),
+        tariff: document.getElementById('tariffHint'),
+        machine: document.getElementById('machineHint')
+    };
+    
+    function activateHint(hintId) {
+        if (hints[hintId]) hints[hintId].classList.add('active');
+    }
+    
+    // Элементы модальных окон
+    const overlay = document.getElementById('overlay');
+    const smsModal = document.getElementById('smsCodeModal');
+    const aboutModal = document.getElementById('aboutServiceModal');
+    const errorModal = document.getElementById('errorReportModal');
+    
+    function showSmsModal() { if (smsModal && overlay) { smsModal.classList.add('show'); overlay.classList.add('show'); } }
+    function showAboutModal() { if (aboutModal && overlay) { aboutModal.classList.add('show'); overlay.classList.add('show'); } }
+    function showErrorModal() { if (errorModal && overlay) { errorModal.classList.add('show'); overlay.classList.add('show'); } }
+    function hideModals() { document.querySelectorAll('.modal').forEach(m => m.classList.remove('show')); if (overlay) overlay.classList.remove('show'); }
+    
+    document.querySelectorAll('.closeModal').forEach(btn => { btn.onclick = hideModals; });
+    if (overlay) overlay.onclick = hideModals;
+    
+    // Кнопка "Подробнее о сервисе"
+    const aboutServiceBtn = document.getElementById('aboutServiceBtn');
+    if (aboutServiceBtn) aboutServiceBtn.onclick = showAboutModal;
+    
+    // Кнопка "Сообщить об ошибке"
+    const reportErrorBtn = document.getElementById('reportErrorBtn');
+    if (reportErrorBtn) reportErrorBtn.onclick = showErrorModal;
+    
+    const sendErrorBtn = document.getElementById('sendErrorBtn');
+    if (sendErrorBtn) {
+        sendErrorBtn.onclick = () => {
+            const errorText = document.getElementById('errorText')?.value || '';
+            alert('Спасибо! Ваше сообщение отправлено.\nМы исправим ошибку в ближайшее время.');
+            hideModals();
+            if (document.getElementById('errorText')) document.getElementById('errorText').value = '';
+        };
+    }
+    
+    function showInfoModal(text) {
+        const infoModalText = document.getElementById('infoModalText');
+        const infoModal = document.getElementById('infoModal');
+        if (infoModalText && infoModal && overlay) {
+            infoModalText.innerText = text;
+            infoModal.classList.add('show');
+            overlay.classList.add('show');
+        } else alert(text);
+    }
+    
+    function saveUser() { if(userData) localStorage.setItem('stirkaon_user', JSON.stringify(userData)); }
+    function loadUser() { let saved = localStorage.getItem('stirkaon_user'); if(saved) { userData = JSON.parse(saved); return true; } return false; }
+    function loadHistory() { if (!ordersHistory.length) ordersHistory = [{ date: "25 марта 2025, 14:30", items: "Пакет + глажка", total: "1 980 ₽" }, { date: "22 марта 2025, 10:15", items: "Вещь + кондиционер", total: "290 ₽" }]; }
+    function saveHistory() { if(userData) localStorage.setItem('stirkaon_orders_' + userData.phone, JSON.stringify(ordersHistory)); }
+    function updateHistoryList() {
+        const historyList = document.getElementById('historyList');
+        if (!historyList) return;
+        let html = ordersHistory.length ? ordersHistory.map(o => `<div class="history-item">📅 ${o.date}<br>📦 ${o.items}<br>💰 ${o.total}</div>`).join('') : '<p>У вас пока нет заказов</p>';
+        historyList.innerHTML = html;
+    }
+    
+    function initMachines() {
+        const machinesGrid = document.getElementById('machinesGrid');
+        if (!machinesGrid) return;
+        machinesGrid.innerHTML = [
+            { name: '№1', status: 'busy', timer: '~15 мин' },
+            { name: '№2', status: 'free', timer: 'готова' },
+            { name: '№3', status: 'busy', timer: '~7 мин' },
+            { name: '№4', status: 'free', timer: 'готова' }
+        ].map(m => `
+            <div class="machine-mini" data-name="${m.name}" data-status="${m.status}">
+                <div><i class="fas fa-tshirt" style="font-size:24px;"></i></div>
+                <div><strong>${m.name}</strong></div>
+                <div>${m.status === 'free' ? 'свободна' : 'занята'}</div>
+                <div>${m.timer}</div>
+                <button class="occupy-mini" ${m.status === 'busy' ? 'disabled' : ''}>${m.status === 'busy' ? 'занята' : '<i class="far fa-heart"></i> занять'}</button>
+            </div>
+        `).join('');
+        
+        document.querySelectorAll('.machine-mini').forEach(el => {
+            const status = el.dataset.status;
+            if (status === 'busy') return;
+            const btn = el.querySelector('.occupy-mini');
+            if (btn) {
+                btn.onclick = () => {
+                    if (machineSelected && selectedMachineElement !== el) {
+                        if (confirm('Вы уже выбрали другую машинку. Заменить выбор?')) {
+                            if (selectedMachineElement) {
+                                const oldBtn = selectedMachineElement.querySelector('.occupy-mini');
+                                if (oldBtn) {
+                                    oldBtn.innerHTML = '<i class="far fa-heart"></i> занять';
+                                    oldBtn.disabled = false;
+                                }
+                                selectedMachineElement.classList.remove('selected');
+                            }
+                            machineSelected = true;
+                            selectedMachineElement = el;
+                            el.classList.add('selected');
+                            btn.innerHTML = '<i class="fas fa-heart"></i> занято';
+                            btn.disabled = true;
+                            activateHint('machine');
+                            showInfoModal('Машинка занята! Можете переходить к выбору услуги.');
+                        }
+                    } else if (!machineSelected) {
+                        machineSelected = true;
+                        selectedMachineElement = el;
+                        el.classList.add('selected');
+                        btn.innerHTML = '<i class="fas fa-heart"></i> занято';
+                        btn.disabled = true;
+                        activateHint('machine');
+                        showInfoModal('Машинка занята! Можете переходить к выбору услуги.');
+                    }
+                };
+            }
+        });
+    }
+    
+    function updatePricesUI() {
+        const serviceDisplay = document.getElementById('serviceDisplay');
+        const dopsRow = document.getElementById('dopsRow');
+        const priceDisplay = document.getElementById('priceDisplay');
+        if (!serviceDisplay || !dopsRow || !priceDisplay) return;
+        
+        let isFree = (currentTariff === 'free');
+        let isFreeActive = (isFree && freeModeActive);
+        
+        if (isFreeActive) {
+            priceDisplay.innerHTML = `<span class="strikethrough">990 ₽</span> <span class="free-price">0 ₽</span>`;
+        } else {
+            let priceText = (currentService === 'piece' ? `${PRICES.piece} ₽` : `${PRICES.bag} ₽`);
+            priceDisplay.innerHTML = priceText;
+        }
+        
+        let emoji = currentService === 'piece' ? '👕' : '🛍️';
+        let name = currentService === 'piece' ? 'Вещь' : 'Пакет';
+        serviceDisplay.innerHTML = `<div style="font-size:48px;">${emoji}</div><div style="font-size:28px; font-weight:700;">${name}</div><div style="font-size:32px;" id="priceDisplay">${priceDisplay.innerHTML}</div>`;
+        
+        let condP = (currentService === 'piece' ? '+100' : '+100');
+        let vacP = (currentService === 'piece' ? '+150' : '+150');
+        let ironP = (currentService === 'piece' ? '+190' : '+990');
+        
+        if (isFree) {
+            dopsRow.innerHTML = `<span class="dop-tag disabled" data-dop="cond"><i class="fas fa-leaf"></i> кондиционер ${condP}</span>
+                                 <span class="dop-tag disabled" data-dop="vac"><i class="fas fa-box"></i> вакуум ${vacP}</span>
+                                 <span class="dop-tag disabled" data-dop="iron"><i class="fas fa-iron"></i> глажка ${ironP}</span>`;
+            document.querySelectorAll('.dop-tag.disabled').forEach(t => {
+                t.onclick = () => showInfoModal('Дополнительные услуги доступны только в платном тарифе');
+            });
+        } else {
+            dopsRow.innerHTML = `<span class="dop-tag" data-dop="cond"><i class="fas fa-leaf"></i> кондиционер ${condP}</span>
+                                 <span class="dop-tag" data-dop="vac"><i class="fas fa-box"></i> вакуум ${vacP}</span>
+                                 <span class="dop-tag" data-dop="iron"><i class="fas fa-iron"></i> глажка ${ironP}</span>`;
+            document.querySelectorAll('.dop-tag').forEach(t => { t.onclick = () => t.classList.toggle('active'); });
+        }
+    }
+    
+    function updateCart() {
+        let total = 0;
+        cart.forEach(item => {
+            if (currentTariff === 'free' && freeModeActive) total += 0;
+            else {
+                let base = (item.type === 'piece' ? PRICES.piece : PRICES.bag);
+                let add = 0;
+                if (item.dops.conditioner) add += PRICES.cond;
+                if (item.dops.vacuum) add += PRICES.vacuum;
+                if (item.dops.ironing) add += (item.type === 'piece' ? PRICES.ironP : PRICES.ironB);
+                total += base + add;
+            }
+        });
+        const cartMiniTotal = document.getElementById('cartMiniTotal');
+        const cartTotalSpan = document.getElementById('cartTotal');
+        const cartMiniCountSpan = document.getElementById('cartMiniCount');
+        if (cartMiniTotal) cartMiniTotal.innerText = total + ' ₽';
+        if (cartTotalSpan) cartTotalSpan.innerText = total + ' ₽';
+        if (cartMiniCountSpan) cartMiniCountSpan.innerText = cart.length;
+        
+        const cartItemsDiv = document.getElementById('cartItems');
+        if (!cartItemsDiv) return;
+        let html = '';
+        if (cart.length === 0) html = '<div style="text-align:center; padding:30px; color:rgba(255,255,255,0.5);"><i class="fas fa-shopping-cart"></i> Корзина пуста</div>';
+        else {
+            cart.forEach((item, idx) => {
+                let base = (item.type === 'piece' ? PRICES.piece : PRICES.bag);
+                let add = 0;
+                let details = [];
+                if (item.dops.conditioner) { add += PRICES.cond; details.push('кондиционер'); }
+                if (item.dops.vacuum) { add += PRICES.vacuum; details.push('вакуум'); }
+                if (item.dops.ironing) { add += (item.type === 'piece' ? PRICES.ironP : PRICES.ironB); details.push('глажка'); }
+                let isFree = (currentTariff === 'free' && freeModeActive);
+                let priceText = isFree ? '0 ₽' : `${base + add} ₽`;
+                let displayPrice = isFree ? `<span class="strikethrough">${base+add}₽</span> 0 ₽` : `${base+add} ₽`;
+                html += `<div class="cart-item"><div><div><i class="${item.type === 'piece' ? 'fas fa-tshirt' : 'fas fa-shopping-bag'}"></i> ${item.type === 'piece' ? 'Вещь' : 'Пакет'} ${base}₽${details.length ? ` + ${details.join(' + ')}` : ''}</div><div class="cart-item-detail">= ${displayPrice}</div></div><div><span class="cart-item-price">${priceText}</span> <button class="remove-item" onclick="window.removeFromCart(${idx})"><i class="fas fa-trash-alt"></i></button></div></div>`;
+            });
+        }
+        cartItemsDiv.innerHTML = html;
+        const orderBtnEl = document.getElementById('orderBtn');
+        if (orderBtnEl) { orderBtnEl.disabled = (cart.length === 0); orderBtnEl.classList.toggle('disabled', cart.length === 0); }
+    }
+    
+    window.removeFromCart = function(idx) { cart.splice(idx,1); updateCart(); };
+    
+    const clearCartBtn = document.getElementById('clearCartBtn');
+    if (clearCartBtn) clearCartBtn.onclick = () => { if(cart.length && confirm('Очистить корзину?')) { cart = []; updateCart(); } };
+    
+    function openCart() { const cartExpanded = document.getElementById('cartExpanded'); if (cartExpanded) cartExpanded.classList.add('show'); if (overlay) overlay.classList.add('show'); }
+    function closeCartFunc() { const cartExpanded = document.getElementById('cartExpanded'); if (cartExpanded) cartExpanded.classList.remove('show'); if (overlay) overlay.classList.remove('show'); }
+    const cartMini = document.getElementById('cartMini'); const closeCartBtn = document.getElementById('closeCart');
+    if (cartMini) cartMini.onclick = openCart; if (closeCartBtn) closeCartBtn.onclick = closeCartFunc;
+    if (overlay) overlay.onclick = () => { closeCartFunc(); hideModals(); };
+    
+    // ВЫБОР ТАРИФА
+    const tariffFreeCard = document.getElementById('tariffFreeCard');
+    const tariffPaidCard = document.getElementById('tariffPaidCard');
+    const machinesCard = document.getElementById('machinesCard');
+    const paymentOptions = document.getElementById('paymentOptions');
+    const adBlock = document.getElementById('adBlock');
+    const adCounter = document.getElementById('adCounter');
+    const chooseFreeBtn = document.getElementById('chooseFree');
+    const choosePaidBtn = document.getElementById('choosePaid');
+    
+    if (tariffFreeCard) {
+        tariffFreeCard.onclick = () => {
+            currentTariff = 'free';
+            freeModeActive = false;
+            adWatched = 0;
+            if (adCounter) adCounter.innerText = '0/3';
+            if (adBlock) adBlock.style.display = 'flex';
+            if (machinesCard) machinesCard.style.display = 'block';
+            if (paymentOptions) paymentOptions.style.display = 'none';
+            currentService = 'bag';
+            const selectPieceEl = document.getElementById('selectPiece');
+            const selectBagEl = document.getElementById('selectBag');
+            if (selectBagEl) selectBagEl.classList.add('active');
+            if (selectPieceEl) selectPieceEl.classList.remove('active');
+            updatePricesUI();
+            initMachines();
+            tariffFreeCard.classList.add('selected');
+            tariffPaidCard.classList.remove('selected');
+            if (chooseFreeBtn) {
+                chooseFreeBtn.classList.add('selected');
+                chooseFreeBtn.innerHTML = '<i class="fas fa-heart"></i> выбрано';
+            }
+            if (choosePaidBtn) {
+                choosePaidBtn.classList.remove('selected');
+                choosePaidBtn.innerHTML = '<i class="far fa-heart"></i> выбрать';
+            }
+            activateHint('tariff');
+        };
+    }
+    
+    if (tariffPaidCard) {
+        tariffPaidCard.onclick = () => {
+            currentTariff = 'paid';
+            freeModeActive = false;
+            if (adBlock) adBlock.style.display = 'none';
+            if (machinesCard) machinesCard.style.display = 'none';
+            if (paymentOptions) paymentOptions.style.display = 'block';
+            updatePricesUI();
+            tariffPaidCard.classList.add('selected');
+            tariffFreeCard.classList.remove('selected');
+            if (choosePaidBtn) {
+                choosePaidBtn.classList.add('selected');
+                choosePaidBtn.innerHTML = '<i class="fas fa-heart"></i> выбрано';
+            }
+            if (chooseFreeBtn) {
+                chooseFreeBtn.classList.remove('selected');
+                chooseFreeBtn.innerHTML = '<i class="far fa-heart"></i> выбрать';
+            }
+            activateHint('tariff');
+        };
+    }
+    
+    // РЕКЛАМА
+    if (adBlock) {
+        adBlock.onclick = () => {
+            if (currentTariff === 'free' && adWatched < 3) {
+                adWatched++;
+                if (adCounter) adCounter.innerText = adWatched + '/3';
+                if (adWatched >= 3) {
+                    freeModeActive = true;
+                    updatePricesUI();
+                    showInfoModal('Поздравляем! Теперь стирка пакета бесплатна. Добавьте его в корзину!');
+                }
+            }
+        };
+    }
+    
+    // ДОБАВЛЕНИЕ В КОРЗИНУ
+    const addToCartBtn = document.getElementById('addToCartBtn');
+    if (addToCartBtn) {
+        addToCartBtn.onclick = () => {
+            if (!currentTariff) { showInfoModal('Сначала выберите тариф!'); return; }
+            let maxLimit = (currentTariff === 'free') ? LIMITS.free : LIMITS.paid;
+            if (cart.length >= maxLimit) {
+                let limitText = (currentTariff === 'free') ? '1 позицию' : '3 позиции';
+                showInfoModal(`По ${currentTariff === 'free' ? 'бесплатному' : 'платному'} тарифу можно заказать не более ${limitText}.`);
+                return;
+            }
+            if (currentTariff === 'free') {
+                if (!machineSelected) { showInfoModal('Сначала займите машинку!'); return; }
+                if (adWatched < 3) { showInfoModal('Сначала посмотрите рекламу!'); return; }
+            }
+            let dops = { conditioner: false, vacuum: false, ironing: false };
+            document.querySelectorAll('.dop-tag.active').forEach(tag => {
+                if (tag.dataset.dop === 'cond') dops.conditioner = true;
+                if (tag.dataset.dop === 'vac') dops.vacuum = true;
+                if (tag.dataset.dop === 'iron') dops.ironing = true;
+            });
+            cart.push({ type: currentService, dops: dops });
+            updateCart();
+            addToCartBtn.innerHTML = '<i class="fas fa-heart"></i> добавлено';
+            setTimeout(() => { addToCartBtn.innerHTML = '<i class="far fa-heart"></i> добавить в корзину'; }, 1000);
+        };
+    }
+    
+    // ВЫБОР УСЛУГ
+    const selectPiece = document.getElementById('selectPiece');
+    const selectBag = document.getElementById('selectBag');
+    if (selectPiece) selectPiece.onclick = () => { if (currentTariff === 'free') { showInfoModal('В бесплатном тарифе доступен только пакет'); return; } currentService = 'piece'; selectPiece.classList.add('active'); if (selectBag) selectBag.classList.remove('active'); updatePricesUI(); };
+    if (selectBag) selectBag.onclick = () => { currentService = 'bag'; selectBag.classList.add('active'); if (selectPiece) selectPiece.classList.remove('active'); updatePricesUI(); };
+    
+    // СТАТУС ЗАКАЗА
+    const statusScreen = document.getElementById('statusScreen');
+    const trackOrderBtn = document.getElementById('trackOrderBtn');
+    const contactSupportBtn = document.getElementById('contactSupportBtn');
+    const closeStatusBtn = document.getElementById('closeStatusBtn');
+    const orderNumberSpan = document.getElementById('orderNumber');
+    const orderTotalSpan = document.getElementById('orderTotal');
+    
+    function showStatusScreen(orderData) {
+        if (!statusScreen) return;
+        if (orderNumberSpan) orderNumberSpan.innerText = orderData.number || '#ST-' + Math.floor(Math.random() * 9000 + 1000);
+        if (orderTotalSpan) orderTotalSpan.innerText = orderData.total || '0 ₽';
+        statusScreen.style.display = 'flex';
+        let currentStep = 1;
+        const steps = document.querySelectorAll('.timeline-step');
+        const updateTimeline = () => {
+            steps.forEach((step, idx) => { if (idx + 1 <= currentStep) step.classList.add('active'); else step.classList.remove('active'); });
+            if (currentStep < 4) { currentStep++; setTimeout(updateTimeline, 2000); }
+        };
+        updateTimeline();
+    }
+    
+    if (trackOrderBtn) trackOrderBtn.onclick = () => alert('📍 Курьер назначен. Ожидайте звонка за 15 минут до приезда.');
+    if (contactSupportBtn) contactSupportBtn.onclick = () => { if (confirm('Связаться с поддержкой?\n\nТелефон: +7 (925) 123-45-67\nНаписать в WhatsApp?')) window.location.href = 'https://wa.me/79251234567?text=Здравствуйте! У меня вопрос по заказу'; };
+    if (closeStatusBtn) closeStatusBtn.onclick = () => { statusScreen.style.display = 'none'; };
+    
+    // ОФОРМЛЕНИЕ
+    const orderBtn = document.getElementById('orderBtn');
+    if (orderBtn) {
+        orderBtn.onclick = () => {
+            if (!userData) { showInfoModal('Ошибка авторизации'); return; }
+            if (cart.length === 0) return;
+            let paymentMethod = document.querySelector('input[name="payment"]:checked')?.value || 'card';
+            let paymentText = { card: 'банковская карта', sbp: 'СБП', tpay: 'T‑Pay' }[paymentMethod];
+            let itemsText = cart.map(i => { let parts = [i.type === 'piece' ? 'Вещь' : 'Пакет']; if (i.dops.conditioner) parts.push('кондиционер'); if (i.dops.vacuum) parts.push('вакуум'); if (i.dops.ironing) parts.push('глажка'); return parts.join(' + '); }).join(', ');
+            let total = document.getElementById('cartTotal')?.innerText || '0';
+            ordersHistory.unshift({ date: new Date().toLocaleString(), items: itemsText, total: total });
+            saveHistory();
+            cart = [];
+            updateCart();
+            closeCartFunc();
+            showStatusScreen({ number: '#ST-' + Math.floor(Math.random() * 9000 + 1000), total: total });
+        };
+    }
+    
+    // АВТОРИЗАЦИЯ
+    const authFormDiv = document.getElementById('authForm');
+    const authButtonsDiv = document.getElementById('authButtons');
+    const switchAuthModeSpan = document.getElementById('switchAuthMode');
+    const sendCodeBtn = document.getElementById('sendCodeBtn');
+    const verifyBtn = document.getElementById('verifyBtn');
+    const codeField = document.getElementById('codeField');
+    const regCode = document.getElementById('regCode');
+    let isLoginMode = false;
+    
+    function renderAuthForm() {
+        if (!authFormDiv) return;
+        if(isLoginMode) {
+            authFormDiv.innerHTML = `<div class="input-field"><i class="fas fa-phone"></i><input type="tel" id="loginPhone" placeholder="Телефон" value="+7 925 123-45-67"></div><div class="input-field" id="loginCodeField" style="display:none;"><i class="fas fa-key"></i><input type="text" id="loginCode" placeholder="Код из смс"></div><button id="loginSendCodeBtn"><i class="fas fa-paper-plane"></i> Отправить смс код</button><button id="loginVerifyBtn" style="display:none;"><i class="fas fa-check-circle"></i> Подтвердить код</button>`;
+            const loginSendBtn = document.getElementById('loginSendCodeBtn');
+            const loginVerifyBtn = document.getElementById('loginVerifyBtn');
+            if (loginSendBtn) loginSendBtn.onclick = () => { const loginCodeField = document.getElementById('loginCodeField'); if (loginCodeField) loginCodeField.style.display = 'flex'; if (loginVerifyBtn) loginVerifyBtn.style.display = 'block'; loginSendBtn.disabled = true; showSmsModal(); };
+            if (loginVerifyBtn) loginVerifyBtn.onclick = () => { const loginCodeInput = document.getElementById('loginCode'); if (loginCodeInput && loginCodeInput.value === '1234') { let phone = document.getElementById('loginPhone')?.value || ''; if(loadUser() && userData.phone === phone) { isAuthorized(true); } else { userData = { name: 'Пользователь', phone: phone, email: '' }; saveUser(); isAuthorized(true); } } else showInfoModal('Неверный код'); };
+        } else {
+            authFormDiv.innerHTML = `<div class="input-field"><i class="fas fa-phone"></i><input type="tel" id="regPhone" placeholder="Телефон" value="+7 925 123-45-67"></div><div class="input-field" id="regCodeField" style="display:none;"><i class="fas fa-key"></i><input type="text" id="regCode" placeholder="Код из смс"></div><button id="regSendCodeBtn"><i class="fas fa-paper-plane"></i> Отправить смс код</button><button id="regVerifyBtn" style="display:none;"><i class="fas fa-check-circle"></i> Подтвердить код</button><div class="input-field"><i class="fas fa-user"></i><input type="text" id="regName" placeholder="Имя" value="Александр"></div><div class="input-field"><i class="fas fa-envelope"></i><input type="email" id="regEmail" placeholder="Email" value="alex@example.com"></div>`;
+            const regSendBtn = document.getElementById('regSendCodeBtn');
+            const regVerifyBtn = document.getElementById('regVerifyBtn');
+            if (regSendBtn) regSendBtn.onclick = () => { const regCodeField = document.getElementById('regCodeField'); if (regCodeField) regCodeField.style.display = 'flex'; if (regVerifyBtn) regVerifyBtn.style.display = 'block'; regSendBtn.disabled = true; showSmsModal(); };
+            if (regVerifyBtn) regVerifyBtn.onclick = () => { const regCodeInput = document.getElementById('regCode'); if (regCodeInput && regCodeInput.value === '1234') { userData = { name: document.getElementById('regName')?.value || '', phone: document.getElementById('regPhone')?.value || '', email: document.getElementById('regEmail')?.value || '' }; saveUser(); isAuthorized(true); } else showInfoModal('Неверный код'); };
+        }
+    }
+    
+    function isAuthorized(val) {
+        const startScreen = document.getElementById('startScreen');
+        const mainApp = document.getElementById('mainApp');
+        if(val) {
+            loadHistory();
+            if (authFormDiv) authFormDiv.style.display = 'none';
+            if (authButtonsDiv) authButtonsDiv.style.display = 'block';
+            if (switchAuthModeSpan) switchAuthModeSpan.innerText = 'Выйти из аккаунта';
+            currentTariff = null;
+            cart = [];
+            adWatched = 0;
+            machineSelected = false;
+            freeModeActive = false;
+            updateCart();
+            if (mainApp) mainApp.style.display = 'block';
+            if (startScreen) startScreen.style.display = 'none';
+            const container = document.getElementById('swipeContainer');
+            if (container) container.scrollTop = 0;
+            setTimeout(() => showAboutModal(), 300);
+        } else {
+            if (authFormDiv) authFormDiv.style.display = 'block';
+            if (authButtonsDiv) authButtonsDiv.style.display = 'none';
+            if (switchAuthModeSpan) switchAuthModeSpan.innerText = isLoginMode ? 'Нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти';
+            renderAuthForm();
+            if (mainApp) mainApp.style.display = 'none';
+            if (startScreen) startScreen.style.display = 'flex';
+        }
+    }
+    
+    if(loadUser()) isAuthorized(true);
+    else { isLoginMode = false; renderAuthForm(); }
+    
+    if (switchAuthModeSpan) switchAuthModeSpan.onclick = () => { if(userData) { userData = null; localStorage.removeItem('stirkaon_user'); isAuthorized(false); } else { isLoginMode = !isLoginMode; renderAuthForm(); switchAuthModeSpan.innerText = isLoginMode ? 'Нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти'; } };
+    
+    const newOrderBtn = document.getElementById('newOrderBtn');
+    if (newOrderBtn) newOrderBtn.onclick = () => { if(userData) { isAuthorized(true); } };
+    const historyBtn = document.getElementById('historyBtn');
+    const historyHeaderBtn = document.getElementById('historyHeaderBtn');
+    if (historyBtn) historyBtn.onclick = () => { updateHistoryList(); const histModal = document.getElementById('historyModal'); if(histModal) histModal.classList.add('show'); if(overlay) overlay.classList.add('show'); };
+    if (historyHeaderBtn) historyHeaderBtn.onclick = () => { updateHistoryList(); const histModal = document.getElementById('historyModal'); if(histModal) histModal.classList.add('show'); if(overlay) overlay.classList.add('show'); };
+    const switchAccountBtn = document.getElementById('switchAccountBtn');
+    if (switchAccountBtn) switchAccountBtn.onclick = () => { userData = null; localStorage.removeItem('stirkaon_user'); isAuthorized(false); const profModal = document.getElementById('profileModal'); if(profModal) profModal.classList.remove('show'); if(overlay) overlay.classList.remove('show'); };
+    const homeBtn = document.getElementById('homeBtn');
+    if (homeBtn) homeBtn.onclick = () => { if(userData) { const profileInfo = document.getElementById('profileInfo'); if (profileInfo) profileInfo.innerHTML = `<i class="fas fa-user"></i> ${userData.name}<br><i class="fas fa-phone"></i> ${userData.phone}<br><i class="fas fa-envelope"></i> ${userData.email}`; const profileModal = document.getElementById('profileModal'); if (profileModal) profileModal.classList.add('show'); if (overlay) overlay.classList.add('show'); } };
+    const offerLink = document.getElementById('offerLink');
+    const policyLink = document.getElementById('policyLink');
+    if (offerLink) offerLink.onclick = () => { const offerModal = document.getElementById('offerModal'); if(offerModal) offerModal.classList.add('show'); if(overlay) overlay.classList.add('show'); };
+    if (policyLink) policyLink.onclick = () => { const policyModal = document.getElementById('policyModal'); if(policyModal) policyModal.classList.add('show'); if(overlay) overlay.classList.add('show'); };
+    
+    // Активация подсказки адреса при изменении
+    document.querySelectorAll('#street, #house, #entrance, #apartment').forEach(el => {
+        el.addEventListener('change', () => activateHint('address'));
+    });
+    
+    updatePricesUI();
+    updateCart();
+    if (machinesCard) machinesCard.style.display = 'none';
+    if (paymentOptions) paymentOptions.style.display = 'none';
+})();
+</script>
+</body>
+</html>

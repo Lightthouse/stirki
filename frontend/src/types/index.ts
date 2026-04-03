@@ -19,6 +19,7 @@ export interface ClientInfo {
   id: number
   phone: string
   name: string | null
+  email: string | null
   street: string
   house: string
   apartment: number
@@ -38,6 +39,7 @@ export interface CreateOrderRequest {
   apartment: number
   entrance: number
   floor: number
+  washing_type: 'bag' | 'piece'
   bags_number: number
   services: string[]
   comment?: string
@@ -57,6 +59,7 @@ export interface OrderDetail {
   apartment: number
   entrance: number
   floor: number
+  washing_type: 'bag' | 'piece'
   bags_number: number
   services: string[]
   total_price_rub: number
@@ -72,12 +75,12 @@ export interface OrderListItem {
   status: string
   total_price_rub: number
   payment_status: string
+  washing_type: 'bag' | 'piece'
   bags_number: number
   created_at: string
 }
 
 export type Step =
-  | 'welcome'
   | 'phone'
   | 'code'
   | 'name'

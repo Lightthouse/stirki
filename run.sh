@@ -27,8 +27,8 @@ cmd_local() {
 
     export APP_ENV=development
 
-    echo "==> Запуск backend (uvicorn --reload) на :8000 (APP_ENV=development)..."
-    uv run uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload &
+    echo "==> Запуск backend (uvicorn --reload) на :8001 (APP_ENV=development)..."
+    uv run uvicorn src.api.app:app --host 0.0.0.0 --port 8001 --reload &
 
     echo "==> Запуск frontend (npm run dev) на :5173..."
     (cd frontend && npm run dev) &

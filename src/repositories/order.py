@@ -4,10 +4,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.enums import OrderStatusName, PaymentStatus, KaitenColumns
+from src.enums import PaymentStatus
 from src.models.client import Client
 from src.models.order import Order, OrderStatus, OrderStatusHistory
-from src.services.kaiten_kanban import Kaiten
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +27,14 @@ class OrderRepository:
     async def create(
         self,
         client: Client,
+        washing_type: str,
         bags_number: int,
         services: dict[str, bool],
         total_price_rub: int,
+        status_name: str,
         comment: str | None = None,
     ) -> Order:
-        status = await self.get_status_by_name(OrderStatusName.WAITING_FOR_CAPTURE)
+        status = await self.get_status_by_name(status_name)
 
         order = Order(
             client_id=client.id,
@@ -46,6 +47,7 @@ class OrderRepository:
             entrance=client.entrance,
             floor=client.floor,
             apartment=client.apartment,
+            washing_type=washing_type,
             bags_number=bags_number,
             **services,
         )
@@ -53,19 +55,9 @@ class OrderRepository:
         await self.session.commit()
         await self.session.refresh(order)
 
-        # Подгружаем клиента для Kaiten
         order.client = client
         order.status = status
 
-        # Kaiten карточка
-        try:
-            with Kaiten() as k:
-                await k.add_card_to_order(order)
-                await self.session.refresh(order)
-        except Exception:
-            logger.exception("Failed to create Kaiten card for order %s", order.id)
-
-        # История статуса
         history = OrderStatusHistory(
             order_id=order.id,
             status_id=status.id,
@@ -75,6 +67,10 @@ class OrderRepository:
         await self.session.commit()
 
         return order
+
+    async def set_kaiten_card_id(self, order: Order, card_id: int) -> None:
+        order.kaiten_card_id = card_id
+        await self.session.commit()
 
     async def get_by_id(self, order_id: int) -> Order | None:
         result = await self.session.execute(
@@ -113,17 +109,6 @@ class OrderRepository:
         self.session.add(history)
         await self.session.commit()
         await self.session.refresh(order)
-
-        # Kaiten
-        try:
-            if order.kaiten_card_id:
-                column = getattr(KaitenColumns, status_name.upper(), None)
-                if column:
-                    with Kaiten() as k:
-                        k.change_card_status(order.kaiten_card_id, column)
-                        logger.info("Card %s -> %s", order.kaiten_card_id, status_name)
-        except Exception:
-            logger.exception("Failed to update Kaiten card for order %s", order.id)
 
         return order
 

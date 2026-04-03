@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_db
 from src.enums import OrderStatusName, PaymentStatus
-from src.repositories.order import OrderRepository
+from src.services.order import OrderService
 from src.settings import AppSettings
 
 logger = logging.getLogger(__name__)
@@ -32,8 +32,8 @@ async def yookassa_webhook(
         logger.warning("Webhook missing order_id or payment_id: %s", body)
         return {"status": "ignored"}
 
-    order_repo = OrderRepository(session)
-    order = await order_repo.get_by_id(int(order_id))
+    order_service = OrderService(session)
+    order = await order_service.get_by_id(int(order_id))
 
     if not order:
         logger.warning("Order %s not found for webhook", order_id)
@@ -48,7 +48,7 @@ async def yookassa_webhook(
         return {"status": "ignored"}
 
     if payment_status == "succeeded":
-        await order_repo.update_status(
+        await order_service.update_status(
             order,
             status_name=OrderStatusName.NEW,
             payment_status=PaymentStatus.SUCCEEDED,
@@ -56,7 +56,7 @@ async def yookassa_webhook(
         )
         logger.info("Order %s payment succeeded", order_id)
     elif payment_status == "canceled":
-        await order_repo.update_status(
+        await order_service.update_status(
             order,
             status_name=OrderStatusName.CANCELED,
             payment_status=PaymentStatus.CANCELED,
@@ -76,13 +76,13 @@ async def simulate_payment(
     if app_settings.APP_ENV == "production":
         raise HTTPException(status_code=403, detail="Недоступно в production")
 
-    order_repo = OrderRepository(session)
-    order = await order_repo.get_by_id(order_id)
+    order_service = OrderService(session)
+    order = await order_service.get_by_id(order_id)
 
     if not order:
         raise HTTPException(status_code=404, detail="Заказ не найден")
 
-    await order_repo.update_status(
+    await order_service.update_status(
         order,
         status_name=OrderStatusName.NEW,
         payment_status=PaymentStatus.SUCCEEDED,

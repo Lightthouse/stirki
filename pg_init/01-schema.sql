@@ -2,8 +2,10 @@ create table clients (
     id bigserial primary key,
     phone text unique not null,
     name text,
+    email text,
 
     auth_token text unique,
+    auth_token_expires_at timestamptz,
     is_verified boolean default false,
     verification_code text,
     verification_expires_at timestamptz,
@@ -44,6 +46,7 @@ create table orders (
     apartment int not null,
     comment text,
 
+    washing_type text not null default 'bag' check (washing_type in ('bag', 'piece')),
     bags_number int default 1,
     ironing boolean default false,
     conditioner boolean default false,
@@ -98,6 +101,7 @@ insert into order_statuses (name) values
 
 insert into services (name, slug, price_rub) values
 ('Стирка', 'base', 890),
+('Стирка одной вещи', 'piece', 190),
 ('Глажка', 'ironing', 990),
 ('Кондиционер для белья', 'conditioner', 50),
 ('Вакуумный пакет', 'vacuum_pack', 150),
@@ -105,3 +109,10 @@ insert into services (name, slug, price_rub) values
 ('Отбеливатель', 'bleach', 80),
 ('Салфетки против окрашивания', 'color_catcher_sheets', 30),
 ('Мешок для стирки', 'wash_bag', 30);
+
+create table if not exists landing_visits (
+  id bigserial primary key,
+  ref_code text not null,
+  visited_at timestamptz default now()
+);
+create index if not exists idx_landing_visits_ref_code on landing_visits (ref_code);

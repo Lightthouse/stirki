@@ -16,3 +16,18 @@ HOUSE_STREET_MAP = {
     'Шараповский проезд': ['вл2 ст3'],
 }
 
+# Числовые коды для QR-объявлений (ключ — число в ?ref=, значение — slug-адрес)
+QR_CODE_MAP: dict[int, str] = {
+    142: "rozhdestvenskaya-11",
+    287: "rozhdestvenskaya-9",
+    391: "rozhdestvenskaya-7",
+    516: "rozhdestvenskaya-5",
+    634: "rozhdestvenskaya-3",
+    78:  "rozhdestvenskaya-2",
+    203: "novomytishchinskay-4a",
+    457: "komarova-2k1",
+    819: "komarova-2k2",
+    563: "komarova-2k3",
+    721: "vorovskogo-10",
+    345: "sharapovskaya-vl2-st3",
+}

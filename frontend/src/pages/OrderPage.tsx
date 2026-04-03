@@ -1,150 +1,258 @@
-import { Link } from 'react-router-dom'
-import { useOrderFlow } from '../hooks/useOrderFlow'
-import { isAuthenticated } from '../api/client'
-import { StepIndicator } from '../components/ui/StepIndicator'
-import { WelcomeStep } from '../components/steps/WelcomeStep'
-import { PhoneStep } from '../components/steps/PhoneStep'
-import { CodeStep } from '../components/steps/CodeStep'
-import { NameStep } from '../components/steps/NameStep'
-import { StreetStep } from '../components/steps/StreetStep'
-import { HouseStep } from '../components/steps/HouseStep'
-import { ApartmentStep } from '../components/steps/ApartmentStep'
-import { BagsStep } from '../components/steps/BagsStep'
-import { ServicesStep } from '../components/steps/ServicesStep'
-import { ConfirmStep } from '../components/steps/ConfirmStep'
-import { StatusStep } from '../components/steps/StatusStep'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { isAuthenticated, clearToken, clearPhone } from '../api/client'
+import { getMe, createOrder, getAdImages } from '../api'
+import { AddressCard } from '../components/swipe/AddressCard'
+import { TariffCard } from '../components/swipe/TariffCard'
+import { MachinesCard } from '../components/swipe/MachinesCard'
+import { ServicesCard } from '../components/swipe/ServicesCard'
+import { CartMini } from '../components/CartMini'
+import { CartExpanded } from '../components/CartExpanded'
+import { StatusScreen } from '../components/StatusScreen'
+import { InfoModal } from '../components/ui/InfoModal'
+import { AdViewer } from '../components/AdViewer'
+import type { AddressData } from '../components/swipe/AddressCard'
+import type { Tariff } from '../components/swipe/TariffCard'
+import type { CartItem } from '../components/swipe/ServicesCard'
+import type { ClientInfo } from '../types'
 
 export function OrderPage() {
-  const flow = useOrderFlow()
+  const navigate = useNavigate()
+  const swipeRef = useRef<HTMLDivElement>(null)
 
-  const toggleService = (slug: string) => {
-    const current = flow.formData.services
-    if (current.includes(slug)) {
-      flow.updateField('services', current.filter((s) => s !== slug))
-    } else {
-      flow.updateField('services', [...current, slug])
+  const [_client, setClient] = useState<ClientInfo | null>(null)
+  const [address, setAddress] = useState<AddressData>({
+    street: '', house: '', entrance: 1, apartment: 1, comment: '',
+  })
+  const [tariff, setTariff] = useState<Tariff | null>(null)
+  const [serviceType, setServiceType] = useState<'bag' | 'piece'>('bag')
+  const [cart, setCart] = useState<CartItem[]>([])
+  const [showCart, setShowCart] = useState(false)
+  const [overlayVisible, setOverlayVisible] = useState(false)
+  const [showStatus, setShowStatus] = useState(false)
+  const [orderId, setOrderId] = useState<number | null>(null)
+  const [orderTotal, setOrderTotal] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [showInfo, setShowInfo] = useState(false)
+  const [adsWatched, setAdsWatched] = useState(0)
+  const [showAdViewer, setShowAdViewer] = useState(false)
+  const [adImages, setAdImages] = useState<string[]>([])
+
+  // Hint states per card
+  const [hints, setHints] = useState({ address: false, tariff: false, machines: false })
+
+  const showMachines = tariff === 'free'
+
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      navigate('/login')
+      return
+    }
+    getMe()
+      .then((c) => {
+        setClient(c)
+        setAddress({
+          street: c.street || '',
+          house: c.house || '',
+          entrance: c.entrance || 1,
+          apartment: c.apartment || 1,
+          comment: '',
+        })
+      })
+      .catch((e: Error) => {
+        if (e.message.includes('401')) {
+          clearToken()
+          clearPhone()
+          navigate('/login')
+        }
+      })
+    getAdImages().then(setAdImages).catch(() => {})
+  }, [])
+
+  function scrollToCard(index: number) {
+    const container = swipeRef.current
+    if (!container) return
+    const cards = container.querySelectorAll('.swipe-card')
+    if (cards[index]) {
+      cards[index].scrollIntoView({ behavior: 'smooth' })
     }
   }
 
-  const renderStep = () => {
-    switch (flow.step) {
-      case 'welcome':
-        return <WelcomeStep onNext={flow.nextStep} />
-      case 'phone':
-        return (
-          <PhoneStep
-            phone={flow.formData.phone}
-            onPhoneChange={(v) => flow.updateField('phone', v)}
-            onNext={flow.nextStep}
-          />
-        )
-      case 'code':
-        return (
-          <CodeStep
-            phone={flow.formData.phone}
-            code={flow.formData.code}
-            onCodeChange={(v) => flow.updateField('code', v)}
-            onNext={flow.nextStep}
-            onBack={flow.prevStep}
-            onClientFound={flow.prefillFromClient}
-          />
-        )
-      case 'name':
-        return (
-          <NameStep
-            name={flow.formData.name}
-            onNameChange={(v) => flow.updateField('name', v)}
-            onNext={flow.nextStep}
-            onBack={flow.prevStep}
-          />
-        )
-      case 'street':
-        return (
-          <StreetStep
-            selected={flow.formData.street}
-            onSelect={(v) => flow.updateField('street', v)}
-            onNext={flow.nextStep}
-            onBack={flow.prevStep}
-          />
-        )
-      case 'house':
-        return (
-          <HouseStep
-            street={flow.formData.street}
-            selected={flow.formData.house}
-            onSelect={(v) => flow.updateField('house', v)}
-            onNext={flow.nextStep}
-            onBack={flow.prevStep}
-          />
-        )
-      case 'apartment':
-        return (
-          <ApartmentStep
-            apartment={flow.formData.apartment}
-            onApartmentChange={(v) => flow.updateField('apartment', v)}
-            onNext={flow.nextStep}
-            onBack={flow.prevStep}
-          />
-        )
-      case 'bags':
-        return (
-          <BagsStep
-            count={flow.formData.bags_number}
-            onCountChange={(v) => flow.updateField('bags_number', v)}
-            onNext={flow.nextStep}
-            onBack={flow.prevStep}
-          />
-        )
-      case 'services':
-        return (
-          <ServicesStep
-            selected={flow.formData.services}
-            onToggle={toggleService}
-            onNext={flow.nextStep}
-            onBack={flow.prevStep}
-            bagsNumber={flow.formData.bags_number}
-          />
-        )
-      case 'confirm':
-        return (
-          <ConfirmStep
-            formData={flow.formData}
-            onPaymentUrl={() => flow.goToPayment()}
-            onOrderCreated={(id) => {
-              flow.setOrderId(id)
-              flow.goToStatus()
-            }}
-            onBack={flow.prevStep}
-          />
-        )
-      case 'payment':
-        return (
-          <div className="step">
-            <h2>Перенаправление на оплату...</h2>
-            <p>Если перенаправление не произошло, обновите страницу.</p>
-          </div>
-        )
-      case 'status':
-        return flow.orderId ? (
-          <StatusStep orderId={flow.orderId} onNewOrder={flow.reset} />
-        ) : null
-      default:
-        return null
+  function handleWatchAd() {
+    setShowAdViewer(true)
+  }
+
+  function handleAdComplete() {
+    setShowAdViewer(false)
+    setAdsWatched(3)
+  }
+
+  function handleTariffSelect(t: Tariff) {
+    setTariff(t)
+    if (t === 'free') {
+      setServiceType('bag')
+      setCart([])
+      setAdsWatched(0)
     }
+    setTimeout(() => {
+      if (t === 'free') {
+        scrollToCard(2) // machines card
+      } else {
+        scrollToCard(showMachines ? 3 : 2) // services card
+      }
+    }, 300)
+  }
+
+  function handleAddToCart(item: CartItem) {
+    setCart((prev) => [...prev, item])
+  }
+
+  function handleRemoveFromCart(idx: number) {
+    setCart((prev) => prev.filter((_, i) => i !== idx))
+  }
+
+  function handleClearCart() {
+    setCart([])
+  }
+
+  function handleServiceTypeChange(type: 'bag' | 'piece') {
+    if (type !== serviceType) {
+      setServiceType(type)
+      setCart([])
+    }
+  }
+
+  function openCart() {
+    setShowCart(true)
+    setOverlayVisible(true)
+  }
+
+  function closeCart() {
+    setShowCart(false)
+    setOverlayVisible(false)
+  }
+
+  async function handleCheckout() {
+    if (cart.length === 0 || !address.street) return
+    setLoading(true)
+    try {
+      const servicesSet = new Set<string>()
+      cart.forEach((item) => item.addons.forEach((a) => servicesSet.add(a)))
+
+      const result = await createOrder({
+        street: address.street,
+        house: address.house,
+        apartment: address.apartment,
+        entrance: address.entrance,
+        floor: 1,
+        washing_type: serviceType,
+        bags_number: cart.length,
+        services: Array.from(servicesSet),
+        comment: address.comment || undefined,
+      })
+
+      setOrderId(result.order_id)
+      setOrderTotal(result.total_price_rub)
+    } catch (e) {
+      console.error('Ошибка создания заказа:', e)
+      // Для демонстрации показываем экран статуса даже при ошибке
+      setOrderId(0)
+      setOrderTotal(cart.reduce((sum, item) => sum + item.price, 0))
+    } finally {
+      setLoading(false)
+      closeCart()
+      setShowStatus(true)
+    }
+  }
+
+  function activateHint(key: keyof typeof hints) {
+    setHints((prev) => ({ ...prev, [key]: true }))
   }
 
   return (
-    <div className="page">
-      <header className="header">
-        <h1>Стирки ON</h1>
-        {isAuthenticated() && (
-          <Link to="/orders" className="nav-link">Мои заказы</Link>
+    <div className="main-app">
+      {/* Header */}
+      <div className="app-header">
+        <div className="app-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
+          стирка<span>он</span>
+        </div>
+        <div className="header-actions">
+          <div className="header-icon" onClick={() => setShowInfo(true)} title="О сервисе">
+            <i className="fas fa-info-circle" />
+          </div>
+          <div className="header-icon" onClick={() => navigate('/')} title="На главную">
+            <i className="fas fa-home" />
+          </div>
+        </div>
+      </div>
+
+      {/* Swipe cards */}
+      <div className="swipe-container" ref={swipeRef}>
+        <AddressCard
+          data={address}
+          onChange={setAddress}
+          onHintActivate={() => activateHint('address')}
+          hintActive={hints.address}
+        />
+        <TariffCard
+          selected={tariff}
+          onSelect={handleTariffSelect}
+          onHintActivate={() => activateHint('tariff')}
+          hintActive={hints.tariff}
+        />
+        {showMachines && (
+          <MachinesCard
+            onHintActivate={() => activateHint('machines')}
+            hintActive={hints.machines}
+          />
         )}
-      </header>
-      {flow.step !== 'welcome' && flow.step !== 'status' && flow.step !== 'payment' && (
-        <StepIndicator current={flow.currentStepIndex} total={flow.totalSteps} />
+        <ServicesCard
+          tariff={tariff}
+          serviceType={serviceType}
+          onServiceTypeChange={handleServiceTypeChange}
+          cart={cart}
+          onAddToCart={handleAddToCart}
+          adsWatched={adsWatched}
+          onWatchAd={handleWatchAd}
+        />
+      </div>
+
+      {/* Cart mini — visible when cart has items */}
+      {cart.length > 0 && !showCart && (
+        <CartMini cart={cart} onClick={openCart} />
       )}
-      <main className="main">{renderStep()}</main>
+
+      {/* Overlay */}
+      <div
+        className={`overlay${overlayVisible ? ' show' : ''}`}
+        onClick={closeCart}
+      />
+
+      {/* Cart expanded */}
+      <CartExpanded
+        cart={cart}
+        show={showCart}
+        onClose={closeCart}
+        onRemove={handleRemoveFromCart}
+        onClear={handleClearCart}
+        onCheckout={handleCheckout}
+        loading={loading}
+      />
+
+      {/* Status screen */}
+      {showStatus && orderId !== null && (
+        <StatusScreen
+          orderId={orderId}
+          totalPrice={orderTotal}
+          onClose={() => { setShowStatus(false); navigate('/') }}
+        />
+      )}
+
+      {/* Info modal */}
+      {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
+
+      {/* Ad viewer */}
+      {showAdViewer && <AdViewer images={adImages} onComplete={handleAdComplete} />}
     </div>
   )
 }

@@ -4,97 +4,138 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Stirki ON — a hyperlocal laundry delivery service for Mytishchi (Moscow region). Customers create orders via a PWA (React) or Telegram bot (legacy), a courier picks up laundry, it gets washed/dried, and delivered back.
+Stirki ON — гиперлокальный сервис доставки стирки для Мытищ (Московская область). Клиент оформляет заказ через PWA (React), курьер забирает бельё, мы стираем/сушим/гладим и возвращаем.
 
-**The project language is Russian** — all user-facing text, commit messages, and documentation are in Russian.
+**Язык проекта — русский**: весь пользовательский текст, коммиты и документация на русском.
 
 ## Commands
 
 ```bash
-# Start infrastructure (PostgreSQL, Adminer, Baserow)
-docker compose up -d
+# Локально: БД в Docker, backend и frontend с hot-reload
+./run.sh local
 
-# Start the FastAPI backend
-uv run uvicorn src.api.app:app --reload --port 8000
+# Dev на сервере: весь стек в Docker
+./run.sh dev
 
-# Start the frontend dev server
-cd frontend && npm run dev
+# Production
+./run.sh prod
 
-# Start the Telegram bot (legacy)
-uv run -m src.bot.main
+# Остановить
+./run.sh stop
 
-# Seed / clear test data
-uv run -m test_db seed
-uv run -m test_db clear
-uv run -m test_db reset
-
-# Lint
+# Линтер
 uv run ruff check src/
 uv run ruff format src/
 ```
 
 ## Architecture
 
-### Two Frontends
+### Frontend (`frontend/`)
 
-1. **PWA** (`frontend/`) — React 19 + TypeScript + Vite. Multi-step order form in `frontend/src/pages/OrderPage.tsx`, state managed by `useOrderFlow` hook. API calls in `frontend/src/api/`.
-2. **Telegram bot** (`src/bot/`) — Legacy. Uses `python-telegram-bot` ConversationHandler with FSM states in `src/bot/states.py`.
+React 19 + TypeScript 5.7 + Vite 6 + vite-plugin-pwa.
+
+Маршруты:
+- `/` → `LandingPage` — лендинг; для авторизованного — профиль и список заказов
+- `/login` → `LoginPage` — вход по телефону + SMS-код (использует `useOrderFlow`)
+- `/order` → `OrderPage` — создание заказа, свайп-карточки
+- `/orders` → `OrdersPage` — история заказов
+
+**OrderPage** — свайп-интерфейс из 4 карточек:
+1. `AddressCard` — выбор улицы, дома, квартиры, комментарий
+2. `TariffCard` — выбор тарифа (бесплатный / платный)
+3. `MachinesCard` — выбор машинки (только при бесплатном тарифе)
+4. `ServicesCard` — выбор типа и допуслуг, кнопка добавления в корзину
+
+Корзина: `CartMini` (плавающий бейдж) + `CartExpanded` (модальное дно).
+Статус заказа: `StatusScreen` (оверлей с таймлайном и polling).
+
+### Два тарифа
+
+| | Бесплатный | Платный |
+|---|---|---|
+| Цена | 0 ₽ | от 190 ₽ |
+| Условие | просмотр 3 рекламных объявлений | оплата YooKassa |
+| Тип | только пакет | вещь или пакет |
+| Позиции | 1 | до 3 |
+| Допуслуги | нет | кондиционер, вакуум, глажка |
+
+Компонент `AdViewer` — оверлей с 3 случайными картинками из `advertising/`, 5 сек на каждую. После просмотра счётчик `adsWatched` = 3 и разблокируется кнопка "добавить в корзину".
+
+### Реклама (`advertising/`)
+
+Картинки (jpg/jpeg/png/webp/gif) в папке `advertising/` в корне проекта.
+- Backend монтирует папку как `StaticFiles` по пути `/advertising`
+- `GET /api/advertising` — возвращает список доступных файлов (сканирует папку динамически)
+- Caddy проксирует `/advertising/*` → backend (настроено в `Caddyfile`)
+- Vite проксирует `/advertising` → `http://localhost:8001` в dev-режиме (`vite.config.ts`)
 
 ### Backend Layers
 
 ```
-API Router (src/api/routers/)     ← FastAPI endpoints, Pydantic validation
+src/api/routers/      ← FastAPI эндпоинты, Pydantic-валидация
        ↓ Depends()
-Repository (src/repositories/)    ← SQLAlchemy async queries
+src/schemas/          ← Pydantic модели запросов/ответов
        ↓
-Model (src/models/)               ← SQLAlchemy ORM (Client, Order, Service, OrderStatusHistory)
+src/repositories/     ← SQLAlchemy async-запросы
        ↓
-PostgreSQL                        ← Schema managed via pg_init/01-schema.sql (NOT auto-generated)
+src/models/           ← ORM (Client, Order, Service, OrderStatusHistory)
+       ↓
+PostgreSQL            ← схема в pg_init/01-schema.sql (НЕ автогенерируется)
 ```
 
-**Services** (`src/services/`) contain business logic orthogonal to the data layer:
-- `pricing.py` — price = `(base_price + service_prices) × bags_number`
-- `kaiten_kanban.py` — creates/moves cards on kaiten.ru kanban board per order status
-- `auth.py` — phone verification code generation
-- `payment.py` — YooKassa payment creation and processing
+**Services** (`src/services/`):
+- `pricing.py` — цена = `(base_price + service_prices) × bags_number`
+- `kaiten_kanban.py` — создание/перемещение карточек на kaiten.ru
+- `auth.py` — генерация SMS-кода верификации (через `secrets`)
+- `payment.py` — создание платежей YooKassa
+- `sms/` — отправка SMS через SmsAero
+
+**Роутеры** (`src/api/routers/`):
+- `auth.py` — `/api/auth/*`: request-code, verify, me
+- `orders.py` — `/api/orders/*`: создание, получение
+- `payments.py` — `/api/payments/*`: YooKassa webhook
+- `addresses.py` — `/api/addresses`: список улиц и домов
+- `services.py` — `/api/services`: список услуг с ценами
+- `analytics.py` — `POST /api/analytics/track-visit`: трекинг QR-переходов
+- `app.py` — `GET /api/advertising`: список рекламных файлов
 
 ### Authentication
 
-Phone → SMS verification code → UUID auth token stored in `Client.auth_token`. Protected routes use `get_current_client` dependency (`src/api/dependencies.py`).
+Phone → SMS-код → UUID auth token в `Client.auth_token`. Защищённые роуты используют `get_current_client` (`src/api/dependencies.py`).
 
 ### Order Lifecycle
 
-New client flow: `phone → code → name → street → house → apartment → bags → services → confirm → payment → status`
-Returning client: `phone → code → bags → services → confirm → payment → status`
+Статусы: `WAITING_FOR_CAPTURE → NEW → COURIER_PICKUP → PICKED_UP → WASHING → DRYING → IRONING → PACKING → COURIER_DELIVERY → DELIVERED`
 
-Order statuses: `WAITING_FOR_CAPTURE → NEW → COURIER_PICKUP → PICKED_UP → WASHING → DRYING → IRONING → PACKING → COURIER_DELIVERY → DELIVERED`
+В `dev`-режиме (`APP_ENV=development`) оплата игнорируется, заказ сразу переходит в `NEW`.
 
 ### Address System
 
-Service area hardcoded in `src/addresses.py` as `dict[str, list[str]]` (street → house numbers). No free-text input — users pick from dropdowns/buttons.
+Зона обслуживания захардкожена в `src/addresses.py` как `dict[str, list[str]]` (улица → список домов). Свободный ввод недоступен — только выбор из выпадающих списков.
 
-### Key Enums
-
-`src/enums.py` — order statuses, payment statuses, service slugs (English), service display names (Cyrillic), Kaiten column/tag ID mappings.
+`QR_CODE_MAP: dict[int, str]` — маппинг числовых кодов из `/?ref=N` на адрес-slug. Коды несеквентные, 1–1000, по одному на дом.
 
 ### Settings
 
-All settings use `pydantic-settings` loading from `.env`:
-- `src/settings.py` — `DBSettings`, `KaitenSettings`, `AppSettings`, `YookassaSettings`
-- `src/bot/settings.py` — `TgSettings` (bot token, payment provider token)
+`pydantic-settings` загружает из `.env`:
+- `src/settings.py` — `DBSettings`, `KaitenSettings`, `AppSettings` (включает `APP_LAUNCHED: bool`), `YookassaSettings`
+
+`APP_LAUNCHED=false` — предзапускной режим: регистрация работает, кнопка заказа на лендинге показывает модалку.
 
 ### Database
 
-PostgreSQL 16. Schema in `pg_init/01-schema.sql` includes table definitions and seed data (services with prices, order statuses). The schema is **manually managed** — not auto-generated from ORM models.
+PostgreSQL 16. Схема в `pg_init/01-schema.sql` — управляется вручную.
 
-### Infrastructure (compose.yml)
+Таблицы: `clients`, `orders`, `order_statuses`, `order_status_history`, `services`, `landing_visits`, `promo_codes`, `promo_code_uses`.
 
-- `postgres` — DB with init script
-- `backend` — FastAPI on port 8000
-- `frontend` — Vite/React build
-- `caddy` — reverse proxy (prod profile)
-- `adminer` — DB UI on port 8081
-- `baserow` — no-code DB UI on port 8082
+### Infrastructure
+
+- `postgres` — БД с init-скриптом
+- `backend` — FastAPI на порту 8000 (внутри Docker), раздаёт `/advertising/*`
+- `frontend` — Vite build → статика в volume `frontend_dist`
+- `caddy` — reverse proxy: `/advertising/*` и `/api/*` → backend, остальное → `file_server`
+- `adminer` — веб-UI БД на порту 8081
+- `baserow` — no-code UI на порту 8082
 
 ### Tech Stack
 

@@ -57,6 +57,9 @@ YOOKASSA_RETURN_URL=http://IP_АДРЕС
 # Секретный ключ
 SECRET_KEY=СГЕНЕРИРОВАТЬ_СЛУЧАЙНУЮ_СТРОКУ
 
+# Режим предзапуска: false = заказы заблокированы, true = всё работает
+APP_LAUNCHED=false
+
 # Kaiten (опционально)
 KAITEN_API_KEY=...
 KAITEN_DOMAIN=...
@@ -121,6 +124,36 @@ docker compose --profile prod down
 ```
 
 Caddy автоматически получит SSL-сертификат от Let's Encrypt.
+
+## 7. Переключение в рабочий режим (после предзапуска)
+
+Когда сервис готов принимать заказы:
+
+1. В `.env` измените:
+```env
+APP_LAUNCHED=true
+```
+2. Перезапустите backend (без пересборки образа):
+```bash
+docker compose --profile prod restart backend
+```
+
+Лендинг сразу начнёт пускать клиентов к форме заказа.
+
+## 8. QR-аналитика
+
+QR-коды в объявлениях используют числовые коды (`/?ref=142`), которые сопоставляются с адресами в `src/addresses.py` (`QR_CODE_MAP`).
+
+Посмотреть статистику визитов по объявлениям через Adminer (`http://IP:8081`):
+
+```sql
+SELECT ref_code, COUNT(*) AS visits, MAX(visited_at) AS last_visit
+FROM landing_visits
+GROUP BY ref_code
+ORDER BY visits DESC;
+```
+
+> Важно: таблица `landing_visits` создаётся скриптом `pg_init/01-schema.sql` при первом запуске контейнера PostgreSQL. Если БД уже запущена, создайте таблицу вручную через Adminer.
 
 ## Полезные команды
 

@@ -43,6 +43,19 @@ class AppSettings(BaseSettings):
     APP_ENV: str = "development"
     FRONTEND_URL: str = "http://localhost:5173"
     SECRET_KEY: str = "change-me-in-production"
+    APP_LAUNCHED: bool = False
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+class SmsAeroSettings(BaseSettings):
+    SMSAERO_EMAIL: str = ""
+    SMSAERO_API_KEY: str = ""
+    SMSAERO_SIGN: str = "SMS"
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -55,6 +68,19 @@ class YooKassaSettings(BaseSettings):
     YOOKASSA_SHOP_ID: str = ""
     YOOKASSA_SECRET_KEY: str = ""
     YOOKASSA_RETURN_URL: str = "http://localhost:5173"
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+class BaserowSettings(BaseSettings):
+    BASEROW_URL: str = ""
+    BASEROW_API_TOKEN: str = ""
+    BASEROW_CLIENTS_TABLE_ID: int = 0
+    BASEROW_ORDERS_TABLE_ID: int = 0
 
     model_config = SettingsConfigDict(
         env_file=".env",

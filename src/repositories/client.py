@@ -1,10 +1,13 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.client import Client
+
+
+TOKEN_LIFETIME = timedelta(days=60)
 
 
 class ClientRepository:
@@ -17,9 +20,17 @@ class ClientRepository:
 
     async def get_by_token(self, token: str) -> Client | None:
         result = await self.session.execute(
-            select(Client).where(Client.auth_token == token, Client.is_verified == True)  # noqa: E712
+            select(Client).where(
+                Client.auth_token == token,
+                Client.is_verified == True,  # noqa: E712
+                Client.auth_token_expires_at > func.now(),
+            )
         )
-        return result.scalar_one_or_none()
+        client = result.scalar_one_or_none()
+        if client:
+            client.auth_token_expires_at = datetime.now(timezone.utc) + TOKEN_LIFETIME
+            await self.session.commit()
+        return client
 
     async def create(self, phone: str) -> Client:
         client = Client(phone=phone)
@@ -46,6 +57,7 @@ class ClientRepository:
 
         token = str(uuid.uuid4())
         client.auth_token = token
+        client.auth_token_expires_at = datetime.now(timezone.utc) + TOKEN_LIFETIME
         client.is_verified = True
         client.verification_code = None
         client.verification_expires_at = None
@@ -57,6 +69,7 @@ class ClientRepository:
         client: Client,
         *,
         name: str | None = None,
+        email: str | None = None,
         street: str | None = None,
         house: str | None = None,
         apartment: int | None = None,
@@ -66,6 +79,8 @@ class ClientRepository:
     ) -> Client:
         if name is not None:
             client.name = name
+        if email is not None:
+            client.email = email
         if street is not None:
             client.street = street
         if house is not None:

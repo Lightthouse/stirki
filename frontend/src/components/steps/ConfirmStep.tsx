@@ -29,6 +29,7 @@ export function ConfirmStep({ formData, onPaymentUrl, onOrderCreated, onBack }: 
         apartment: formData.apartment,
         entrance: formData.entrance,
         floor: formData.floor,
+        washing_type: 'bag',
         bags_number: formData.bags_number,
         services: formData.services,
         comment: formData.comment || undefined,

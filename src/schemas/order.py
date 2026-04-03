@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -9,6 +10,7 @@ class CreateOrderIn(BaseModel):
     apartment: int
     entrance: int = 1
     floor: int = 1
+    washing_type: Literal['bag', 'piece'] = 'bag'
     bags_number: int = 1
     services: list[str] = []
     comment: str | None = None
@@ -22,6 +24,7 @@ class OrderOut(BaseModel):
     apartment: int
     entrance: int
     floor: int
+    washing_type: str
     bags_number: int
     services: list[str]
     total_price_rub: int
@@ -37,5 +40,6 @@ class OrderListOut(BaseModel):
     status: str
     total_price_rub: int
     payment_status: str
+    washing_type: str
     bags_number: int
     created_at: datetime

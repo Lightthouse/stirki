@@ -1,14 +1,20 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { LandingPage } from './pages/LandingPage'
+import { LoginPage } from './pages/LoginPage'
 import { OrderPage } from './pages/OrderPage'
-import { OrdersPage } from './pages/OrdersPage'
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<OrderPage />} />
-        <Route path="/orders" element={<OrdersPage />} />
-      </Routes>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh', background: '#0f1720' }}>
+        <div className="app">
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/order" element={<OrderPage />} />
+          </Routes>
+        </div>
+      </div>
     </BrowserRouter>
   )
 }

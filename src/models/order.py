@@ -30,6 +30,10 @@ class Order(Base):
             "payment_status in ('pending', 'waiting_for_capture', 'succeeded', 'canceled')",
             name="orders_payment_status_check",
         ),
+        CheckConstraint(
+            "washing_type in ('bag', 'piece')",
+            name="orders_washing_type_check",
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -47,6 +51,7 @@ class Order(Base):
     apartment: Mapped[int] = mapped_column(Integer, nullable=False)
     comment: Mapped[str | None] = mapped_column(Text)
 
+    washing_type: Mapped[str] = mapped_column(Text, nullable=False, server_default="bag")
     bags_number: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     ironing: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false"

@@ -5,58 +5,50 @@ interface Props {
 export function InfoModal({ onClose }: Props) {
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>&times;</button>
+      <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+        <h3><i className="fas fa-star" /> о стиркаОН</h3>
 
-        <h2>О сервисе</h2>
-
-        <section className="modal-section">
-          <h3>Как работаем</h3>
+        <section>
+          <h4>Как работаем</h4>
           <ul>
-            <li>Забираем у двери в любом стандартном продуктовом пакете (25&times;40 см)</li>
+            <li>Забираем у двери в любом стандартном продуктовом пакете (25×40 см)</li>
             <li>Стираем, сушим и гладим</li>
             <li>Возвращаем упакованные вещи к двери или в руки</li>
           </ul>
         </section>
 
-        <section className="modal-section">
-          <h3>Важно</h3>
+        <section>
+          <h4>Важно</h4>
           <ul>
             <li>Каждый этап виден в приложении</li>
-            <li>Индивидуально — в барабане стираем только ваши вещи (с другими не смешиваем)</li>
-            <li>Бережная стирка — режимы до 30 градусов и отжим не более 800 оборотов/мин</li>
-            <li>По цветам не делим — один пакет = один цвет (чёрное/белое/цветное)</li>
+            <li>Индивидуально — в барабане только ваши вещи</li>
+            <li>Бережная стирка — до 30°C, отжим до 800 об/мин</li>
+            <li>По цветам не делим — один пакет = один цвет</li>
           </ul>
         </section>
 
-        <section className="modal-section">
-          <h3>Тариф</h3>
-          <p><strong>Основное:</strong></p>
+        <section>
+          <h4>Тарифы</h4>
           <ul>
-            <li>Партия — 890 ₽ (полный продуктовый пакет одежды или постельного белья, до 3 кг)</li>
-          </ul>
-          <p><strong>Добавить к основному:</strong></p>
-          <ul>
+            <li>Партия — 890 ₽ (пакет одежды или белья, до 3 кг)</li>
             <li>Глажка — 990 ₽</li>
-            <li>Кондиционер — 50 ₽</li>
-            <li>Вакуумный пакет — 150 ₽</li>
-            <li>Пятновыводитель — 80 ₽</li>
-            <li>Отбеливатель — 80 ₽</li>
-            <li>Тряпочка для цветного — 30 ₽</li>
-            <li>Стирка в мешочке — 30 ₽</li>
+            <li>Кондиционер — +100 ₽</li>
+            <li>Вакуумный пакет — +150 ₽</li>
           </ul>
         </section>
 
-        <section className="modal-section">
-          <h3>Дополнительно</h3>
+        <section>
+          <h4>Дополнительно</h4>
           <ul>
-            <li>Локация — гипермаркет «Базарбай»</li>
-            <li>Для связи — <a href="https://t.me/stirkion_bot" target="_blank" rel="noopener noreferrer">@stirkion_bot</a></li>
-            <li>График работы — ежедневно с 07:00 до 23:00</li>
+            <li>Локация — Мытищи</li>
+            <li>Связь — <a href="https://t.me/stirkion_bot" target="_blank" rel="noopener noreferrer">@stirkion_bot</a></li>
+            <li>График — ежедневно с 07:00 до 23:00</li>
           </ul>
         </section>
 
-        <button className="btn btn-primary btn-full" onClick={onClose}>Понятно</button>
+        <button className="btn-pill btn-pill-accent" onClick={onClose}>
+          Понятно
+        </button>
       </div>
     </div>
   )

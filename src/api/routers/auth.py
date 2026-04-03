@@ -1,12 +1,30 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import get_db
+from src.api.dependencies import get_current_client, get_db
+from src.models.client import Client
 from src.repositories.client import ClientRepository
-from src.schemas.auth import RequestCodeIn, VerifyCodeIn, AuthTokenOut, ClientOut
+from src.schemas.auth import RequestCodeIn, VerifyCodeIn, AuthTokenOut, ClientOut, UpdateClientIn
 from src.services.auth import generate_verification_code
+from src.services.baserow import BaserowService
+from src.services.sms import SMSSendError, SMSService
+from src.settings import AppSettings, SmsAeroSettings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+_app_settings = AppSettings()
+_sms_settings = SmsAeroSettings()
+
+sms_service = SMSService(
+    email=_sms_settings.SMSAERO_EMAIL,
+    api_key=_sms_settings.SMSAERO_API_KEY,
+    sign=_sms_settings.SMSAERO_SIGN,
+    test_mode=_app_settings.APP_ENV == "development",
+)
 
 
 @router.post("/request-code")
@@ -17,14 +35,30 @@ async def request_code(
     repo = ClientRepository(session)
     client = await repo.get_by_phone(body.phone)
 
-    if not client:
+    is_new = not client
+    if is_new:
         client = await repo.create(body.phone)
 
     code = generate_verification_code()
     await repo.set_verification_code(client, code)
 
-    # MVP: возвращаем код в ответе (потом заменить на SMS)
-    return {"message": "Код отправлен", "code": code}
+    if is_new:
+        await BaserowService().sync_client(client)
+
+    if _app_settings.APP_ENV == "development":
+        logger.info("[DEV] Код подтверждения %s: %s", body.phone, code)
+        return {"message": "Код отправлен", "code": code}
+
+    try:
+        await sms_service.send_verification_code(body.phone, code)
+    except SMSSendError as e:
+        logger.error("Не удалось отправить SMS на %s: %s", body.phone, e)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Не удалось отправить SMS. Попробуйте позже.",
+        )
+
+    return {"message": "Код отправлен"}
 
 
 @router.post("/verify", response_model=AuthTokenOut)
@@ -56,3 +90,21 @@ async def verify_code(
         is_new_client=is_new,
         client=client_out,
     )
+
+
+@router.get("/me", response_model=ClientOut)
+async def get_me(
+    client: Client = Depends(get_current_client),
+):
+    return ClientOut.model_validate(client)
+
+
+@router.patch("/me", response_model=ClientOut)
+async def update_me(
+    body: UpdateClientIn,
+    client: Client = Depends(get_current_client),
+    session: AsyncSession = Depends(get_db),
+):
+    repo = ClientRepository(session)
+    updated = await repo.update(client, name=body.name, email=body.email)
+    return ClientOut.model_validate(updated)

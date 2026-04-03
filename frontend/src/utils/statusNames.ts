@@ -1,3 +1,7 @@
+export function getStatusName(status: string): string {
+  return STATUS_NAMES[status] || status
+}
+
 export const STATUS_NAMES: Record<string, string> = {
   waiting_for_capture: 'Ожидает оплаты',
   new: 'Новый',

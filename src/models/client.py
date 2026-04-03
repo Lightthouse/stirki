@@ -12,8 +12,10 @@ class Client(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     phone: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     name: Mapped[str | None] = mapped_column(Text)
+    email: Mapped[str | None] = mapped_column(Text)
 
     auth_token: Mapped[str | None] = mapped_column(Text, unique=True)
+    auth_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     is_verified: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false"
     )
