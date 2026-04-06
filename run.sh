@@ -37,11 +37,15 @@ cmd_local() {
 }
 
 cmd_dev() {
+    echo "==> Сборка frontend без кеша..."
+    docker compose --profile prod build --no-cache frontend
     echo "==> Запуск в dev-режиме (без оплаты)..."
     APP_ENV=development docker compose --profile prod up -d --build
 }
 
 cmd_prod() {
+    echo "==> Сборка frontend без кеша..."
+    docker compose --profile prod build --no-cache frontend
     echo "==> Запуск в prod-режиме..."
     APP_ENV=production docker compose --profile prod up -d --build
 }
