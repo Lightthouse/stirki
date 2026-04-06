@@ -60,8 +60,3 @@ async def list_ads():
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
-
-
-@app.get("/api/app-status")
-async def app_status():
-    return {"launched": app_settings.APP_LAUNCHED}

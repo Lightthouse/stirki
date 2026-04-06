@@ -5,6 +5,33 @@ import { requestCode, verifyCode, updateMe } from '../api'
 
 type Phase = 'phone' | 'code' | 'name'
 
+function formatName(raw: string): string {
+  const cleaned = raw.replace(/[^a-zA-Zа-яА-ЯёЁ ]/g, '')
+  return cleaned
+    .split(' ')
+    .map((word) => (word.length > 0 ? word[0].toUpperCase() + word.slice(1).toLowerCase() : ''))
+    .join(' ')
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
+function formatPhone(raw: string): string {
+  let digits = raw.replace(/\D/g, '')
+  if (digits.startsWith('8')) digits = '7' + digits.slice(1)
+  if (digits.length > 0 && !digits.startsWith('7')) digits = '7' + digits
+  digits = digits.slice(0, 11)
+
+  if (digits.length === 0) return ''
+  const d = digits
+  if (d.length <= 1) return '+' + d
+  if (d.length <= 4) return `+${d[0]} (${d.slice(1)}`
+  if (d.length <= 7) return `+${d[0]} (${d.slice(1, 4)}) ${d.slice(4)}`
+  if (d.length <= 9) return `+${d[0]} (${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`
+  return `+${d[0]} (${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7, 9)}-${d.slice(9)}`
+}
+
 export function LoginPage() {
   const navigate = useNavigate()
   const [phase, setPhase] = useState<Phase>('phone')
@@ -15,6 +42,7 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [timer, setTimer] = useState(0)
+  const [smsCode, setSmsCode] = useState('')
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -50,11 +78,14 @@ export function LoginPage() {
     setLoading(true)
     setError('')
     try {
+      console.log('[DEBUG] отправка кода на:', phone.trim())
       const res = await requestCode(phone.trim())
-      console.log('[DEBUG] SMS код:', res.code)
+      console.log('[DEBUG] ответ сервера:', res)
+      if (res.code) setSmsCode(res.code)
       setPhase('code')
       startTimer()
     } catch (e) {
+      console.error('[DEBUG] ошибка:', e)
       setError(e instanceof Error ? e.message : 'Ошибка отправки кода')
     } finally {
       setLoading(false)
@@ -87,6 +118,10 @@ export function LoginPage() {
       setError('Введите ваше имя')
       return
     }
+    if (email.trim() && !isValidEmail(email.trim())) {
+      setError('Введите корректный email')
+      return
+    }
     setLoading(true)
     setError('')
     try {
@@ -105,7 +140,7 @@ export function LoginPage() {
     setError('')
     try {
       const res = await requestCode(phone.trim())
-      console.log('[DEBUG] SMS код (повтор):', res.code)
+      if (res.code) setSmsCode(res.code)
       startTimer()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка отправки кода')
@@ -130,7 +165,7 @@ export function LoginPage() {
                 type="tel"
                 placeholder="+7 (___) ___-__-__"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => setPhone(formatPhone(e.target.value))}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendCode()}
                 autoFocus
               />
@@ -149,6 +184,11 @@ export function LoginPage() {
               <i className="fas fa-phone" />
               <input type="tel" value={phone} disabled />
             </div>
+            {smsCode && (
+              <p style={{ textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
+                код: {smsCode}
+              </p>
+            )}
             <div className="input-field">
               <i className="fas fa-key" />
               <input
@@ -186,7 +226,7 @@ export function LoginPage() {
                 type="text"
                 placeholder="Ваше имя"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => setName(formatName(e.target.value))}
                 onKeyDown={(e) => e.key === 'Enter' && handleNameDone()}
                 autoFocus
               />

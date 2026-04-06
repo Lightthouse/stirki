@@ -36,9 +36,8 @@ React 19 + TypeScript 5.7 + Vite 6 + vite-plugin-pwa.
 
 Маршруты:
 - `/` → `LandingPage` — лендинг; для авторизованного — профиль и список заказов
-- `/login` → `LoginPage` — вход по телефону + SMS-код (использует `useOrderFlow`)
+- `/login` → `LoginPage` — вход по телефону + SMS-код
 - `/order` → `OrderPage` — создание заказа, свайп-карточки
-- `/orders` → `OrdersPage` — история заказов
 
 **OrderPage** — свайп-интерфейс из 4 карточек:
 1. `AddressCard` — выбор улицы, дома, квартиры, комментарий

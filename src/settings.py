@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -43,7 +44,6 @@ class AppSettings(BaseSettings):
     APP_ENV: str = "development"
     FRONTEND_URL: str = "http://localhost:5173"
     SECRET_KEY: str = "change-me-in-production"
-    APP_LAUNCHED: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -81,6 +81,11 @@ class BaserowSettings(BaseSettings):
     BASEROW_API_TOKEN: str = ""
     BASEROW_CLIENTS_TABLE_ID: int = 0
     BASEROW_ORDERS_TABLE_ID: int = 0
+
+    @field_validator("BASEROW_CLIENTS_TABLE_ID", "BASEROW_ORDERS_TABLE_ID", mode="before")
+    @classmethod
+    def empty_str_to_zero(cls, v: object) -> object:
+        return 0 if v == "" else v
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -6,7 +6,7 @@ import { OrderPage } from './pages/OrderPage'
 export default function App() {
   return (
     <BrowserRouter>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh', background: '#0f1720' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh', width: '100%', background: '#0f1720' }}>
         <div className="app">
           <Routes>
             <Route path="/" element={<LandingPage />} />

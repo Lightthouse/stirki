@@ -43,7 +43,10 @@ async def request_code(
     await repo.set_verification_code(client, code)
 
     if is_new:
-        await BaserowService().sync_client(client)
+        try:
+            await BaserowService().sync_client(client)
+        except Exception:
+            logger.exception("Не удалось синхронизировать клиента с Baserow")
 
     if _app_settings.APP_ENV == "development":
         logger.info("[DEV] Код подтверждения %s: %s", body.phone, code)

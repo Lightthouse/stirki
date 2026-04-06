@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { isAuthenticated, clearToken, clearPhone } from '../api/client'
-import { trackVisit, getAppStatus, getOrders, getMe } from '../api'
+import { trackVisit, getOrders, getMe, getAddresses } from '../api'
 import { InfoModal } from '../components/ui/InfoModal'
 import type { OrderListItem, ClientInfo } from '../types'
 import { getStatusName } from '../utils/statusNames'
@@ -14,12 +14,11 @@ const ACTIVE_STATUSES = new Set([
 export function LandingPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const [launched, setLaunched] = useState<boolean | null>(null)
-  const [showPrelaunch, setShowPrelaunch] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
   const [client, setClient] = useState<ClientInfo | null>(null)
   const [orders, setOrders] = useState<OrderListItem[]>([])
   const [loadingOrders, setLoadingOrders] = useState(false)
+  const [slugToStreet, setSlugToStreet] = useState<Record<string, string>>({})
 
   const authenticated = isAuthenticated()
 
@@ -29,9 +28,13 @@ export function LandingPage() {
       trackVisit(ref).catch(() => {})
     }
 
-    getAppStatus()
-      .then((s) => setLaunched(s.launched))
-      .catch(() => setLaunched(true))
+    getAddresses()
+      .then((res) => {
+        const map: Record<string, string> = {}
+        res.streets.forEach((s) => { map[s.slug] = s.name })
+        setSlugToStreet(map)
+      })
+      .catch(() => {})
 
     if (authenticated) {
       getMe().then(setClient).catch(() => {})
@@ -44,11 +47,7 @@ export function LandingPage() {
   }, [])
 
   function handleOrder() {
-    if (launched === false) {
-      setShowPrelaunch(true)
-    } else {
-      navigate('/order')
-    }
+    navigate('/order')
   }
 
   function handleLogout() {
@@ -101,7 +100,7 @@ export function LandingPage() {
                 <div>{client.phone}</div>
                 {client.street && (
                   <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
-                    {client.street}, д. {client.house}, кв. {client.apartment}
+                    {slugToStreet[client.street] ?? client.street}, д. {client.house}, кв. {client.apartment}
                   </div>
                 )}
               </div>
@@ -154,18 +153,6 @@ export function LandingPage() {
           </>
         )}
       </div>
-
-      {showPrelaunch && (
-        <div className="modal-overlay" onClick={() => setShowPrelaunch(false)}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <h3>Скоро открываемся!</h3>
-            <p>Мы начнём принимать заказы совсем скоро и сообщим вам первыми!</p>
-            <button className="btn-pill btn-pill-accent" onClick={() => setShowPrelaunch(false)}>
-              Закрыть
-            </button>
-          </div>
-        </div>
-      )}
 
       {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
     </div>

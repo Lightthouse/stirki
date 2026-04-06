@@ -25,6 +25,9 @@ cmd_local() {
 
     trap 'echo ""; echo "==> Остановка процессов..."; kill 0; exit 0' INT TERM
 
+    echo "==> Освобождение порта 8001..."
+    fuser -k 8001/tcp 2>/dev/null || true
+
     export APP_ENV=development
 
     echo "==> Запуск backend (uvicorn --reload) на :8001 (APP_ENV=development)..."

@@ -59,10 +59,6 @@ export async function updateMe(data: { name?: string; email?: string }) {
   return api.patch<ClientInfo>('/auth/me', data)
 }
 
-export async function getAppStatus(): Promise<{ launched: boolean }> {
-  return api.get<{ launched: boolean }>('/app-status')
-}
-
 export async function getAdImages(): Promise<string[]> {
   const result = await api.get<{ images: string[] }>('/advertising')
   return result.images
