@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { isAuthenticated, clearToken, clearPhone } from '../api/client'
 import { trackVisit, getOrders, getMe, getAddresses } from '../api'
 import { InfoModal } from '../components/ui/InfoModal'
+import { PwaBanner } from '../components/PwaBanner'
 import type { OrderListItem, ClientInfo } from '../types'
 import { getStatusName } from '../utils/statusNames'
 
@@ -155,6 +156,7 @@ export function LandingPage() {
       </div>
 
       {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
+      <PwaBanner />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-:80 {
+{$DOMAIN} {
 	# Advertising images proxy
 	handle /advertising/* {
 		reverse_proxy backend:8000
