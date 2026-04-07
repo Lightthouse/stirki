@@ -1286,24 +1286,24 @@ body {
 /* ========== PWA BANNER ========== */
 .pwa-banner {
   position: absolute;
-  bottom: 16px;
-  left: 16px;
-  right: 16px;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 150;
   background: rgba(20, 30, 48, 0.95);
   backdrop-filter: blur(12px);
-  border: 1px solid var(--border-glass);
-  border-radius: 20px;
-  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-glass);
+  border-radius: 0 0 20px 20px;
+  padding: 10px 14px;
   display: flex;
   align-items: center;
   gap: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  animation: slideUp 0.3s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  animation: slideDown 0.3s ease;
 }
 
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(16px); }
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-100%); }
   to   { opacity: 1; transform: translateY(0); }
 }
 

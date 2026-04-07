@@ -7,6 +7,14 @@ interface BeforeInstallPromptEvent extends Event {
 
 const DISMISSED_KEY = 'pwa_banner_dismissed'
 
+function storageGet(key: string): boolean {
+  try { return !!localStorage.getItem(key) } catch { return false }
+}
+
+function storageSet(key: string, value: string): void {
+  try { localStorage.setItem(key, value) } catch { /* ignore */ }
+}
+
 function detectIos(): boolean {
   return /iphone|ipad|ipod/i.test(navigator.userAgent)
     && !navigator.userAgent.includes('CriOS')
@@ -15,7 +23,7 @@ function detectIos(): boolean {
 
 export function usePwaInstall() {
   const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-  const [dismissed, setDismissed] = useState(() => !!localStorage.getItem(DISMISSED_KEY))
+  const [dismissed, setDismissed] = useState(() => storageGet(DISMISSED_KEY))
   const [isIos] = useState(() => detectIos())
 
   useEffect(() => {
@@ -35,7 +43,7 @@ export function usePwaInstall() {
   }
 
   const dismiss = () => {
-    localStorage.setItem(DISMISSED_KEY, '1')
+    storageSet(DISMISSED_KEY, '1')
     setDismissed(true)
   }
 
