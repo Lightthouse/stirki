@@ -17,6 +17,7 @@ body {
   background: var(--dark);
   font-family: 'Inter', sans-serif;
   color: white;
+  min-height: 100vh;
   min-height: 100dvh;
   display: flex;
   align-items: center;
@@ -26,6 +27,7 @@ body {
 
 #root {
   width: 100%;
+  min-height: 100vh;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -45,6 +47,7 @@ body {
 @media (max-width: 430px) {
   .app {
     width: 100%;
+    height: 100vh;
     height: 100dvh;
     border-radius: 0;
     box-shadow: none;
