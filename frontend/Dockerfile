@@ -6,5 +6,5 @@ COPY . .
 RUN npm run build
 
 FROM busybox:stable
-COPY --from=build /app/dist /dist
-CMD ["true"]
+COPY --from=build /app/dist /app/dist
+CMD ["sh", "-c", "rm -rf /dist/* && cp -r /app/dist/. /dist/"]

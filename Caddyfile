@@ -13,6 +13,11 @@
 	handle {
 		root * /srv
 		try_files {path} /index.html
+
+		# SW и index.html — без кэша, чтобы браузер сразу видел обновления
+		@nocache path /sw.js /index.html /manifest.webmanifest
+		header @nocache Cache-Control "no-cache, no-store, must-revalidate"
+
 		file_server
 	}
 }
