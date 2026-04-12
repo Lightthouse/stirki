@@ -3,13 +3,16 @@ import { useEffect, useRef, useState } from 'react'
 interface Props {
   images: string[]
   onComplete: () => void
+  onAdViewed?: (imagePath: string) => void
 }
 
 const AD_DURATION = 5
 
-export function AdViewer({ images, onComplete }: Props) {
+export function AdViewer({ images, onComplete, onAdViewed }: Props) {
   const onCompleteRef = useRef(onComplete)
   onCompleteRef.current = onComplete
+  const onAdViewedRef = useRef(onAdViewed)
+  onAdViewedRef.current = onAdViewed
 
   const [selected] = useState<string[]>(() => {
     if (images.length === 0) return []
@@ -33,6 +36,7 @@ export function AdViewer({ images, onComplete }: Props) {
       if (t > 0) {
         setTimeLeft(t)
       } else {
+        onAdViewedRef.current?.(selected[idx])
         if (idx < selected.length - 1) {
           idx++
           t = AD_DURATION

@@ -3,8 +3,11 @@ from typing import Any
 
 import httpx
 
+from src.addresses import STREETS_SLUG
 from src.settings import KaitenSettings
 from src.enums import KaitenColumns, KaitenTagsNames
+
+_SLUG_TO_STREET = {slug: name for name, slug in STREETS_SLUG.items()}
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +46,7 @@ class Kaiten:
             headers=self.headers,
             timeout=timeout,
             follow_redirects=True,
-            proxy=None,
+            trust_env=False,
         )
 
     def _raise_for_status(self, response: httpx.Response) -> None:
@@ -129,25 +132,34 @@ class Kaiten:
         options: dict[KaitenTagsNames, bool],
         order,
     ) -> str:
-        option_num = 1
-        option_text = ""
-        for op_name, op_status in options.items():
-            if not op_status:
-                continue
-            option_text += f"{option_num}. {op_name.capitalize()}\n"
-            option_num += 1
+        street = _SLUG_TO_STREET.get(order.street, order.street)
+        is_free = order.total_price_rub == 0
+        tariff = "бесплатно" if is_free else "платно"
+        unit_label = "Вещь" if order.washing_type == "piece" else "Пакет"
+        price_per_unit = order.total_price_rub // order.bags_number if order.bags_number else 0
 
-        return (
-            f"{title}\n"
-            f"- Адрес: {order.street}, дом {order.house}, квартира {order.apartment}, подъезд {order.entrance}, этаж {order.floor}\n"
+        main = (
+            f"{title}\n\n"
+            f"**Основная информация**\n"
+            f"- Адрес: {street}, дом {order.house}, квартира {order.apartment}, подъезд {order.entrance}, этаж {order.floor}\n"
             f"- Телефон: {order.client.phone}\n"
             f"- Имя: {order.client.name}\n"
             f"- Количество пакетов: {order.bags_number}\n"
-            f"- Стоимость: {order.total_price_rub} руб\n"
-            f"- Комментарий: {order.comment or '—'}\n\n"
-            f"**Дополнительно**\n"
-            f"{option_text}"
+            f"- Сумма заказа: {order.total_price_rub} руб\n"
+            f"- Тариф: {tariff}\n"
+            f"- Комментарий: {order.comment or '—'}\n"
         )
+
+        active_services = [name for name, active in options.items() if active]
+        bags_text = ""
+        for i in range(1, order.bags_number + 1):
+            bags_text += f"\n**{unit_label} {i}**\n"
+            bags_text += "- стирка\n"
+            for service_name in active_services:
+                bags_text += f"- {service_name}\n"
+            bags_text += f"- стоимость {price_per_unit} р\n"
+
+        return main + bags_text
 
     async def add_card_to_order(self, order) -> int:
         options = {

@@ -7,7 +7,8 @@ from fastapi.staticfiles import StaticFiles
 
 from src.database import engine
 from src.settings import AppSettings
-from src.api.routers import addresses, auth, services, orders, payments, analytics
+from src.api.routers import addresses, auth, services, orders, payments, analytics, kaiten
+from src.admin import create_admin
 
 app_settings = AppSettings()
 
@@ -41,6 +42,9 @@ app.include_router(services.router, prefix="/api/services", tags=["services"])
 app.include_router(orders.router, prefix="/api/orders", tags=["orders"])
 app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 app.include_router(analytics.router, prefix="/api")
+app.include_router(kaiten.router, prefix="/api/orders", tags=["kaiten"])
+
+create_admin(app)
 
 
 _IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}

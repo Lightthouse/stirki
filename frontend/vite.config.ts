@@ -7,6 +7,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        navigateFallbackDenylist: [/^\/admin/],
+      },
       manifest: {
         name: 'Стирки ON',
         short_name: 'СтиркиON',
@@ -36,6 +39,7 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:8001',
       '/advertising': 'http://localhost:8001',
+      '/admin': 'http://localhost:8001',
     },
   },
 })

@@ -16,6 +16,7 @@ export function TariffCard({ selected, onSelect, onHintActivate, hintActive }: P
   return (
     <div className="swipe-card">
       <div className="card-content">
+        <p className="tariff-prompt">Выберите тариф</p>
         <div className="tariff-grid">
           <div
             className={`tariff-card free${selected === 'free' ? ' selected' : ''}`}

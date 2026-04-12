@@ -29,6 +29,7 @@ class KaitenSettings(BaseSettings):
     DOMAIN: str
     BOARD: int
     SPACE: int
+    WEBHOOK_SECRET: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -44,6 +45,8 @@ class AppSettings(BaseSettings):
     APP_ENV: str = "development"
     FRONTEND_URL: str = "http://localhost:5173"
     SECRET_KEY: str = "change-me-in-production"
+    ADMIN_USERNAME: str = "admin"
+    ADMIN_PASSWORD: str = "change-me-in-production"
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -75,23 +75,35 @@ create table order_status_history (
     changed_by text
 );
 
-create table promo_codes (
-    id serial primary key,
-    code text unique not null,
-    discount_rub int default 0,
-    discount_percent int check (discount_percent between 1 and 100),
-    usage_limit int,
-    used_count int default 0,
-    valid_until timestamptz,
-    created_at timestamptz default now()
+create table landing_visits (
+    id bigserial primary key,
+    ref_code text not null,
+    visited_at timestamptz default now()
 );
+create index idx_landing_visits_ref_code on landing_visits (ref_code);
 
-create table promo_code_uses (
-    promo_code_id int references promo_codes(id),
+create table ad_views (
+    id bigserial primary key,
+    image_path text not null,
     client_id bigint references clients(id),
-    order_id bigint references orders(id),
-    used_at timestamptz default now(),
-    primary key (promo_code_id, client_id)
+    viewed_at timestamptz default now()
+);
+create index idx_ad_views_image_path on ad_views (image_path);
+
+create view ad_view_stats as
+select
+    image_path,
+    count(*)                    as total_views,
+    count(distinct client_id)   as unique_viewers
+from ad_views
+group by image_path
+order by total_views desc;
+
+create table qr_codes (
+    code int primary key,         -- числовой код из ?ref=N; 0 = невалидный/неизвестный
+    address_slug text not null,   -- slug адреса или 'invalid'
+    address_name text not null,   -- название на кириллице или 'Неизвестный код'
+    visit_count int not null default 0
 );
 
 
@@ -110,9 +122,17 @@ insert into services (name, slug, price_rub) values
 ('Салфетки против окрашивания', 'color_catcher_sheets', 30),
 ('Мешок для стирки', 'wash_bag', 30);
 
-create table if not exists landing_visits (
-  id bigserial primary key,
-  ref_code text not null,
-  visited_at timestamptz default now()
-);
-create index if not exists idx_landing_visits_ref_code on landing_visits (ref_code);
+insert into qr_codes (code, address_slug, address_name) values
+(142, 'rozhdestvenskaya-11',   'Рождественская, 11'),
+(287, 'rozhdestvenskaya-9',    'Рождественская, 9'),
+(391, 'rozhdestvenskaya-7',    'Рождественская, 7'),
+(516, 'rozhdestvenskaya-5',    'Рождественская, 5'),
+(634, 'rozhdestvenskaya-3',    'Рождественская, 3'),
+(78,  'rozhdestvenskaya-2',    'Рождественская, 2'),
+(203, 'novomytishchinskay-4a', 'Новомытищинский проспект, 4а'),
+(457, 'komarova-2k1',          'Комарова, 2к1'),
+(819, 'komarova-2k2',          'Комарова, 2к2'),
+(563, 'komarova-2k3',          'Комарова, 2к3'),
+(721, 'vorovskogo-10',         'Воровского, 10'),
+(345, 'sharapovskaya-vl2-st3', 'Шараповский проезд, вл2 ст3'),
+(0,   'invalid',               'Неизвестный код');

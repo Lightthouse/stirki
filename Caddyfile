@@ -9,6 +9,11 @@
 		reverse_proxy backend:8000
 	}
 
+	# Admin panel
+	handle /admin* {
+		reverse_proxy backend:8000
+	}
+
 	# Frontend SPA
 	handle {
 		root * /srv

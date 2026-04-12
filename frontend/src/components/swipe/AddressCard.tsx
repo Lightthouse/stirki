@@ -15,9 +15,10 @@ interface Props {
   onChange: (data: AddressData) => void
   onHintActivate: () => void
   hintActive: boolean
+  hasPreviousAddress?: boolean
 }
 
-export function AddressCard({ data, onChange, onHintActivate, hintActive }: Props) {
+export function AddressCard({ data, onChange, onHintActivate, hintActive, hasPreviousAddress }: Props) {
   const [streets, setStreets] = useState<Street[]>([])
   const [houses, setHouses] = useState<string[]>([])
 
@@ -49,9 +50,14 @@ export function AddressCard({ data, onChange, onHintActivate, hintActive }: Prop
     <div className="swipe-card">
       <div className="card-content">
         <div className="form-card">
-          <h3 style={{ color: '#ffd966', marginBottom: 16, fontSize: 16 }}>
+          <h3 style={{ color: '#ffd966', marginBottom: hasPreviousAddress ? 4 : 16, fontSize: 16 }}>
             <i className="fas fa-map-marker-alt" /> адрес доставки
           </h3>
+          {hasPreviousAddress && (
+            <div className="address-prefilled-hint">
+              <i className="fas fa-history" /> подставлен адрес с прошлого заказа
+            </div>
+          )}
 
           <div className="input-field">
             <i className="fas fa-street-view" />

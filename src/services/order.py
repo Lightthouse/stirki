@@ -53,6 +53,7 @@ class OrderService:
         status_name: str,
         payment_status: str | None = None,
         changed_by: str = "system",
+        skip_kaiten: bool = False,
     ) -> Order:
         order = await self._repo.update_status(
             order,
@@ -60,15 +61,16 @@ class OrderService:
             payment_status=payment_status,
             changed_by=changed_by,
         )
-        try:
-            if order.kaiten_card_id:
-                column = getattr(KaitenColumns, status_name.upper(), None)
-                if column:
-                    with Kaiten() as k:
-                        k.change_card_status(order.kaiten_card_id, column)
-                    logger.info("Kaiten: карточка %s → %s", order.kaiten_card_id, status_name)
-        except Exception:
-            logger.exception("Не удалось обновить карточку Kaiten для заказа %s", order.id)
+        if not skip_kaiten:
+            try:
+                if order.kaiten_card_id:
+                    column = getattr(KaitenColumns, status_name.upper(), None)
+                    if column:
+                        with Kaiten() as k:
+                            k.change_card_status(order.kaiten_card_id, column)
+                        logger.info("Kaiten: карточка %s → %s", order.kaiten_card_id, status_name)
+            except Exception:
+                logger.exception("Не удалось обновить карточку Kaiten для заказа %s", order.id)
 
         return order
 

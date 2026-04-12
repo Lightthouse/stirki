@@ -55,6 +55,10 @@ export async function trackVisit(ref: string): Promise<void> {
   await api.post('/analytics/track-visit', { ref })
 }
 
+export async function trackAdView(image_path: string): Promise<void> {
+  await api.post('/analytics/track-ad-view', { image_path })
+}
+
 export async function updateMe(data: { name?: string; email?: string }) {
   return api.patch<ClientInfo>('/auth/me', data)
 }

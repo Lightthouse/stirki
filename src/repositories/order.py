@@ -51,6 +51,7 @@ class OrderRepository:
             bags_number=bags_number,
             **services,
         )
+        client.total_orders += 1
         self.session.add(order)
         await self.session.commit()
         await self.session.refresh(order)
@@ -71,6 +72,14 @@ class OrderRepository:
     async def set_kaiten_card_id(self, order: Order, card_id: int) -> None:
         order.kaiten_card_id = card_id
         await self.session.commit()
+
+    async def get_by_kaiten_card_id(self, card_id: int) -> Order | None:
+        result = await self.session.execute(
+            select(Order)
+            .where(Order.kaiten_card_id == card_id)
+            .options(selectinload(Order.client), selectinload(Order.status))
+        )
+        return result.scalar_one_or_none()
 
     async def get_by_id(self, order_id: int) -> Order | None:
         result = await self.session.execute(

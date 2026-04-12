@@ -339,6 +339,13 @@ body {
 }
 
 /* ========== TARIFF CARDS ========== */
+.tariff-prompt {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  margin: 0 0 14px;
+}
+
 .tariff-grid {
   display: flex;
   flex-direction: column;
@@ -432,6 +439,44 @@ body {
   font-weight: 700;
   font-size: 14px;
   transition: opacity 0.2s;
+}
+
+.dop-hint {
+  margin-top: 8px;
+  background: rgba(255, 217, 102, 0.15);
+  border: 1px solid rgba(255, 217, 102, 0.4);
+  border-radius: var(--radius-pill);
+  padding: 8px 14px;
+  text-align: center;
+  color: #ffd966;
+  font-size: 13px;
+  animation: fadeIn 0.2s ease;
+}
+
+.address-prefilled-hint {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toast-error {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 107, 107, 0.95);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: var(--radius-pill);
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 1000;
+  white-space: nowrap;
+  animation: fadeIn 0.2s ease;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
 }
 
 .need-ads-hint {

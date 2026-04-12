@@ -38,13 +38,15 @@ interface Props {
   onAddToCart: (item: CartItem) => void
   adsWatched: number
   onWatchAd: () => void
+  addressValid: boolean
 }
 
-export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, onAddToCart, adsWatched, onWatchAd }: Props) {
+export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, onAddToCart, adsWatched, onWatchAd, addressValid }: Props) {
   const [prices, setPrices] = useState<Record<string, number>>(FALLBACK_PRICES)
   const [addons, setAddons] = useState<Set<string>>(new Set())
   const [added, setAdded] = useState(false)
   const [needAds, setNeedAds] = useState(false)
+  const [dopHint, setDopHint] = useState(false)
 
   useEffect(() => {
     getServices().then((services) => setPrices(buildPriceMap(services)))
@@ -55,7 +57,11 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
   const canAdd = cart.length < maxItems
 
   function toggleAddon(key: string) {
-    if (isFree) return
+    if (isFree) {
+      setDopHint(true)
+      setTimeout(() => setDopHint(false), 2500)
+      return
+    }
     setAddons((prev) => {
       const next = new Set(prev)
       if (next.has(key)) next.delete(key)
@@ -144,6 +150,12 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
             ))}
           </div>
 
+          {dopHint && (
+            <div className="dop-hint">
+              <i className="fas fa-lock" /> Допуслуги доступны только в платном тарифе
+            </div>
+          )}
+
           {isFree && (
             <div
               className={`ad-block${adsWatched >= 3 ? ' ad-block--done' : ''}`}
@@ -159,11 +171,16 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
 
           <div
             className="add-to-cart-btn"
-            onClick={canAdd && tariff ? handleAdd : undefined}
-            style={!canAdd || !tariff ? { opacity: 0.4, cursor: 'default' } : {}}
+            onClick={canAdd && tariff && addressValid ? handleAdd : undefined}
+            style={!canAdd || !tariff || !addressValid ? { opacity: 0.4, cursor: 'default' } : {}}
           >
             <i className={`${added ? 'fas' : 'far'} fa-heart`} />
-            {added ? 'добавлено' : !tariff ? 'выберите тариф' : !canAdd ? 'лимит исчерпан' : 'добавить в корзину'}
+            {added ? 'добавлено'
+              : !tariff && !addressValid ? 'укажите тариф и адрес'
+              : !tariff ? 'выберите тариф'
+              : !addressValid ? 'укажите адрес'
+              : !canAdd ? 'лимит исчерпан'
+              : 'добавить в корзину'}
           </div>
           {needAds && (
             <div className="need-ads-hint">

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isAuthenticated, clearToken, clearPhone } from '../api/client'
-import { getMe, createOrder, getAdImages } from '../api'
+import { getMe, createOrder, getAdImages, trackAdView } from '../api'
 import { AddressCard } from '../components/swipe/AddressCard'
 import { TariffCard } from '../components/swipe/TariffCard'
 import { MachinesCard } from '../components/swipe/MachinesCard'
@@ -34,6 +34,8 @@ export function OrderPage() {
   const [orderTotal, setOrderTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
+  const [hasPreviousAddress, setHasPreviousAddress] = useState(false)
+  const [addressError, setAddressError] = useState(false)
   const [adsWatched, setAdsWatched] = useState(0)
   const [showAdViewer, setShowAdViewer] = useState(false)
   const [adImages, setAdImages] = useState<string[]>([])
@@ -51,13 +53,16 @@ export function OrderPage() {
     getMe()
       .then((c) => {
         setClient(c)
-        setAddress({
-          street: c.street || '',
-          house: c.house || '',
-          entrance: c.entrance || 1,
-          apartment: c.apartment || 1,
-          comment: '',
-        })
+        if (c.street) {
+          setHasPreviousAddress(true)
+          setAddress({
+            street: c.street,
+            house: c.house || '',
+            entrance: c.entrance || 1,
+            apartment: c.apartment || 1,
+            comment: '',
+          })
+        }
       })
       .catch((e: Error) => {
         if (e.message.includes('401')) {
@@ -133,7 +138,12 @@ export function OrderPage() {
   }
 
   async function handleCheckout() {
-    if (cart.length === 0 || !address.street) return
+    if (cart.length === 0) return
+    if (!address.street || !address.house) {
+      setAddressError(true)
+      setTimeout(() => setAddressError(false), 3000)
+      return
+    }
     setLoading(true)
     try {
       const servicesSet = new Set<string>()
@@ -193,6 +203,7 @@ export function OrderPage() {
           onChange={setAddress}
           onHintActivate={() => activateHint('address')}
           hintActive={hints.address}
+          hasPreviousAddress={hasPreviousAddress}
         />
         <TariffCard
           selected={tariff}
@@ -214,6 +225,7 @@ export function OrderPage() {
           onAddToCart={handleAddToCart}
           adsWatched={adsWatched}
           onWatchAd={handleWatchAd}
+          addressValid={!!(address.street && address.house)}
         />
       </div>
 
@@ -251,8 +263,21 @@ export function OrderPage() {
       {/* Info modal */}
       {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
 
+      {/* Address error toast */}
+      {addressError && (
+        <div className="toast-error">
+          <i className="fas fa-map-marker-alt" /> Укажите адрес доставки
+        </div>
+      )}
+
       {/* Ad viewer */}
-      {showAdViewer && <AdViewer images={adImages} onComplete={handleAdComplete} />}
+      {showAdViewer && (
+        <AdViewer
+          images={adImages}
+          onComplete={handleAdComplete}
+          onAdViewed={(path) => { trackAdView(path).catch(() => {}) }}
+        />
+      )}
     </div>
   )
 }
