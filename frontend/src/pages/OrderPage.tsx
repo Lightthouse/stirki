@@ -159,6 +159,7 @@ export function OrderPage() {
         bags_number: cart.length,
         services: Array.from(servicesSet),
         comment: address.comment || undefined,
+        is_free: tariff === 'free',
       })
 
       setOrderId(result.order_id)

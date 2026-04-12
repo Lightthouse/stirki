@@ -73,6 +73,7 @@ class Order(Base):
         Boolean, default=False, server_default="false"
     )
 
+    is_free: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     total_price_rub: Mapped[int] = mapped_column(Integer, nullable=False)
     payment_status: Mapped[str] = mapped_column(
         Text, default="pending", server_default="pending"

@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from src.database import engine
 from src.settings import AppSettings
@@ -26,6 +27,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[app_settings.FRONTEND_URL, "http://localhost:5173"],

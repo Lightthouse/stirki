@@ -133,8 +133,7 @@ class Kaiten:
         order,
     ) -> str:
         street = _SLUG_TO_STREET.get(order.street, order.street)
-        is_free = order.total_price_rub == 0
-        tariff = "бесплатно" if is_free else "платно"
+        tariff = "бесплатно" if order.is_free else "платно"
         unit_label = "Вещь" if order.washing_type == "piece" else "Пакет"
         price_per_unit = order.total_price_rub // order.bags_number if order.bags_number else 0
 

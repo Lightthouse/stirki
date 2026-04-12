@@ -14,6 +14,7 @@ class CreateOrderIn(BaseModel):
     bags_number: int = 1
     services: list[str] = []
     comment: str | None = None
+    is_free: bool = False
 
 
 class OrderOut(BaseModel):

@@ -56,6 +56,7 @@ create table orders (
     bleach boolean default false,
     color_catcher_sheets boolean default false,
 
+    is_free boolean not null default false,
     total_price_rub int not null check (total_price_rub >= 0),
     payment_status text default 'pending' check (payment_status in ('pending', 'waiting_for_capture', 'succeeded', 'canceled')),
     yookassa_payment_id text,

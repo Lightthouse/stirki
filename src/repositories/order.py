@@ -33,12 +33,14 @@ class OrderRepository:
         total_price_rub: int,
         status_name: str,
         comment: str | None = None,
+        is_free: bool = False,
     ) -> Order:
         status = await self.get_status_by_name(status_name)
 
         order = Order(
             client_id=client.id,
             status_id=status.id,
+            is_free=is_free,
             total_price_rub=total_price_rub,
             payment_status=PaymentStatus.PENDING,
             comment=comment,

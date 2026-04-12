@@ -25,6 +25,7 @@ class OrderService:
         total_price_rub: int,
         status_name: str,
         comment: str | None = None,
+        is_free: bool = False,
     ) -> Order:
         order = await self._repo.create(
             client=client,
@@ -34,6 +35,7 @@ class OrderService:
             total_price_rub=total_price_rub,
             status_name=status_name,
             comment=comment,
+            is_free=is_free,
         )
         try:
             with Kaiten() as k:

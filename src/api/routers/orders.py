@@ -57,14 +57,35 @@ async def create_order(
     base_price = await service_repo.get_base_price()
     pricing = PricingService(base_price, all_services)
 
-    total_price = pricing.calculate_order_price(body.bags_number, body.services, body.washing_type)
+    total_price = 0 if body.is_free else pricing.calculate_order_price(body.bags_number, body.services, body.washing_type)
     service_flags = pricing.service_flags(body.services)
 
     # Создаём заказ
     app_settings = AppSettings()
     order_service = OrderService(session)
 
-    if app_settings.APP_ENV == "production":
+    if body.is_free or app_settings.APP_ENV != "production":
+        # Бесплатный заказ (рекламный тариф) или dev-режим: без оплаты, сразу NEW
+        order = await order_service.create(
+            client=client,
+            washing_type=body.washing_type,
+            bags_number=body.bags_number,
+            services=service_flags,
+            total_price_rub=total_price,
+            status_name=OrderStatusName.NEW,
+            comment=body.comment,
+            is_free=body.is_free,
+        )
+        changed_by = "free-tariff" if body.is_free else "dev-auto"
+        await order_service.update_status(
+            order,
+            status_name=OrderStatusName.NEW,
+            payment_status=PaymentStatus.SUCCEEDED,
+            changed_by=changed_by,
+        )
+        confirmation_url = None
+    else:
+        # Платный заказ в продакшне: создаём платёж YooKassa
         order = await order_service.create(
             client=client,
             washing_type=body.washing_type,
@@ -73,6 +94,7 @@ async def create_order(
             total_price_rub=total_price,
             status_name=OrderStatusName.WAITING_FOR_CAPTURE,
             comment=body.comment,
+            is_free=False,
         )
         confirmation_url = None
         try:
@@ -91,24 +113,6 @@ async def create_order(
             confirmation_url = payment_result.get("confirmation_url")
         except Exception:
             logger.exception("Failed to create YooKassa payment for order %s", order.id)
-    else:
-        # Dev: создаём заказ сразу как NEW и без оплаты
-        order = await order_service.create(
-            client=client,
-            washing_type=body.washing_type,
-            bags_number=body.bags_number,
-            services=service_flags,
-            total_price_rub=total_price,
-            status_name=OrderStatusName.NEW,
-            comment=body.comment,
-        )
-        await order_service.update_status(
-            order,
-            status_name=OrderStatusName.NEW,
-            payment_status=PaymentStatus.SUCCEEDED,
-            changed_by="dev-auto",
-        )
-        confirmation_url = None
 
     return PaymentOut(
         order_id=order.id,

@@ -43,6 +43,7 @@ export interface CreateOrderRequest {
   bags_number: number
   services: string[]
   comment?: string
+  is_free: boolean
 }
 
 export interface PaymentResponse {
