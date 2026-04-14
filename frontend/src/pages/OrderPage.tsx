@@ -11,6 +11,8 @@ import { CartExpanded } from '../components/CartExpanded'
 import { StatusScreen } from '../components/StatusScreen'
 import { InfoModal } from '../components/ui/InfoModal'
 import { AdViewer } from '../components/AdViewer'
+import { OfferModal } from '../components/ui/OfferModal'
+import { PrivacyModal } from '../components/ui/PrivacyModal'
 import type { AddressData } from '../components/swipe/AddressCard'
 import type { Tariff } from '../components/swipe/TariffCard'
 import type { CartItem } from '../components/swipe/ServicesCard'
@@ -39,6 +41,8 @@ export function OrderPage() {
   const [adsWatched, setAdsWatched] = useState(0)
   const [showAdViewer, setShowAdViewer] = useState(false)
   const [adImages, setAdImages] = useState<string[]>([])
+  const [showOffer, setShowOffer] = useState(false)
+  const [showPrivacy, setShowPrivacy] = useState(false)
 
   // Hint states per card
   const [hints, setHints] = useState({ address: false, tariff: false, machines: false })
@@ -250,6 +254,8 @@ export function OrderPage() {
         onClear={handleClearCart}
         onCheckout={handleCheckout}
         loading={loading}
+        onShowOffer={() => setShowOffer(true)}
+        onShowPrivacy={() => setShowPrivacy(true)}
       />
 
       {/* Status screen */}
@@ -263,6 +269,10 @@ export function OrderPage() {
 
       {/* Info modal */}
       {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
+
+      {/* Legal modals */}
+      {showOffer && <OfferModal onClose={() => setShowOffer(false)} />}
+      {showPrivacy && <PrivacyModal onClose={() => setShowPrivacy(false)} />}
 
       {/* Address error toast */}
       {addressError && (

@@ -8,6 +8,8 @@ interface Props {
   onClear: () => void
   onCheckout: (paymentMethod: string) => void
   loading: boolean
+  onShowOffer: () => void
+  onShowPrivacy: () => void
 }
 
 const ADDON_NAMES: Record<string, string> = {
@@ -16,7 +18,7 @@ const ADDON_NAMES: Record<string, string> = {
   ironing: 'глажка',
 }
 
-export function CartExpanded({ cart, show, onClose, onRemove, onClear, onCheckout, loading }: Props) {
+export function CartExpanded({ cart, show, onClose, onRemove, onClear, onCheckout, loading, onShowOffer, onShowPrivacy }: Props) {
   const total = cart.reduce((sum, item) => sum + item.price, 0)
 
   function getAddonLabel(addons: string[]) {
@@ -82,8 +84,8 @@ export function CartExpanded({ cart, show, onClose, onRemove, onClear, onCheckou
 
           <div className="legal-text">
             Нажимая «Оформить заказ», вы принимаете{' '}
-            <a>условия публичной оферты</a>, соглашаетесь на{' '}
-            <a>обработку персональных данных</a>.
+            <a onClick={onShowOffer} style={{ cursor: 'pointer' }}>условия публичной оферты</a>, соглашаетесь на{' '}
+            <a onClick={onShowPrivacy} style={{ cursor: 'pointer' }}>обработку персональных данных</a>.
           </div>
         </>
       )}
