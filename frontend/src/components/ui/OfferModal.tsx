@@ -10,7 +10,8 @@ export function OfferModal({ onClose }: Props) {
 
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 12 }}>
           <div>ИП Приходько Виталий Александрович</div>
-          <div>ОГРНИП: 325774600488123 · ИНН: 723007185527</div>
+          <div>ОГРНИП: 325774600488123</div>
+          <div>ИНН: 723007185527</div>
           <div>E-mail: prihodko_1989@mail.ru</div>
         </div>
 

@@ -49,7 +49,7 @@ export function PrivacyModal({ onClose }: Props) {
           <h4>5. Ваши права</h4>
           <ul>
             <li>Вы вправе запросить доступ к своим данным, их изменение или удаление</li>
-            <li>Для отзыва согласия или удаления данных — <a href="https://t.me/stirkion_bot" target="_blank" rel="noopener noreferrer">@stirkion_bot</a></li>
+            <li>Для отзыва согласия или удаления данных — <a href="mailto:prihodko_1989@mail.ru">prihodko_1989@mail.ru</a></li>
             <li>Отзыв согласия не влияет на законность ранее произведённой обработки</li>
           </ul>
         </section>

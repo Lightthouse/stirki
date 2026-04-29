@@ -41,7 +41,7 @@ export function InfoModal({ onClose }: Props) {
           <h4>Дополнительно</h4>
           <ul>
             <li>Локация — Мытищи</li>
-            <li>Связь — <a href="https://t.me/stirkion_bot" target="_blank" rel="noopener noreferrer">@stirkion_bot</a></li>
+            <li>Связь —  <a href="mailto:prihodko_1989@mail.ru">prihodko_1989@mail.ru</a></li>
             <li>График — ежедневно с 07:00 до 23:00</li>
           </ul>
         </section>
