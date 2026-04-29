@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { isAuthenticated, clearToken, clearPhone } from '../api/client'
 import { trackVisit, getOrders, getMe, getAddresses } from '../api'
 import { InfoModal } from '../components/ui/InfoModal'
+import { OfferModal } from '../components/ui/OfferModal'
 import { PwaBanner } from '../components/PwaBanner'
 import type { OrderListItem, ClientInfo } from '../types'
 import { getStatusName } from '../utils/statusNames'
@@ -16,6 +17,7 @@ export function LandingPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [showInfo, setShowInfo] = useState(false)
+  const [showOffer, setShowOffer] = useState(false)
   const [client, setClient] = useState<ClientInfo | null>(null)
   const [orders, setOrders] = useState<OrderListItem[]>([])
   const [loadingOrders, setLoadingOrders] = useState(false)
@@ -87,9 +89,12 @@ export function LandingPage() {
             <button className="btn-pill btn-pill-accent" onClick={() => navigate('/login')}>
               <i className="fas fa-sign-in-alt" /> Вход / Регистрация
             </button>
-            <div className="small-text" style={{ marginTop: 14 }}>
+            <div className="small-text" style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span className="link-text" onClick={() => setShowInfo(true)}>
                 📖 Подробнее о сервисе
+              </span>
+              <span className="link-text" onClick={() => setShowOffer(true)}>
+                📄 Публичная оферта
               </span>
             </div>
           </>
@@ -147,6 +152,11 @@ export function LandingPage() {
                   📖 Подробнее о сервисе
                 </span>
               </div>
+              <div className="small-text">
+                <span className="link-text" onClick={() => setShowOffer(true)}>
+                  📄 Публичная оферта
+                </span>
+              </div>
               <button className="btn-ghost" onClick={handleLogout}>
                 <i className="fas fa-sign-out-alt" /> Выйти
               </button>
@@ -156,6 +166,7 @@ export function LandingPage() {
       </div>
 
       {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
+      {showOffer && <OfferModal onClose={() => setShowOffer(false)} />}
       <PwaBanner />
     </div>
   )

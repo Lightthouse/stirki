@@ -14,7 +14,7 @@ interface Props {
 
 const ADDON_NAMES: Record<string, string> = {
   conditioner: 'кондиционер',
-  vacuum: 'вакуум',
+  vacuum_pack: 'вакуум',
   ironing: 'глажка',
 }
 
