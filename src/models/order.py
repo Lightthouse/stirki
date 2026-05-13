@@ -15,11 +15,29 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.models.base import Base
 
 
+_STATUS_RU = {
+    "waiting_for_capture": "Ожидает оплаты",
+    "new": "Новый",
+    "courier_pickup": "Курьер выехал",
+    "picked_up": "Забрали",
+    "washing": "Стирается",
+    "drying": "Сушится",
+    "ironing": "Гладится",
+    "packing": "Упаковывается",
+    "courier_delivery": "Доставляется",
+    "delivered": "Доставлен",
+    "canceled": "Отменён",
+}
+
+
 class OrderStatus(Base):
     __tablename__ = "order_statuses"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+
+    def __str__(self) -> str:
+        return _STATUS_RU.get(self.name, self.name)
 
 
 class Order(Base):

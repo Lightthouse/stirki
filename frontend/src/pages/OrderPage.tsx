@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isAuthenticated, clearToken, clearPhone } from '../api/client'
-import { getMe, createOrder, getAdImages, trackAdView } from '../api'
+import { getMe, createOrder, getAdImages, trackAdView, getAddresses } from '../api'
 import { AddressCard } from '../components/swipe/AddressCard'
 import { TariffCard } from '../components/swipe/TariffCard'
 import { MachinesCard } from '../components/swipe/MachinesCard'
@@ -16,11 +16,12 @@ import { PrivacyModal } from '../components/ui/PrivacyModal'
 import type { AddressData } from '../components/swipe/AddressCard'
 import type { Tariff } from '../components/swipe/TariffCard'
 import type { CartItem } from '../components/swipe/ServicesCard'
-import type { ClientInfo } from '../types'
+import type { ClientInfo, Street } from '../types'
 
 export function OrderPage() {
   const navigate = useNavigate()
   const swipeRef = useRef<HTMLDivElement>(null)
+  const [activeCard, setActiveCard] = useState(0)
 
   const [_client, setClient] = useState<ClientInfo | null>(null)
   const [address, setAddress] = useState<AddressData>({
@@ -43,6 +44,8 @@ export function OrderPage() {
   const [adImages, setAdImages] = useState<string[]>([])
   const [showOffer, setShowOffer] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
+  const [streets, setStreets] = useState<Street[]>([])
+  const [statusAddons, setStatusAddons] = useState<string[]>([])
 
   // Hint states per card
   const [hints, setHints] = useState({ address: false, tariff: false, machines: false })
@@ -76,6 +79,18 @@ export function OrderPage() {
         }
       })
     getAdImages().then(setAdImages).catch(() => {})
+    getAddresses().then((res) => setStreets(res.streets)).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const container = swipeRef.current
+    if (!container) return
+    const onScroll = () => {
+      const idx = Math.round(container.scrollTop / container.clientHeight)
+      setActiveCard(idx)
+    }
+    container.addEventListener('scroll', onScroll, { passive: true })
+    return () => container.removeEventListener('scroll', onScroll)
   }, [])
 
   function scrollToCard(index: number) {
@@ -148,11 +163,11 @@ export function OrderPage() {
       setTimeout(() => setAddressError(false), 3000)
       return
     }
+    const servicesSet = new Set<string>()
+    cart.forEach((item) => item.addons.forEach((a) => servicesSet.add(a)))
+    setStatusAddons(Array.from(servicesSet))
     setLoading(true)
     try {
-      const servicesSet = new Set<string>()
-      cart.forEach((item) => item.addons.forEach((a) => servicesSet.add(a)))
-
       const result = await createOrder({
         street: address.street,
         house: address.house,
@@ -186,6 +201,13 @@ export function OrderPage() {
 
   return (
     <div className="main-app">
+      {/* Vertical navigation dots */}
+      <div className="v-dots">
+        {Array.from({ length: showMachines ? 4 : 3 }, (_, i) => (
+          <div key={i} className={`v-dot${activeCard === i ? ' active' : ''}`} />
+        ))}
+      </div>
+
       {/* Header */}
       <div className="app-header">
         <div className="app-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
@@ -220,6 +242,9 @@ export function OrderPage() {
           <MachinesCard
             onHintActivate={() => activateHint('machines')}
             hintActive={hints.machines}
+            onMachineSelect={() => {
+              setTimeout(() => scrollToCard(3), 350)
+            }}
           />
         )}
         <ServicesCard
@@ -263,6 +288,15 @@ export function OrderPage() {
         <StatusScreen
           orderId={orderId}
           totalPrice={orderTotal}
+          serviceType={serviceType}
+          addons={statusAddons}
+          isFree={tariff === 'free'}
+          addressDisplay={(() => {
+            const street = streets.find((s) => s.slug === address.street)
+            const streetName = street?.name ?? address.street
+            return `${streetName}, д. ${address.house}, кв. ${address.apartment}`
+          })()}
+          comment={address.comment || undefined}
           onClose={() => { setShowStatus(false); navigate('/') }}
         />
       )}

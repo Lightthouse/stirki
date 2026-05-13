@@ -8,7 +8,7 @@ export function OfferModal({ onClose }: Props) {
       <div className="modal-box" onClick={(e) => e.stopPropagation()}>
         <h3><i className="fas fa-file-contract" /> Публичная оферта</h3>
 
-        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 12 }}>
+        <div style={{ fontSize: 12, color: '#9AAEAA', marginBottom: 12 }}>
           <div>ИП Приходько Виталий Александрович</div>
           <div>ОГРНИП: 325774600488123</div>
           <div>ИНН: 723007185527</div>

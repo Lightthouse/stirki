@@ -72,17 +72,17 @@ export function LandingPage() {
 
         {!authenticated ? (
           <>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 20, lineHeight: 1.8 }}>
+            <div style={{ fontSize: 13, color: '#5A6E6E', marginBottom: 20, lineHeight: 1.8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <i className="fas fa-door-open" style={{ color: '#ffd966', width: 18 }} />
+                <i className="fas fa-door-open" style={{ color: '#4F9DA7', width: 18 }} />
                 <span>Забираем у двери в обычном пакете</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <i className="fas fa-tshirt" style={{ color: '#ffd966', width: 18 }} />
+                <i className="fas fa-tshirt" style={{ color: '#4F9DA7', width: 18 }} />
                 <span>Индивидуальная стирка — только ваши вещи</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <i className="fas fa-truck" style={{ color: '#ffd966', width: 18 }} />
+                <i className="fas fa-truck" style={{ color: '#4F9DA7', width: 18 }} />
                 <span>Стираем, сушим, гладим и возвращаем</span>
               </div>
             </div>
@@ -105,7 +105,7 @@ export function LandingPage() {
                 <div className="profile-name">{client.name || 'Клиент'}</div>
                 <div>{client.phone}</div>
                 {client.street && (
-                  <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
+                  <div style={{ color: '#9AAEAA', fontSize: 12 }}>
                     {slugToStreet[client.street] ?? client.street}, д. {client.house}, кв. {client.apartment}
                   </div>
                 )}
@@ -117,7 +117,7 @@ export function LandingPage() {
             </button>
 
             {loadingOrders ? (
-              <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 16 }}>
+              <p style={{ textAlign: 'center', color: '#9AAEAA', fontSize: 13, marginTop: 16 }}>
                 Загрузка заказов...
               </p>
             ) : orders.length > 0 ? (
@@ -141,7 +141,7 @@ export function LandingPage() {
                 })}
               </div>
             ) : (
-              <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 16 }}>
+              <p style={{ textAlign: 'center', color: '#9AAEAA', fontSize: 13, marginTop: 16 }}>
                 Заказов пока нет
               </p>
             )}

@@ -50,7 +50,7 @@ export function AddressCard({ data, onChange, onHintActivate, hintActive, hasPre
     <div className="swipe-card">
       <div className="card-content">
         <div className="form-card">
-          <h3 style={{ color: '#ffd966', marginBottom: hasPreviousAddress ? 4 : 16, fontSize: 16 }}>
+          <h3 style={{ color: '#4F9DA7', marginBottom: hasPreviousAddress ? 4 : 16, fontSize: 16 }}>
             <i className="fas fa-map-marker-alt" /> адрес доставки
           </h3>
           {hasPreviousAddress && (
@@ -121,12 +121,6 @@ export function AddressCard({ data, onChange, onHintActivate, hintActive, hasPre
 
         <div className={`swipe-hint${hintActive ? ' active' : ''}`}>
           <i className="fas fa-chevron-up" /> потяните вверх <i className="fas fa-chevron-up" />
-        </div>
-        <div className="progress-dots">
-          <span className="dot active" />
-          <span className="dot" />
-          <span className="dot" />
-          <span className="dot" />
         </div>
       </div>
     </div>

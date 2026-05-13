@@ -8,7 +8,8 @@ interface Props {
 }
 
 export function TariffCard({ selected, onSelect, onHintActivate, hintActive }: Props) {
-  function choose(t: Tariff) {
+  function choose(t: Tariff, e: React.MouseEvent) {
+    e.stopPropagation()
     onSelect(t)
     onHintActivate()
   }
@@ -18,45 +19,59 @@ export function TariffCard({ selected, onSelect, onHintActivate, hintActive }: P
       <div className="card-content">
         <p className="tariff-prompt">Выберите тариф</p>
         <div className="tariff-grid">
+
           <div
             className={`tariff-card free${selected === 'free' ? ' selected' : ''}`}
-            onClick={() => choose('free')}
+            onClick={(e) => choose('free', e)}
           >
             <div className="tariff-header">
               <span className="tariff-name"><i className="fas fa-gift" /> Бесплатно</span>
               <span className="tariff-price">0 ₽</span>
             </div>
-            <div className="tariff-desc">только пакет · допы недоступны · 1 позиция</div>
-            <div className={`like-button${selected === 'free' ? ' selected' : ''}`}>
-              <i className={`${selected === 'free' ? 'fas' : 'far'} fa-heart`} />
-              {selected === 'free' ? 'выбрано' : 'выбрать'}
-            </div>
+            <ul className="tariff-features">
+              <li>пакет до 3 кг</li>
+              <li>просмотр 3 рекламных объявлений</li>
+              <li>возможна очередь</li>
+            </ul>
+            <div className="tariff-tag">попробуйте сервис</div>
+            <button
+              className={`tariff-btn${selected === 'free' ? ' selected' : ''}`}
+              onClick={(e) => choose('free', e)}
+            >
+              {selected === 'free'
+                ? <><i className="fas fa-check" /> Выбрано</>
+                : 'Выбрать бесплатный'}
+            </button>
           </div>
 
           <div
             className={`tariff-card paid${selected === 'paid' ? ' selected' : ''}`}
-            onClick={() => choose('paid')}
+            onClick={(e) => choose('paid', e)}
           >
             <div className="tariff-header">
               <span className="tariff-name"><i className="fas fa-bolt" /> Платно</span>
               <span className="tariff-price">от 190 ₽</span>
             </div>
-            <div className="tariff-desc">вещь или пакет · любые допы · до 3 позиций</div>
-            <div className={`like-button${selected === 'paid' ? ' selected' : ''}`}>
-              <i className={`${selected === 'paid' ? 'fas' : 'far'} fa-heart`} />
-              {selected === 'paid' ? 'выбрано' : 'выбрать'}
-            </div>
+            <ul className="tariff-features">
+              <li>вещь или пакет</li>
+              <li>любые допуслуги</li>
+              <li>до 3 позиций в корзине</li>
+            </ul>
+            <div className="tariff-tag">приоритетная стирка</div>
+            <button
+              className={`tariff-btn${selected === 'paid' ? ' selected' : ''}`}
+              onClick={(e) => choose('paid', e)}
+            >
+              {selected === 'paid'
+                ? <><i className="fas fa-check" /> Выбрано</>
+                : 'Выбрать платный'}
+            </button>
           </div>
+
         </div>
 
         <div className={`swipe-hint${hintActive ? ' active' : ''}`}>
           <i className="fas fa-chevron-up" /> потяните вверх <i className="fas fa-chevron-up" />
-        </div>
-        <div className="progress-dots">
-          <span className="dot" />
-          <span className="dot active" />
-          <span className="dot" />
-          <span className="dot" />
         </div>
       </div>
     </div>

@@ -10,21 +10,29 @@ const MACHINES = [
 interface Props {
   onHintActivate: () => void
   hintActive: boolean
+  onMachineSelect?: () => void
 }
 
-export function MachinesCard({ onHintActivate, hintActive }: Props) {
+export function MachinesCard({ onHintActivate, hintActive, onMachineSelect }: Props) {
   const [selectedId, setSelectedId] = useState<number | null>(null)
 
   function occupy(id: number) {
     setSelectedId(id)
     onHintActivate()
+    onMachineSelect?.()
+  }
+
+  function getBtnClass(m: typeof MACHINES[0]) {
+    if (selectedId === m.id) return 'machine-occupy-btn occupied'
+    if (m.status === 'free') return 'machine-occupy-btn available'
+    return 'machine-occupy-btn'
   }
 
   return (
     <div className="swipe-card">
       <div className="card-content">
-        <h3 style={{ color: '#ffd966', textAlign: 'center', marginBottom: 16, fontSize: 16 }}>
-          <i className="fas fa-tachometer-alt" /> Статус машинок
+        <h3 style={{ color: '#4F9DA7', textAlign: 'center', marginBottom: 16, fontSize: 16 }}>
+          <i className="fas fa-tachometer-alt" /> Выберите стиральную машину для бесплатной стирки
         </h3>
 
         <div className="machines-grid">
@@ -39,16 +47,16 @@ export function MachinesCard({ onHintActivate, hintActive }: Props) {
               </div>
               <div className="machine-timer">{m.timer}</div>
               <button
-                className={`machine-occupy-btn${selectedId === m.id ? ' occupied' : ''}`}
-                disabled={m.status === 'busy'}
-                onClick={() => occupy(m.id)}
+                className={getBtnClass(m)}
+                disabled={m.status === 'busy' && selectedId !== m.id}
+                onClick={() => m.status === 'free' && selectedId !== m.id && occupy(m.id)}
               >
                 {selectedId === m.id ? (
-                  <><i className="fas fa-heart" /> занято</>
+                  <><i className="fas fa-check" /> выбрана</>
                 ) : m.status === 'busy' ? (
-                  'занята'
+                  'недоступна'
                 ) : (
-                  <><i className="far fa-heart" /> занять</>
+                  'выбрать'
                 )}
               </button>
             </div>
@@ -57,12 +65,6 @@ export function MachinesCard({ onHintActivate, hintActive }: Props) {
 
         <div className={`swipe-hint${hintActive ? ' active' : ''}`}>
           <i className="fas fa-chevron-up" /> потяните вверх <i className="fas fa-chevron-up" />
-        </div>
-        <div className="progress-dots">
-          <span className="dot" />
-          <span className="dot" />
-          <span className="dot active" />
-          <span className="dot" />
         </div>
       </div>
     </div>

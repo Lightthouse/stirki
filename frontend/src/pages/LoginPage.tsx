@@ -153,7 +153,7 @@ export function LoginPage() {
     <div className="start-screen">
       <div className="form-card">
         <div className="logo-large">стирка<span className="accent">он</span></div>
-        <h3 style={{ textAlign: 'center', marginBottom: 20, fontSize: 18, color: 'rgba(255,255,255,0.9)' }}>
+        <h3 style={{ textAlign: 'center', marginBottom: 20, fontSize: 18, color: '#1A2A2A' }}>
           Вход / Регистрация
         </h3>
 
@@ -185,7 +185,7 @@ export function LoginPage() {
               <input type="tel" value={phone} disabled />
             </div>
             {smsCode && (
-              <p style={{ textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
+              <p style={{ textAlign: 'center', fontSize: 13, color: '#9AAEAA', marginTop: 4 }}>
                 код: {smsCode}
               </p>
             )}

@@ -17,10 +17,10 @@ function getMaxItems(tariff: Tariff | null, serviceType: 'bag' | 'piece'): numbe
 }
 
 const FALLBACK_PRICES: Record<string, number> = {
-  base: 890,
-  piece: 190,
+  base: 1490,
+  piece: 390,
   ironing: 990,
-  conditioner: 50,
+  conditioner: 100,
   vacuum_pack: 150,
 }
 
@@ -59,7 +59,7 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
   function toggleAddon(key: string) {
     if (isFree) {
       setDopHint(true)
-      setTimeout(() => setDopHint(false), 2500)
+      setTimeout(() => setDopHint(false), 2000)
       return
     }
     setAddons((prev) => {
@@ -71,7 +71,7 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
   }
 
   function calcPrice(): number {
-    let price = serviceType === 'piece' ? (prices.piece ?? 190) : (prices.base ?? 890)
+    let price = serviceType === 'piece' ? (prices.piece ?? 390) : (prices.base ?? 1490)
     if (addons.has('conditioner')) price += prices.conditioner ?? 0
     if (addons.has('vacuum_pack')) price += prices.vacuum_pack ?? 0
     if (addons.has('ironing')) price += prices.ironing ?? 0
@@ -93,109 +93,103 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
     setTimeout(() => setAdded(false), 1000)
   }
 
-  const ironingPrice = prices.ironing ?? 990
+  const canSubmit = canAdd && !!tariff && addressValid
+
+  const DOPS = [
+    { key: 'conditioner', label: 'Кондиционер', price: prices.conditioner ?? 100 },
+    { key: 'vacuum_pack', label: 'Вакуумная упаковка', price: prices.vacuum_pack ?? 150 },
+    { key: 'ironing', label: 'Глажка', price: prices.ironing ?? 990 },
+  ]
+
+  function getBtnLabel() {
+    if (added) return 'Добавлено!'
+    if (!tariff && !addressValid) return 'Укажите тариф и адрес'
+    if (!tariff) return 'Выберите тариф'
+    if (!addressValid) return 'Укажите адрес'
+    if (!canAdd) return 'Лимит исчерпан'
+    return 'Добавить в корзину'
+  }
 
   return (
     <div className="swipe-card">
       <div className="card-content">
-        <div className="service-panel">
-          <div className="service-selector">
-            <span
-              className={`service-option${serviceType === 'piece' && !isFree ? ' active' : ''}`}
-              onClick={() => !isFree && onServiceTypeChange('piece')}
-              style={isFree ? { opacity: 0.4, pointerEvents: 'none' } : {}}
-            >
-              <i className="fas fa-tshirt" /> вещь
-            </span>
-            <span
-              className={`service-option${serviceType === 'bag' || isFree ? ' active' : ''}`}
-              onClick={() => onServiceTypeChange('bag')}
-            >
-              <i className="fas fa-shopping-bag" /> пакет
-            </span>
-          </div>
+        <div className="hero-title">Что стираем</div>
 
-          <div className="service-display">
-            <div className="service-emoji">
-              {isFree ? '🛍️' : serviceType === 'piece' ? '👕' : '🛍️'}
-            </div>
-            <div className="service-name">
-              {isFree ? 'Пакет' : serviceType === 'piece' ? 'Вещь' : 'Пакет'}
-            </div>
-            <div className="service-price">
-              {isFree ? (
-                <>
-                  <span style={{ textDecoration: 'line-through', opacity: 0.5, fontSize: 22 }}>{prices.base ?? 890} ₽</span>
-                  {' '}0 ₽
-                </>
-              ) : (
-                `${serviceType === 'piece' ? (prices.piece ?? 190) : (prices.base ?? 890)} ₽`
-              )}
-            </div>
-          </div>
-
-          <div className="dops-row">
-            {[
-              { key: 'conditioner', label: `кондиционер +${prices.conditioner ?? 0}` },
-              { key: 'vacuum_pack', label: `вакуум +${prices.vacuum_pack ?? 0}` },
-              { key: 'ironing', label: `глажка +${ironingPrice}` },
-            ].map((dop) => (
-              <span
-                key={dop.key}
-                className={`dop-tag${addons.has(dop.key) ? ' active' : ''}${isFree ? ' disabled' : ''}`}
-                onClick={() => toggleAddon(dop.key)}
-              >
-                {dop.label}
-              </span>
-            ))}
-          </div>
-
-          {dopHint && (
-            <div className="dop-hint">
-              <i className="fas fa-lock" /> Допуслуги доступны только в платном тарифе
-            </div>
-          )}
-
-          {isFree && (
-            <div
-              className={`ad-block${adsWatched >= 3 ? ' ad-block--done' : ''}`}
-              onClick={adsWatched >= 3 ? undefined : onWatchAd}
-            >
-              <span>
-                <i className={`fas ${adsWatched >= 3 ? 'fa-check-circle' : 'fa-play-circle'}`} />
-                {adsWatched >= 3 ? ' реклама просмотрена' : ' СМОТРЕТЬ РЕКЛАМУ'}
-              </span>
-              <span className="ad-counter">{adsWatched}/3</span>
-            </div>
-          )}
-
+        <div className="service-switch">
           <div
-            className="add-to-cart-btn"
-            onClick={canAdd && tariff && addressValid ? handleAdd : undefined}
-            style={!canAdd || !tariff || !addressValid ? { opacity: 0.4, cursor: 'default' } : {}}
+            className={`switch-opt${serviceType === 'piece' && !isFree ? ' active' : ''}`}
+            onClick={() => !isFree && onServiceTypeChange('piece')}
+            style={isFree ? { opacity: 0.4, pointerEvents: 'none' } : {}}
           >
-            <i className={`${added ? 'fas' : 'far'} fa-heart`} />
-            {added ? 'добавлено'
-              : !tariff && !addressValid ? 'укажите тариф и адрес'
-              : !tariff ? 'выберите тариф'
-              : !addressValid ? 'укажите адрес'
-              : !canAdd ? 'лимит исчерпан'
-              : 'добавить в корзину'}
+            Вещь
           </div>
-          {needAds && (
-            <div className="need-ads-hint">
-              <i className="fas fa-play-circle" /> Просмотрите рекламу
-            </div>
-          )}
+          <div
+            className={`switch-opt${serviceType === 'bag' || isFree ? ' active' : ''}`}
+            onClick={() => onServiceTypeChange('bag')}
+          >
+            Пакет
+          </div>
         </div>
 
-        <div className="progress-dots">
-          <span className="dot" />
-          <span className="dot" />
-          <span className="dot" />
-          <span className="dot active" />
+        <div className="price-big">
+          {isFree
+            ? '0 ₽'
+            : `${serviceType === 'piece' ? (prices.piece ?? 390) : (prices.base ?? 1490)} ₽`}
         </div>
+        <div className="price-label">
+          {isFree
+            ? 'бесплатная стирка'
+            : serviceType === 'piece'
+              ? 'стоимость стирки одной вещи'
+              : 'стоимость пакета до 3 кг'}
+        </div>
+
+        {DOPS.map((dop) => (
+          <div
+            key={dop.key}
+            className={`extra-item${addons.has(dop.key) ? ' active' : ''}${isFree ? ' disabled' : ''}`}
+            onClick={() => toggleAddon(dop.key)}
+          >
+            <div className="extra-name">{dop.label}</div>
+            <div className="extra-price">+{dop.price} ₽</div>
+          </div>
+        ))}
+
+        {isFree && (
+          <div
+            className={`ad-block${adsWatched >= 3 ? ' ad-block--done' : ''}`}
+            style={{ marginTop: 16 }}
+            onClick={adsWatched >= 3 ? undefined : onWatchAd}
+          >
+            <span>
+              <i className={`fas ${adsWatched >= 3 ? 'fa-check-circle' : 'fa-play-circle'}`} />
+              {adsWatched >= 3 ? ' реклама просмотрена' : ' СМОТРЕТЬ РЕКЛАМУ'}
+            </span>
+            <span className="ad-counter">{adsWatched}/3</span>
+          </div>
+        )}
+
+        <button
+          className={`add-btn${added ? ' add-success' : ''}`}
+          onClick={canSubmit ? handleAdd : undefined}
+          disabled={!canSubmit}
+        >
+          <i className={`fas ${added ? 'fa-check-circle' : 'fa-plus-circle'}`} />
+          {getBtnLabel()}
+        </button>
+
+        {needAds && (
+          <div className="need-ads-hint" style={{ marginTop: 12 }}>
+            <i className="fas fa-play-circle" /> Просмотрите рекламу
+          </div>
+        )}
       </div>
+
+      {dopHint && (
+        <div className="dop-hint">
+          <i className="fas fa-lock" /> Доступно только в платном тарифе
+        </div>
+      )}
     </div>
   )
 }

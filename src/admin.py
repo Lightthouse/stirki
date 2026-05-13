@@ -1,9 +1,11 @@
+from typing import Any
+
 from sqladmin import Admin, ModelView
 from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
 
 from src.addresses import STREETS_SLUG
-from src.database import engine
+from src.database import async_session, engine
 from src.models.analytics import AdViewStats, LandingVisit, QrCode
 from src.models.client import Client
 from src.models.order import Order, OrderStatus, OrderStatusHistory
@@ -11,20 +13,6 @@ from src.models.service import Service
 from src.settings import AppSettings
 
 _SLUG_TO_STREET = {slug: name for name, slug in STREETS_SLUG.items()}
-
-_STATUS_RU = {
-    "waiting_for_capture": "Ожидает оплаты",
-    "new": "Новый",
-    "courier_pickup": "Курьер выехал",
-    "picked_up": "Забрали",
-    "washing": "Стирается",
-    "drying": "Сушится",
-    "ironing": "Гладится",
-    "packing": "Упаковывается",
-    "courier_delivery": "Доставляется",
-    "delivered": "Доставлен",
-    "canceled": "Отменён",
-}
 
 
 class AdminAuth(AuthenticationBackend):
@@ -102,16 +90,32 @@ class OrderAdmin(ModelView, model=Order):
 
     column_formatters = {
         "street": lambda m, a: _SLUG_TO_STREET.get(m.street, m.street),
-        "status": lambda m, a: _STATUS_RU.get(m.status.name, m.status.name) if m.status else "—",
+        "status": lambda m, a: str(m.status) if m.status else "—",
     }
 
     form_include_pk = False
     form_columns = [
-        Order.status_id,
+        'status',
         Order.comment,
         Order.payment_status,
-        Order.kaiten_card_id,
     ]
+    async def on_model_change(self, data: dict, model: Any, is_created: bool, request: Request) -> None:
+        request.state.prev_status_id = None if is_created else model.status_id
+
+    async def after_model_change(self, data: dict, model: Any, is_created: bool, request: Request) -> None:
+        status_val = data.get('status')
+        if not status_val:
+            return
+        new_status_id = int(status_val)
+        old_status_id = getattr(request.state, 'prev_status_id', None)
+        if is_created or old_status_id != new_status_id:
+            async with async_session() as session:
+                session.add(OrderStatusHistory(
+                    order_id=model.id,
+                    status_id=new_status_id,
+                    changed_by='admin',
+                ))
+                await session.commit()
 
 
 class OrderStatusAdmin(ModelView, model=OrderStatus):
@@ -125,7 +129,7 @@ class OrderStatusAdmin(ModelView, model=OrderStatus):
         "name": "Статус",
     }
     column_formatters = {
-        "name": lambda m, a: _STATUS_RU.get(m.name, m.name),
+        "name": lambda m, a: str(m),
     }
 
     can_create = False
@@ -219,7 +223,7 @@ class OrderStatusHistoryAdmin(ModelView, model=OrderStatusHistory):
         "changed_by": "Кем",
     }
     column_formatters = {
-        "status": lambda m, a: _STATUS_RU.get(m.status.name, m.status.name) if m.status else "—",
+        "status": lambda m, a: str(m.status) if m.status else "—",
     }
 
     can_create = False
