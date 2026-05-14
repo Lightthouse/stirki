@@ -62,8 +62,6 @@ create table orders (
     yookassa_payment_id text,
     yookassa_confirmation_url text,
 
-    kaiten_card_id int,
-
     created_at timestamptz default now(),
     updated_at timestamptz default now()
 );
@@ -81,8 +79,10 @@ create table landing_visits (
     ref_code text not null,
     visited_at timestamptz default now()
 );
+
 create index idx_landing_visits_ref_code on landing_visits (ref_code);
 
+-- отслеживаем для каждой рекламной картинки то, сколько раз её просмотрели
 create table ad_views (
     id bigserial primary key,
     image_path text not null,
@@ -100,6 +100,7 @@ from ad_views
 group by image_path
 order by total_views desc;
 
+-- аналитика по переходам по ссылке в приложение
 create table qr_codes (
     code int primary key,         -- числовой код из ?ref=N; 0 = невалидный/неизвестный
     address_slug text not null,   -- slug адреса или 'invalid'
@@ -107,21 +108,29 @@ create table qr_codes (
     visit_count int not null default 0
 );
 
+-- таблица для глобальных настроек сервиса (одна строка)
+create table system_settings (
+    id int primary key default 1,
+    free_tariff_is_available bool not null default true,
+    constraint system_settings_singleton check (id = 1)
+);
+
+insert into system_settings (id, free_tariff_is_available) values (1, true);
 
 insert into order_statuses (name) values
 ('waiting_for_capture'), ('new'), ('courier_pickup'), ('picked_up'), ('washing'), ('drying'),
 ('ironing'), ('packing'), ('courier_delivery'), ('delivered'), ('canceled');
 
-insert into services (name, slug, price_rub) values
-('Стирка', 'base', 890),
-('Стирка одной вещи', 'piece', 190),
-('Глажка', 'ironing', 990),
-('Кондиционер для белья', 'conditioner', 50),
-('Вакуумный пакет', 'vacuum_pack', 150),
-('Пятновыводитель', 'stain_remover', 80),
-('Отбеливатель', 'bleach', 80),
-('Салфетки против окрашивания', 'color_catcher_sheets', 30),
-('Мешок для стирки', 'wash_bag', 30);
+insert into services (name, slug, price_rub, is_active) values
+('Стирка', 'base', 1490, true),
+('Стирка одной вещи', 'piece', 390, true),
+('Глажка', 'ironing', 190, true),
+('Кондиционер для белья', 'conditioner', 100, true),
+('Вакуумный пакет', 'vacuum_pack', 150, true),
+('Пятновыводитель', 'stain_remover', 80, false),
+('Отбеливатель', 'bleach', 80, false),
+('Салфетки против окрашивания', 'color_catcher_sheets', 100, true),
+('Мешок для стирки', 'wash_bag', 30, false);
 
 insert into qr_codes (code, address_slug, address_name) values
 (142, 'rozhdestvenskaya-11',   'Рождественская, 11'),

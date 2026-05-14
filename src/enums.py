@@ -1,4 +1,4 @@
-from enum import StrEnum, IntEnum
+from enum import StrEnum
 
 class OrderStatusName(StrEnum):
     WAITING_FOR_CAPTURE = "waiting_for_capture"
@@ -49,35 +49,4 @@ ServiceCyrillicSlugMap: dict[ServiceCyrillic, ServiceSlug] = {
     ServiceCyrillic.COLOR_CATCHER_SHEETS: ServiceSlug.COLOR_CATCHER_SHEETS,
 }
 
-
-class KaitenColumns(StrEnum):
-    WAITING_FOR_CAPTURE = "5558704"
-    NEW = "5554116"
-    COURIER_PICKUP = "5554117"
-    PICKED_UP = "5554118"
-    WASHING = "5554091"
-    DRYING = "5554092"
-    IRONING = "5533329"
-    PACKING = "5554207"
-    COURIER_DELIVERY = "5554093"
-    DELIVERED = "5533330"
-    CANCELED = "5554094"
-
-class KaitenTagsIds(IntEnum):
-    IRONING = 973971
-    CONDITIONER = 973972
-    VACUUM_PACK = 973973
-    BLEACH = 973979
-    STAIN_REMOVER = 973969
-    WASH_BAG = 973975
-    COLOR_CATCHER_SHEETS = 1003744
-
-class KaitenTagsNames(StrEnum):
-    IRONING = 'глажка'
-    CONDITIONER = 'кондиционер'
-    VACUUM_PACK = 'вакуумный пакет'
-    BLEACH = 'отбеливатель'
-    STAIN_REMOVER = 'пятновыводитель'
-    WASH_BAG = 'мешок'
-    COLOR_CATCHER_SHEETS = 'салфетки'
 

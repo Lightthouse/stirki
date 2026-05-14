@@ -18,7 +18,7 @@ cp .env.example .env  # заполнить переменные
 ```
 
 Обязательные переменные: `DB_USER`, `DB_PASSWORD`, `SECRET_KEY`, `SMSAERO_EMAIL`, `SMSAERO_API_KEY`.
-Для оплаты: `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY`. Для Kaiten: `KAITEN_API_KEY`, `KAITEN_BASE_URL`.
+Для оплаты: `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY`.
 
 ---
 

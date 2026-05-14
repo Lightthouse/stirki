@@ -84,7 +84,6 @@ PostgreSQL            ← схема в pg_init/01-schema.sql (НЕ автоге
 
 **Services** (`src/services/`):
 - `pricing.py` — цена = `(base_price + service_prices) × bags_number`
-- `kaiten_kanban.py` — создание/перемещение карточек на kaiten.ru
 - `auth.py` — генерация SMS-кода верификации (через `secrets`)
 - `payment.py` — создание платежей YooKassa
 - `sms/` — отправка SMS через SmsAero
@@ -117,7 +116,7 @@ Phone → SMS-код → UUID auth token в `Client.auth_token`. Защищён�
 ### Settings
 
 `pydantic-settings` загружает из `.env`:
-- `src/settings.py` — `DBSettings`, `KaitenSettings`, `AppSettings` (включает `APP_LAUNCHED: bool`), `YookassaSettings`
+- `src/settings.py` — `DBSettings`, `AppSettings` (включает `APP_LAUNCHED: bool`), `YookassaSettings`
 
 `APP_LAUNCHED=false` — предзапускной режим: регистрация работает, кнопка заказа на лендинге показывает модалку.
 

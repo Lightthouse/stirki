@@ -1,10 +1,12 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_db, get_current_client
 from src.models.client import Client
+from src.models.system_settings import SystemSettings as SystemSettingsModel
 from src.repositories.client import ClientRepository
 from src.repositories.service import ServiceRepository
 from src.schemas.order import CreateOrderIn, OrderOut, OrderListOut
@@ -40,6 +42,22 @@ async def create_order(
     client: Client = Depends(get_current_client),
     session: AsyncSession = Depends(get_db),
 ):
+    order_repo = OrderRepository(session)
+    if await order_repo.has_active_order(client.id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="У вас уже есть активный заказ",
+        )
+
+    if body.is_free:
+        result = await session.execute(select(SystemSettingsModel).limit(1))
+        sys_settings = result.scalar_one_or_none()
+        if sys_settings is not None and not sys_settings.free_tariff_is_available:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Бесплатный тариф временно недоступен",
+            )
+
     # Обновляем адрес клиента
     client_repo = ClientRepository(session)
     await client_repo.update(

@@ -1,0 +1,13 @@
+from sqlalchemy import Integer, Boolean
+from sqlalchemy.orm import Mapped, mapped_column
+
+from src.models.base import Base
+
+
+class SystemSettings(Base):
+    __tablename__ = "system_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    free_tariff_is_available: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )

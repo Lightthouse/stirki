@@ -8,6 +8,7 @@ import type {
   PaymentResponse,
   OrderDetail,
   OrderListItem,
+  SystemSettings,
 } from '../types'
 
 export { setToken, clearToken, isAuthenticated, savePhone, clearPhone, getPhone } from './client'
@@ -66,4 +67,8 @@ export async function updateMe(data: { name?: string; email?: string }) {
 export async function getAdImages(): Promise<string[]> {
   const result = await api.get<{ images: string[] }>('/advertising')
   return result.images
+}
+
+export async function getSystemSettings(): Promise<SystemSettings> {
+  return api.get<SystemSettings>('/system-settings')
 }

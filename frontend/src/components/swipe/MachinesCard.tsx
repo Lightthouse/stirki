@@ -1,19 +1,77 @@
 import { useState } from 'react'
 
-const MACHINES = [
-  { id: 1, name: '№1', status: 'busy', timer: '~15 мин' },
-  { id: 2, name: '№2', status: 'free', timer: 'готова' },
-  { id: 3, name: '№3', status: 'busy', timer: '~7 мин' },
-  { id: 4, name: '№4', status: 'free', timer: 'готова' },
-]
+const BUSY_TIMERS = ['~5 мин', '~10 мин', '~15 мин', '~20 мин', '~30 мин']
+const STORAGE_KEY = 'machines_state'
+const TTL_MS = 60 * 60 * 1000
+
+interface MachineState {
+  id: number
+  name: string
+  status: 'free' | 'busy'
+  timer: string
+}
+
+interface StoredState {
+  timestamp: number
+  machines: MachineState[]
+}
+
+function randomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+function generateMachines(): MachineState[] {
+  const freeCount = randomInt(1, 4)
+  const ids = shuffle([1, 2, 3, 4])
+  return ids
+    .map((id, idx) => ({
+      id,
+      name: `№${id}`,
+      status: (idx < freeCount ? 'free' : 'busy') as 'free' | 'busy',
+      timer: idx < freeCount ? 'готова' : BUSY_TIMERS[randomInt(0, BUSY_TIMERS.length - 1)],
+    }))
+    .sort((a, b) => a.id - b.id)
+}
+
+function loadOrGenerateMachines(): MachineState[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      const stored: StoredState = JSON.parse(raw)
+      if (Date.now() - stored.timestamp < TTL_MS) {
+        return stored.machines
+      }
+    }
+  } catch {
+    // ignore corrupt storage
+  }
+  const machines = generateMachines()
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ timestamp: Date.now(), machines }))
+  } catch {
+    // ignore
+  }
+  return machines
+}
 
 interface Props {
   onHintActivate: () => void
   hintActive: boolean
   onMachineSelect?: () => void
+  freeTariffAvailable: boolean
 }
 
-export function MachinesCard({ onHintActivate, hintActive, onMachineSelect }: Props) {
+export function MachinesCard({ onHintActivate, hintActive, onMachineSelect, freeTariffAvailable }: Props) {
+  const [machines] = useState<MachineState[]>(loadOrGenerateMachines)
   const [selectedId, setSelectedId] = useState<number | null>(null)
 
   function occupy(id: number) {
@@ -22,10 +80,15 @@ export function MachinesCard({ onHintActivate, hintActive, onMachineSelect }: Pr
     onMachineSelect?.()
   }
 
-  function getBtnClass(m: typeof MACHINES[0]) {
+  function getBtnClass(m: MachineState) {
+    if (!freeTariffAvailable) return 'machine-occupy-btn'
     if (selectedId === m.id) return 'machine-occupy-btn occupied'
     if (m.status === 'free') return 'machine-occupy-btn available'
     return 'machine-occupy-btn'
+  }
+
+  function isUnavailable(m: MachineState) {
+    return !freeTariffAvailable || m.status === 'busy'
   }
 
   return (
@@ -35,25 +98,31 @@ export function MachinesCard({ onHintActivate, hintActive, onMachineSelect }: Pr
           <i className="fas fa-tachometer-alt" /> Выберите стиральную машину для бесплатной стирки
         </h3>
 
+        {!freeTariffAvailable && (
+          <p style={{ textAlign: 'center', color: '#e05a5a', marginBottom: 12, fontSize: 14 }}>
+            <i className="fas fa-clock" /> Все машины заняты, попробуйте позже
+          </p>
+        )}
+
         <div className="machines-grid">
-          {MACHINES.map((m) => (
+          {machines.map((m) => (
             <div key={m.id} className={`machine-mini${selectedId === m.id ? ' selected' : ''}`}>
               <div className="machine-icon">
                 <i className="fas fa-tshirt" />
               </div>
               <div className="machine-name">{m.name}</div>
               <div className="machine-status">
-                {m.status === 'free' ? 'свободна' : 'занята'}
+                {freeTariffAvailable && m.status === 'free' ? 'свободна' : 'занята'}
               </div>
-              <div className="machine-timer">{m.timer}</div>
+              <div className="machine-timer">{freeTariffAvailable ? m.timer : '—'}</div>
               <button
                 className={getBtnClass(m)}
-                disabled={m.status === 'busy' && selectedId !== m.id}
-                onClick={() => m.status === 'free' && selectedId !== m.id && occupy(m.id)}
+                disabled={isUnavailable(m) && selectedId !== m.id}
+                onClick={() => !isUnavailable(m) && selectedId !== m.id && occupy(m.id)}
               >
                 {selectedId === m.id ? (
                   <><i className="fas fa-check" /> выбрана</>
-                ) : m.status === 'busy' ? (
+                ) : isUnavailable(m) ? (
                   'недоступна'
                 ) : (
                   'выбрать'

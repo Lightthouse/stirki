@@ -25,4 +25,4 @@ class ServiceRepository:
             select(Service).where(Service.slug == "base")
         )
         base = result.scalar_one_or_none()
-        return base.price_rub if base else 890
+        return base.price_rub if base else 1490

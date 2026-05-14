@@ -10,6 +10,7 @@ from src.models.analytics import AdViewStats, LandingVisit, QrCode
 from src.models.client import Client
 from src.models.order import Order, OrderStatus, OrderStatusHistory
 from src.models.service import Service
+from src.models.system_settings import SystemSettings
 from src.settings import AppSettings
 
 _SLUG_TO_STREET = {slug: name for name, slug in STREETS_SLUG.items()}
@@ -83,7 +84,6 @@ class OrderAdmin(ModelView, model=Order):
         "payment_status": "Оплата",
         "yookassa_payment_id": "YooKassa ID",
         "yookassa_confirmation_url": "Ссылка оплаты",
-        "kaiten_card_id": "Kaiten ID",
         "created_at": "Создан",
         "updated_at": "Обновлён",
     }
@@ -199,6 +199,26 @@ class ServiceAdmin(ModelView, model=Service):
         "price_rub": "Цена (₽)",
         "is_active": "Активна",
     }
+
+    can_create = False
+    can_delete = False
+    form_columns = [Service.name, Service.price_rub, Service.is_active]
+
+
+class SystemSettingsAdmin(ModelView, model=SystemSettings):
+    name = "Настройки"
+    name_plural = "Системные настройки"
+    icon = "fa-solid fa-sliders"
+
+    column_list = [SystemSettings.free_tariff_is_available]
+    column_labels = {
+        "id": "ID",
+        "free_tariff_is_available": "Бесплатный тариф доступен",
+    }
+
+    can_create = False
+    can_delete = False
+    form_columns = [SystemSettings.free_tariff_is_available]
 
 
 class OrderStatusHistoryAdmin(ModelView, model=OrderStatusHistory):
@@ -318,6 +338,7 @@ def create_admin(app) -> Admin:
     admin.add_view(OrderStatusAdmin)
     admin.add_view(ClientAdmin)
     admin.add_view(ServiceAdmin)
+    admin.add_view(SystemSettingsAdmin)
     admin.add_view(OrderStatusHistoryAdmin)
     admin.add_view(AdViewStatsAdmin)
     admin.add_view(QrCodeAdmin)

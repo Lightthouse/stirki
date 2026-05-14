@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { isAuthenticated, clearToken, clearPhone } from '../api/client'
 import { trackVisit, getOrders, getMe, getAddresses } from '../api'
+
+const POLL_INTERVAL_MS = 60_000
 import { InfoModal } from '../components/ui/InfoModal'
 import { OfferModal } from '../components/ui/OfferModal'
 import { PwaBanner } from '../components/PwaBanner'
@@ -18,12 +20,14 @@ export function LandingPage() {
   const [searchParams] = useSearchParams()
   const [showInfo, setShowInfo] = useState(false)
   const [showOffer, setShowOffer] = useState(false)
+  const [showActiveOrderModal, setShowActiveOrderModal] = useState(false)
   const [client, setClient] = useState<ClientInfo | null>(null)
   const [orders, setOrders] = useState<OrderListItem[]>([])
   const [loadingOrders, setLoadingOrders] = useState(false)
   const [slugToStreet, setSlugToStreet] = useState<Record<string, string>>({})
 
   const authenticated = isAuthenticated()
+  const hasActiveOrders = orders.some((o) => ACTIVE_STATUSES.has(o.status))
 
   useEffect(() => {
     const ref = searchParams.get('ref')
@@ -49,7 +53,19 @@ export function LandingPage() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!authenticated || !hasActiveOrders) return
+    const poll = setInterval(() => {
+      getOrders().then(setOrders).catch(() => {})
+    }, POLL_INTERVAL_MS)
+    return () => clearInterval(poll)
+  }, [authenticated, hasActiveOrders])
+
   function handleOrder() {
+    if (orders.some((o) => ACTIVE_STATUSES.has(o.status))) {
+      setShowActiveOrderModal(true)
+      return
+    }
     navigate('/order')
   }
 
@@ -167,6 +183,19 @@ export function LandingPage() {
 
       {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
       {showOffer && <OfferModal onClose={() => setShowOffer(false)} />}
+      {showActiveOrderModal && (
+        <div className="modal-overlay" onClick={() => setShowActiveOrderModal(false)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <h3><i className="fas fa-clock" /> Заказ уже в работе</h3>
+            <p>
+              У вас есть активный заказ. Оформить новый можно будет после его завершения.
+            </p>
+            <button className="btn-pill btn-pill-accent" onClick={() => setShowActiveOrderModal(false)}>
+              Понятно
+            </button>
+          </div>
+        </div>
+      )}
       <PwaBanner />
     </div>
   )

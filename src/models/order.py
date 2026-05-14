@@ -99,8 +99,6 @@ class Order(Base):
     yookassa_payment_id: Mapped[str | None] = mapped_column(Text)
     yookassa_confirmation_url: Mapped[str | None] = mapped_column(Text)
 
-    kaiten_card_id: Mapped[int | None] = mapped_column(Integer)
-
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

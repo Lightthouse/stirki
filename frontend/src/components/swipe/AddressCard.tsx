@@ -71,41 +71,46 @@ export function AddressCard({ data, onChange, onHintActivate, hintActive, hasPre
             </select>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <div className="input-field">
-              <i className="fas fa-building" />
-              <select
-                value={data.house}
-                onChange={(e) => update('house', e.target.value)}
-              >
-                {houses.map((h) => (
-                  <option key={h} value={h}>{h}</option>
-                ))}
-              </select>
+          <div className="address-inline-group">
+            <div className="address-inline-item">
+              <span className="address-inline-label">Дом</span>
+              <div className="input-field address-inline-field">
+                <select
+                  value={data.house}
+                  onChange={(e) => update('house', e.target.value)}
+                >
+                  {houses.map((h) => (
+                    <option key={h} value={h}>{h}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div className="input-field">
-              <i className="fas fa-door-open" />
-              <select
-                value={data.entrance}
-                onChange={(e) => update('entrance', Number(e.target.value))}
-              >
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-                  <option key={n} value={n}>{n} подъезд</option>
-                ))}
-              </select>
+            <div className="address-inline-item">
+              <span className="address-inline-label">Подъезд</span>
+              <div className="input-field address-inline-field">
+                <select
+                  value={data.entrance}
+                  onChange={(e) => update('entrance', Number(e.target.value))}
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
-
-          <div className="input-field">
-            <i className="fas fa-home" />
-            <select
-              value={data.apartment}
-              onChange={(e) => update('apartment', Number(e.target.value))}
-            >
-              {Array.from({ length: 200 }, (_, i) => i + 1).map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
+            <div className="address-inline-item">
+              <span className="address-inline-label">Кв.</span>
+              <div className="input-field address-inline-field">
+                <select
+                  value={data.apartment}
+                  onChange={(e) => update('apartment', Number(e.target.value))}
+                >
+                  {Array.from({ length: 1000 }, (_, i) => i + 1).map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className="input-field">

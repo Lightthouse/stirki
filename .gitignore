@@ -28,3 +28,4 @@ qr_codes/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+/restyle/

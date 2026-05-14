@@ -81,6 +81,10 @@ export interface OrderListItem {
   created_at: string
 }
 
+export interface SystemSettings {
+  free_tariff_is_available: boolean
+}
+
 export type Step =
   | 'phone'
   | 'code'

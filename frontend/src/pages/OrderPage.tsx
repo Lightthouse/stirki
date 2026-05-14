@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isAuthenticated, clearToken, clearPhone } from '../api/client'
-import { getMe, createOrder, getAdImages, trackAdView, getAddresses } from '../api'
+import { getMe, createOrder, getAdImages, trackAdView, getAddresses, getSystemSettings } from '../api'
 import { AddressCard } from '../components/swipe/AddressCard'
 import { TariffCard } from '../components/swipe/TariffCard'
 import { MachinesCard } from '../components/swipe/MachinesCard'
@@ -46,6 +46,9 @@ export function OrderPage() {
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [streets, setStreets] = useState<Street[]>([])
   const [statusAddons, setStatusAddons] = useState<string[]>([])
+  const [freeTariffAvailable, setFreeTariffAvailable] = useState(true)
+  const [freeTariffError, setFreeTariffError] = useState(false)
+  const [activeOrderError, setActiveOrderError] = useState(false)
 
   // Hint states per card
   const [hints, setHints] = useState({ address: false, tariff: false, machines: false })
@@ -80,6 +83,7 @@ export function OrderPage() {
       })
     getAdImages().then(setAdImages).catch(() => {})
     getAddresses().then((res) => setStreets(res.streets)).catch(() => {})
+    getSystemSettings().then((s) => setFreeTariffAvailable(s.free_tariff_is_available)).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -183,15 +187,33 @@ export function OrderPage() {
 
       setOrderId(result.order_id)
       setOrderTotal(result.total_price_rub)
-    } catch (e) {
-      console.error('Ошибка создания заказа:', e)
-      // Для демонстрации показываем экран статуса даже при ошибке
-      setOrderId(0)
-      setOrderTotal(cart.reduce((sum, item) => sum + item.price, 0))
-    } finally {
       setLoading(false)
       closeCart()
       setShowStatus(true)
+    } catch (e) {
+      setLoading(false)
+      closeCart()
+      if (e instanceof Error && e.message === 'У вас уже есть активный заказ') {
+        setActiveOrderError(true)
+        setTimeout(() => {
+          setActiveOrderError(false)
+          navigate('/')
+        }, 2000)
+      } else if (e instanceof Error && e.message === 'Бесплатный тариф временно недоступен') {
+        setFreeTariffAvailable(false)
+        setFreeTariffError(true)
+        setTimeout(() => {
+          setFreeTariffError(false)
+          setTariff(null)
+          setCart([])
+          scrollToCard(0)
+        }, 1000)
+      } else {
+        console.error('Ошибка создания заказа:', e)
+        setOrderId(0)
+        setOrderTotal(cart.reduce((sum, item) => sum + item.price, 0))
+        setShowStatus(true)
+      }
     }
   }
 
@@ -245,6 +267,7 @@ export function OrderPage() {
             onMachineSelect={() => {
               setTimeout(() => scrollToCard(3), 350)
             }}
+            freeTariffAvailable={freeTariffAvailable}
           />
         )}
         <ServicesCard
@@ -312,6 +335,20 @@ export function OrderPage() {
       {addressError && (
         <div className="toast-error">
           <i className="fas fa-map-marker-alt" /> Укажите адрес доставки
+        </div>
+      )}
+
+      {/* Free tariff unavailable toast */}
+      {freeTariffError && (
+        <div className="toast-error">
+          <i className="fas fa-clock" /> Бесплатный тариф временно недоступен
+        </div>
+      )}
+
+      {/* Active order toast */}
+      {activeOrderError && (
+        <div className="toast-error">
+          <i className="fas fa-clock" /> У вас уже есть активный заказ
         </div>
       )}
 

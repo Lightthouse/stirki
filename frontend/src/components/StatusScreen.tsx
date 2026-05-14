@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getOrder } from '../api'
+import { getStatusName } from '../utils/statusNames'
 
 const STATUS_STEP_MAP: Record<string, number> = {
   waiting_for_capture: 1,
@@ -12,7 +13,10 @@ const STATUS_STEP_MAP: Record<string, number> = {
   packing: 3,
   courier_delivery: 4,
   delivered: 4,
+  canceled: 4,
 }
+
+const TERMINAL_STATUSES = new Set(['delivered', 'canceled'])
 
 const ADDON_LABELS: Record<string, string> = {
   ironing: 'Глажка',
@@ -41,15 +45,16 @@ function getTimeWindow(): string {
 
 export function StatusScreen({ orderId, totalPrice, serviceType, addons, isFree, addressDisplay, comment, onClose }: Props) {
   const [statusStep, setStatusStep] = useState(1)
+  const [currentStatus, setCurrentStatus] = useState('new')
 
   useEffect(() => {
     if (orderId === 0) return
     const poll = setInterval(async () => {
       try {
         const order = await getOrder(orderId)
-        const step = STATUS_STEP_MAP[order.status] || 1
-        setStatusStep(step)
-        if (step >= 4) clearInterval(poll)
+        setCurrentStatus(order.status)
+        setStatusStep(STATUS_STEP_MAP[order.status] || 1)
+        if (TERMINAL_STATUSES.has(order.status)) clearInterval(poll)
       } catch {
         // ignore
       }
@@ -84,6 +89,11 @@ export function StatusScreen({ orderId, totalPrice, serviceType, addons, isFree,
           <i className="fas fa-receipt" /> № {orderId > 0 ? `ST-${orderId}` : 'ST-—'}
         </span>
       </div>
+      {orderId > 0 && (
+        <div className="status-current-label">
+          {getStatusName(currentStatus)}
+        </div>
+      )}
       {!isFree && <div className="order-total"><i className="fas fa-ruble-sign" /> {totalPrice} ₽</div>}
 
       <div className="details-card">
