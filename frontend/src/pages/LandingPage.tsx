@@ -11,8 +11,7 @@ import type { OrderListItem, ClientInfo } from '../types'
 import { getStatusName } from '../utils/statusNames'
 
 const ACTIVE_STATUSES = new Set([
-  'waiting_for_capture', 'new', 'courier_pickup', 'picked_up',
-  'washing', 'drying', 'ironing', 'packing', 'courier_delivery',
+  'new', 'courier_pickup', 'picked_up', 'washing', 'courier_delivery',
 ])
 
 export function LandingPage() {

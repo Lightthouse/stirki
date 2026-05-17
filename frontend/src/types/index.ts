@@ -65,7 +65,7 @@ export interface OrderDetail {
   services: string[]
   total_price_rub: number
   payment_status: string
-  yookassa_confirmation_url: string | null
+  is_free: boolean
   comment: string | null
   created_at: string
   updated_at: string

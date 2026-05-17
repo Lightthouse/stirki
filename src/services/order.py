@@ -59,14 +59,19 @@ class OrderService:
     async def update_payment(
         self,
         order: Order,
-        yookassa_payment_id: str,
-        yookassa_confirmation_url: str | None = None,
+        operation_id: str,
+        payment_link: str | None = None,
+        payment_token: str | None = None,
     ) -> Order:
         return await self._repo.update_payment(
             order,
-            yookassa_payment_id=yookassa_payment_id,
-            yookassa_confirmation_url=yookassa_confirmation_url,
+            operation_id=operation_id,
+            payment_link=payment_link,
+            payment_token=payment_token,
         )
+
+    async def get_by_payment_token(self, payment_token: str) -> Order | None:
+        return await self._repo.get_by_payment_token(payment_token)
 
     async def get_by_id(self, order_id: int) -> Order | None:
         return await self._repo.get_by_id(order_id)

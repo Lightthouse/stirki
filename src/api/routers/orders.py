@@ -1,4 +1,5 @@
 import logging
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -6,34 +7,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_db, get_current_client
 from src.models.client import Client
+from src.models.order import Order
 from src.models.system_settings import SystemSettings as SystemSettingsModel
 from src.repositories.client import ClientRepository
+from src.repositories.order import OrderRepository
 from src.repositories.service import ServiceRepository
 from src.schemas.order import CreateOrderIn, OrderOut, OrderListOut
 from src.schemas.payment import PaymentOut
 from src.services.order import OrderService
 from src.services.pricing import PricingService
 from src.services.payment import PaymentService
-from src.settings import AppSettings
 from src.enums import OrderStatusName, PaymentStatus
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-
-def _order_services_list(order) -> list[str]:
-    """Extract active service slugs from order boolean flags."""
-    flags = {
-        "ironing": order.ironing,
-        "conditioner": order.conditioner,
-        "vacuum_pack": order.vacuum_pack,
-        "stain_remover": order.stain_remover,
-        "wash_bag": order.wash_bag,
-        "bleach": order.bleach,
-        "color_catcher_sheets": order.color_catcher_sheets,
-    }
-    return [slug for slug, active in flags.items() if active]
 
 
 @router.post("", response_model=PaymentOut)
@@ -76,14 +65,11 @@ async def create_order(
     pricing = PricingService(base_price, all_services)
 
     total_price = 0 if body.is_free else pricing.calculate_order_price(body.bags_number, body.services, body.washing_type)
-    service_flags = pricing.service_flags(body.services)
+    service_flags = Order.flags_from_slugs(body.services)
 
-    # Создаём заказ
-    app_settings = AppSettings()
     order_service = OrderService(session)
 
-    if body.is_free or app_settings.APP_ENV != "production":
-        # Бесплатный заказ (рекламный тариф) или dev-режим: без оплаты, сразу NEW
+    if body.is_free:
         order = await order_service.create(
             client=client,
             washing_type=body.washing_type,
@@ -92,45 +78,55 @@ async def create_order(
             total_price_rub=total_price,
             status_name=OrderStatusName.NEW,
             comment=body.comment,
-            is_free=body.is_free,
+            is_free=True,
         )
-        changed_by = "free-tariff" if body.is_free else "dev-auto"
         await order_service.update_status(
             order,
             status_name=OrderStatusName.NEW,
             payment_status=PaymentStatus.SUCCEEDED,
-            changed_by=changed_by,
+            changed_by="free-tariff",
         )
         confirmation_url = None
     else:
-        # Платный заказ в продакшне: создаём платёж YooKassa
+        payment_token = str(uuid4())
         order = await order_service.create(
             client=client,
             washing_type=body.washing_type,
             bags_number=body.bags_number,
             services=service_flags,
             total_price_rub=total_price,
-            status_name=OrderStatusName.WAITING_FOR_CAPTURE,
+            status_name=OrderStatusName.NEW,
             comment=body.comment,
             is_free=False,
         )
-        confirmation_url = None
         try:
             payment_service = PaymentService()
             payment_result = payment_service.create_payment(
                 amount=total_price,
-                order_id=order.id,
-                description=f"Стирки ON — заказ #{order.id}",
-                customer_email=client.email or None,
+                payment_token=payment_token,
+                purpose=f"Стирка ON — заказ #{order.id}",
             )
+            confirmation_url = payment_result.get("payment_link")
+            if not confirmation_url:
+                raise ValueError("Payment link missing from Tochka response")
             await order_service.update_payment(
                 order,
-                yookassa_payment_id=payment_result["payment_id"],
-                yookassa_confirmation_url=payment_result.get("confirmation_url"),
+                operation_id=payment_result["operation_id"],
+                payment_link=confirmation_url,
+                payment_token=payment_token,
             )
-            confirmation_url = payment_result.get("confirmation_url")
         except Exception:
-            logger.exception("Failed to create YooKassa payment for order %s", order.id)
+            logger.exception("Failed to create payment for order %s", order.id)
+            await order_service.update_status(
+                order,
+                status_name=OrderStatusName.CANCELED,
+                payment_status=PaymentStatus.CANCELED,
+                changed_by="system",
+            )
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Не удалось создать платёж. Попробуйте ещё раз.",
+            )
 
     return PaymentOut(
         order_id=order.id,
@@ -185,10 +181,10 @@ async def get_order(
         floor=order.floor,
         washing_type=order.washing_type,
         bags_number=order.bags_number,
-        services=_order_services_list(order),
+        services=order.service_slugs,
         total_price_rub=order.total_price_rub,
         payment_status=order.payment_status,
-        yookassa_confirmation_url=order.yookassa_confirmation_url,
+        is_free=order.is_free,
         comment=order.comment,
         created_at=order.created_at,
         updated_at=order.updated_at,

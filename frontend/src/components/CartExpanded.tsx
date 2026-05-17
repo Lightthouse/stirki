@@ -66,21 +66,6 @@ export function CartExpanded({ cart, show, onClose, onRemove, onClear, onCheckou
             <span className="cart-total-amount">{total} ₽</span>
           </div>
 
-          <div className="payment-options">
-            <div className="payment-title"><i className="fas fa-credit-card" /> Способ оплаты</div>
-            <label className="payment-option">
-              <input type="radio" name="payment" value="card" defaultChecked />
-              <span><i className="fab fa-cc-visa" /> Банковская карта</span>
-            </label>
-            <label className="payment-option">
-              <input type="radio" name="payment" value="sbp" />
-              <span><i className="fas fa-qrcode" /> QR-код (СБП)</span>
-            </label>
-            <label className="payment-option">
-              <input type="radio" name="payment" value="tpay" />
-              <span><i className="fas fa-mobile-alt" /> T‑Pay</span>
-            </label>
-          </div>
 
           <div className="legal-text">
             Нажимая «Оформить заказ», вы принимаете{' '}

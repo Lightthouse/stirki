@@ -20,12 +20,12 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: '/icons/wm-192.png',
+            src: '/icons/logo192.png',
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: '/icons/wm-512.png',
+            src: '/icons/logo512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',

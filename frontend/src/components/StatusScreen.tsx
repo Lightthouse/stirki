@@ -3,14 +3,10 @@ import { getOrder } from '../api'
 import { getStatusName } from '../utils/statusNames'
 
 const STATUS_STEP_MAP: Record<string, number> = {
-  waiting_for_capture: 1,
   new: 1,
   courier_pickup: 2,
   picked_up: 2,
   washing: 3,
-  drying: 3,
-  ironing: 3,
-  packing: 3,
   courier_delivery: 4,
   delivered: 4,
   canceled: 4,
@@ -28,6 +24,7 @@ interface Props {
   orderId: number
   totalPrice: number
   serviceType: 'bag' | 'piece'
+  bagsNumber: number
   addons: string[]
   isFree: boolean
   addressDisplay: string
@@ -43,9 +40,10 @@ function getTimeWindow(): string {
   return `Сегодня, ${fmt(start)}–${fmt(end)}`
 }
 
-export function StatusScreen({ orderId, totalPrice, serviceType, addons, isFree, addressDisplay, comment, onClose }: Props) {
+export function StatusScreen({ orderId, totalPrice, serviceType, bagsNumber, addons, isFree, addressDisplay, comment, onClose }: Props) {
   const [statusStep, setStatusStep] = useState(1)
   const [currentStatus, setCurrentStatus] = useState('new')
+  const [showSupport, setShowSupport] = useState(false)
 
   useEffect(() => {
     if (orderId === 0) return
@@ -62,9 +60,13 @@ export function StatusScreen({ orderId, totalPrice, serviceType, addons, isFree,
     return () => clearInterval(poll)
   }, [orderId])
 
-  const serviceLabel = serviceType === 'piece' ? 'Вещь' : 'Пакет'
   const mainAddons = addons.filter((a) => a !== 'ironing')
   const hasIroning = addons.includes('ironing')
+  const serviceLabel = serviceType === 'piece'
+    ? 'Стирка вещи'
+    : bagsNumber > 1
+      ? `Стирка пакетов ×${bagsNumber}`
+      : 'Стирка пакета'
   const serviceFull = serviceLabel + (hasIroning ? ' + глажка' : '')
   const addonsLabel = mainAddons.map((a) => ADDON_LABELS[a] || a).join(', ')
   const paymentLabel = isFree ? 'Бесплатно (реклама)' : 'Онлайн картой'
@@ -144,15 +146,33 @@ export function StatusScreen({ orderId, totalPrice, serviceType, addons, isFree,
       </div>
 
       <div className="status-actions">
-        <a href="mailto:prihodko_1989@mail.ru" style={{ textDecoration: 'none', width: '100%' }}>
-          <button className="status-btn">
-            <i className="fas fa-headset" /> Связаться с поддержкой
-          </button>
-        </a>
+        <button className="status-btn" onClick={() => setShowSupport(true)}>
+          <i className="fas fa-headset" /> Связаться с поддержкой
+        </button>
         <button className="status-btn" onClick={onClose}>
           <i className="fas fa-arrow-left" /> На главную
         </button>
       </div>
+
+      {showSupport && (
+        <div className="modal-overlay" onClick={() => setShowSupport(false)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <h3><i className="fas fa-headset" /> Поддержка</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, margin: '20px 0' }}>
+              <a href="tel:+79291234567" className="support-contact-link">
+                <i className="fas fa-phone" /> +7 929 123-45-67
+              </a>
+              <a href="https://t.me/VITALII_PRIHODKO" target="_blank" rel="noreferrer" className="support-contact-link">
+                <i className="fab fa-telegram" /> @VITALII_PRIHODKO
+              </a>
+              <a href="mailto:prihodko_1989@mail.ru" className="support-contact-link">
+                <i className="fas fa-envelope" /> prihodko_1989@mail.ru
+              </a>
+            </div>
+            <button className="status-btn" onClick={() => setShowSupport(false)}>Закрыть</button>
+          </div>
+        </div>
+      )}
 
       <div className="status-note">
         <i className="fas fa-info-circle" /> Вы можете закрыть сайт — мы пришлём уведомление, когда курьер будет рядом

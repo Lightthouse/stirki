@@ -1,92 +1,85 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import get_db
+from src.api.dependencies import get_db, get_current_client
 from src.enums import OrderStatusName, PaymentStatus
+from src.models.client import Client
+from src.schemas.payment import PaymentOut
 from src.services.order import OrderService
-from src.settings import AppSettings
+from src.services.payment import PaymentService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-app_settings = AppSettings()
 
 
-@router.post("/webhook")
-async def yookassa_webhook(
-    request: Request,
-    session: AsyncSession = Depends(get_db),
-):
-    """Handle YooKassa payment notifications."""
-    body = await request.json()
-
-    payment_obj = body.get("object", {})
-    payment_id = payment_obj.get("id")
-    payment_status = payment_obj.get("status")
-    metadata = payment_obj.get("metadata", {})
-    order_id = metadata.get("order_id")
-
-    if not order_id or not payment_id:
-        logger.warning("Webhook missing order_id or payment_id: %s", body)
-        return {"status": "ignored"}
-
-    order_service = OrderService(session)
-    order = await order_service.get_by_id(int(order_id))
-
-    if not order:
-        logger.warning("Order %s not found for webhook", order_id)
-        return {"status": "ignored"}
-
-    if order.yookassa_payment_id and order.yookassa_payment_id != payment_id:
-        logger.warning(
-            "Payment ID mismatch: order has %s, webhook has %s",
-            order.yookassa_payment_id,
-            payment_id,
-        )
-        return {"status": "ignored"}
-
-    if payment_status == "succeeded":
-        await order_service.update_status(
-            order,
-            status_name=OrderStatusName.NEW,
-            payment_status=PaymentStatus.SUCCEEDED,
-            changed_by="yookassa",
-        )
-        logger.info("Order %s payment succeeded", order_id)
-    elif payment_status == "canceled":
-        await order_service.update_status(
-            order,
-            status_name=OrderStatusName.CANCELED,
-            payment_status=PaymentStatus.CANCELED,
-            changed_by="yookassa",
-        )
-        logger.info("Order %s payment canceled", order_id)
-
-    return {"status": "ok"}
-
-
-@router.post("/test/simulate/{order_id}")
-async def simulate_payment(
+@router.post("/verify/{order_id}")
+async def verify_payment(
     order_id: int,
+    client: Client = Depends(get_current_client),
     session: AsyncSession = Depends(get_db),
 ):
-    """Симуляция оплаты для тестирования. Доступен только в dev-окружении."""
-    if app_settings.APP_ENV == "production":
-        raise HTTPException(status_code=403, detail="Недоступно в production")
-
+    """Проверить статус оплаты через Точка Банк и обновить заказ."""
     order_service = OrderService(session)
     order = await order_service.get_by_id(order_id)
+
+    if not order or order.client_id != client.id:
+        raise HTTPException(status_code=404, detail="Заказ не найден")
+
+    if order.payment_status == PaymentStatus.SUCCEEDED:
+        return {"status": "approved"}
+
+    if not order.operation_id:
+        return {"status": "pending"}
+
+    try:
+        payment_service = PaymentService()
+        payment_info = payment_service.get_payment(order.operation_id)
+        operations = payment_info.get("Data", {}).get("Operation", [])
+        if not operations:
+            return {"status": "pending"}
+
+        tochka_status = operations[0].get("status", "").upper()
+
+        if tochka_status == "APPROVED":
+            await order_service.update_status(
+                order,
+                status_name=OrderStatusName.NEW,
+                payment_status=PaymentStatus.SUCCEEDED,
+                changed_by="tochka",
+            )
+            return {"status": "approved"}
+        elif tochka_status in ("REJECTED", "EXPIRED"):
+            await order_service.update_status(
+                order,
+                status_name=OrderStatusName.CANCELED,
+                payment_status=PaymentStatus.CANCELED,
+                changed_by="tochka",
+            )
+            return {"status": "rejected"}
+        else:
+            return {"status": "pending"}
+    except Exception:
+        logger.exception("Failed to verify payment for order %s", order_id)
+        return {"status": "pending"}
+
+
+@router.get("/by-token/{payment_token}", response_model=PaymentOut)
+async def get_order_by_payment_token(
+    payment_token: str,
+    session: AsyncSession = Depends(get_db),
+):
+    """Получить заказ по payment_token после редиректа с оплаты."""
+    order_service = OrderService(session)
+    order = await order_service.get_by_payment_token(payment_token)
 
     if not order:
         raise HTTPException(status_code=404, detail="Заказ не найден")
 
-    await order_service.update_status(
-        order,
-        status_name=OrderStatusName.NEW,
-        payment_status=PaymentStatus.SUCCEEDED,
-        changed_by="test",
+    return PaymentOut(
+        order_id=order.id,
+        total_price_rub=order.total_price_rub,
+        confirmation_url=None,
     )
-
-    return {"status": "ok", "order_id": order_id}

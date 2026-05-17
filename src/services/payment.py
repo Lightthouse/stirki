@@ -1,65 +1,68 @@
 import logging
 
-from yookassa import Configuration, Payment
-
-from src.settings import YooKassaSettings
+import httpx
+from src.settings import TochkaSettings, AppSettings
 
 logger = logging.getLogger(__name__)
 
 
 class PaymentService:
     def __init__(self):
-        settings = YooKassaSettings()
-        Configuration.account_id = settings.YOOKASSA_SHOP_ID
-        Configuration.secret_key = settings.YOOKASSA_SECRET_KEY
-        self.return_url = settings.YOOKASSA_RETURN_URL
+        settings = TochkaSettings()
+        app_settings = AppSettings()
+
+        self.customer_code = settings.TOCHKA_CUSTOMER_CODE_BUISNESS
+        self._frontend_url = app_settings.FRONTEND_URL
+
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {settings.TOCHKA_TOKEN}'
+        }
+
+        self.client = httpx.Client(
+            base_url='https://enter.tochka.com/uapi/acquiring/v1.0/',
+            headers=headers,
+            timeout=30.0,
+        )
 
     def create_payment(
-        self,
-        amount: int,
-        order_id: int,
-        description: str = "Оплата заказа на стирку",
-        customer_email: str | None = None,
+            self,
+            amount: int,
+            payment_token: str,
+            purpose: str = "Оплата заказа на стирку",
     ) -> dict:
-        """Create a YooKassa payment with SBP method."""
-        payload: dict = {
-            "amount": {"value": str(amount), "currency": "RUB"},
-            "confirmation": {
-                "type": "redirect",
-                "return_url": f"{self.return_url}/orders/{order_id}",
-            },
-            "capture": True,
-            "description": description,
-            "metadata": {"order_id": str(order_id)},
-        }
-        if customer_email:
-            payload["receipt"] = {
-                "customer": {"email": customer_email},
-                "items": [
-                    {
-                        "description": description,
-                        "quantity": "1",
-                        "amount": {"value": str(amount), "currency": "RUB"},
-                        "vat_code": 1,
-                    }
+        """Создание ссылки на оплату через Точка Банк."""
+        return_url = f"{self._frontend_url}/order?payment_token={payment_token}"
+        payload = {
+            "Data": {
+                "customerCode": self.customer_code,
+                "amount": "1.00",
+                # "amount": f"{amount}.00",
+                "purpose": purpose,
+                "redirectUrl": return_url,
+                "failRedirectUrl": return_url,
+                "paymentMode": [
+                    "sbp",
+                    "card"
                 ],
+                "saveCard": True,
+                "ttl": 10080,
+                "paymentLinkId": payment_token,
             }
-        payment = Payment.create(payload)
-
+        }
+        print(payload)
+        response = self.client.post("payments", json=payload)
+        response.raise_for_status()
+        print(response.url)
+        data = response.json().get("Data", {})
         return {
-            "payment_id": payment.id,
-            "confirmation_url": payment.confirmation.confirmation_url
-            if payment.confirmation
-            else None,
-            "status": payment.status,
+            "operation_id": data["operationId"],
+            "payment_link": data.get("paymentLink"),
         }
 
-    @staticmethod
-    def get_payment(payment_id: str) -> dict:
-        """Get payment status from YooKassa."""
-        payment = Payment.find_one(payment_id)
-        return {
-            "payment_id": payment.id,
-            "status": payment.status,
-            "metadata": payment.metadata,
-        }
+    def get_payment(self, operation_id: str) -> dict:
+        """Получение информации о платеже по operationId."""
+        response = self.client.get(f"payments/{operation_id}")
+        response.raise_for_status()
+        return response.json()

@@ -82,8 +82,8 @@ class OrderAdmin(ModelView, model=Order):
         "color_catcher_sheets": "Цветоуловитель",
         "total_price_rub": "Цена (₽)",
         "payment_status": "Оплата",
-        "yookassa_payment_id": "YooKassa ID",
-        "yookassa_confirmation_url": "Ссылка оплаты",
+        "payment_link": "Ссылка оплаты",
+        "operation_id": "ID операции",
         "created_at": "Создан",
         "updated_at": "Обновлён",
     }
@@ -123,13 +123,11 @@ class OrderStatusAdmin(ModelView, model=OrderStatus):
     name_plural = "Статусы заказов"
     icon = "fa-solid fa-list-check"
 
-    column_list = [OrderStatus.id, OrderStatus.name]
+    column_list = [OrderStatus.id, OrderStatus.slug, OrderStatus.name]
     column_labels = {
         "id": "ID",
-        "name": "Статус",
-    }
-    column_formatters = {
-        "name": lambda m, a: str(m),
+        "slug": "Slug",
+        "name": "Название",
     }
 
     can_create = False

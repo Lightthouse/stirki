@@ -15,13 +15,13 @@ class OrderRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_status_by_name(self, name: str) -> OrderStatus:
+    async def get_status_by_slug(self, slug: str) -> OrderStatus:
         result = await self.session.execute(
-            select(OrderStatus).where(OrderStatus.name == name)
+            select(OrderStatus).where(OrderStatus.slug == slug)
         )
         status = result.scalar_one_or_none()
         if not status:
-            raise ValueError(f"Order status '{name}' not found")
+            raise ValueError(f"Order status '{slug}' not found")
         return status
 
     async def create(
@@ -35,7 +35,7 @@ class OrderRepository:
         comment: str | None = None,
         is_free: bool = False,
     ) -> Order:
-        status = await self.get_status_by_name(status_name)
+        status = await self.get_status_by_slug(status_name)
 
         order = Order(
             client_id=client.id,
@@ -86,7 +86,7 @@ class OrderRepository:
             .join(OrderStatus, Order.status_id == OrderStatus.id)
             .where(
                 Order.client_id == client_id,
-                OrderStatus.name.not_in(["delivered", "canceled"]),
+                OrderStatus.slug.not_in(["delivered", "canceled"]),
             )
             .limit(1)
         )
@@ -108,7 +108,7 @@ class OrderRepository:
         payment_status: str | None = None,
         changed_by: str = "system",
     ) -> Order:
-        new_status = await self.get_status_by_name(status_name)
+        new_status = await self.get_status_by_slug(status_name)
         order.status_id = new_status.id
         if payment_status:
             order.payment_status = payment_status
@@ -127,12 +127,23 @@ class OrderRepository:
     async def update_payment(
         self,
         order: Order,
-        yookassa_payment_id: str,
-        yookassa_confirmation_url: str | None = None,
+        operation_id: str,
+        payment_link: str | None = None,
+        payment_token: str | None = None,
     ) -> Order:
-        order.yookassa_payment_id = yookassa_payment_id
-        if yookassa_confirmation_url:
-            order.yookassa_confirmation_url = yookassa_confirmation_url
+        order.operation_id = operation_id
+        if payment_link:
+            order.payment_link = payment_link
+        if payment_token:
+            order.payment_token = payment_token
         await self.session.commit()
         await self.session.refresh(order)
         return order
+
+    async def get_by_payment_token(self, payment_token: str) -> Order | None:
+        result = await self.session.execute(
+            select(Order)
+            .where(Order.payment_token == payment_token)
+            .options(selectinload(Order.client), selectinload(Order.status))
+        )
+        return result.scalar_one_or_none()

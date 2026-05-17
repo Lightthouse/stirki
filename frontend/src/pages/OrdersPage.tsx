@@ -7,14 +7,10 @@ import { STATUS_NAMES } from '../utils/statusNames'
 import type { OrderListItem, OrderDetail } from '../types'
 
 const ACTIVE_STATUSES = new Set([
-  'waiting_for_capture',
   'new',
   'courier_pickup',
   'picked_up',
   'washing',
-  'drying',
-  'ironing',
-  'packing',
   'courier_delivery',
 ])
 

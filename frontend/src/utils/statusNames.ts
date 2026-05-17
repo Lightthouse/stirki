@@ -3,15 +3,11 @@ export function getStatusName(status: string): string {
 }
 
 export const STATUS_NAMES: Record<string, string> = {
-  waiting_for_capture: 'Ожидает оплаты',
   new: 'Новый',
-  courier_pickup: 'Курьер забирает',
-  picked_up: 'Забран',
-  washing: 'Стирка',
-  drying: 'Сушка',
-  ironing: 'Глажка',
-  packing: 'Упаковка',
-  courier_delivery: 'Доставка',
-  delivered: 'Доставлен',
+  courier_pickup: 'В пути',
+  picked_up: 'Забрали',
+  washing: 'Чистим',
+  courier_delivery: 'Идём отдавать',
+  delivered: 'Доставлено',
   canceled: 'Отменён',
 }

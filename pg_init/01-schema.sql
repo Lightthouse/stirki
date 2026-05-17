@@ -23,7 +23,8 @@ create table clients (
 
 create table order_statuses (
     id serial primary key,
-    name text unique not null
+    name text unique not null,
+    slug text unique not null
 );
 
 create table services (
@@ -58,9 +59,11 @@ create table orders (
 
     is_free boolean not null default false,
     total_price_rub int not null check (total_price_rub >= 0),
-    payment_status text default 'pending' check (payment_status in ('pending', 'waiting_for_capture', 'succeeded', 'canceled')),
-    yookassa_payment_id text,
-    yookassa_confirmation_url text,
+    payment_status text default 'pending' check (payment_status in ('pending', 'succeeded', 'canceled')),
+    payment_token text unique,
+    payment_link_id text,
+    operation_id text,
+    payment_link text,
 
     created_at timestamptz default now(),
     updated_at timestamptz default now()
@@ -117,9 +120,10 @@ create table system_settings (
 
 insert into system_settings (id, free_tariff_is_available) values (1, true);
 
-insert into order_statuses (name) values
-('waiting_for_capture'), ('new'), ('courier_pickup'), ('picked_up'), ('washing'), ('drying'),
-('ironing'), ('packing'), ('courier_delivery'), ('delivered'), ('canceled');
+insert into order_statuses (name, slug) values
+('Новый','new'), ('В пути','courier_pickup'), ('Забрали','picked_up'),
+('Чистим','washing'),  ('Идём отдавать','courier_delivery'), ('Доставлено','delivered'),
+('Отменено','canceled');
 
 insert into services (name, slug, price_rub, is_active) values
 ('Стирка', 'base', 1490, true),

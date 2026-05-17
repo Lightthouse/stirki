@@ -16,6 +16,9 @@ wheels/
 
 .env
 
+http_requests
+
+
 # Docker volumes и данные БД
 postgres_data/
 postgresql/

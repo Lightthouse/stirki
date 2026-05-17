@@ -50,7 +50,7 @@ export function TariffCard({ selected, onSelect, onHintActivate, hintActive }: P
           >
             <div className="tariff-header">
               <span className="tariff-name"><i className="fas fa-bolt" /> Платно</span>
-              <span className="tariff-price">от 190 ₽</span>
+              <span className="tariff-price">от 390 ₽</span>
             </div>
             <ul className="tariff-features">
               <li>вещь или пакет</li>

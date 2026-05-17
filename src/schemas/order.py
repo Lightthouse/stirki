@@ -30,7 +30,7 @@ class OrderOut(BaseModel):
     services: list[str]
     total_price_rub: int
     payment_status: str
-    yookassa_confirmation_url: str | None
+    is_free: bool
     comment: str | None
     created_at: datetime
     updated_at: datetime

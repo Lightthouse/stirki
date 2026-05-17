@@ -1,0 +1,75 @@
+### Создание ссылки на qr код
+POST https://enter.tochka.com/uapi/sbp/v1.0/qr-code/merchant/<merchantId>/<accountId>
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{jwt_token}}
+
+{
+  "Data": {
+    "amount": 0,
+    "currency": "RUB",
+    "paymentPurpose": "Тестовая оплата",
+    "qrcType": "01",
+    "imageParams": {
+      "width": 0,
+      "height": 0,
+      "mediaType": "image/png"
+    },
+    "sourceName": "string",
+    "ttl": 0,
+    "redirectUrl": "string"
+  }
+}
+### Создание ссылки на оплату
+POST https://enter.tochka.com/uapi/acquiring/v1.0/payments
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{jwt_token}}
+
+{
+  "Data": {
+    "customerCode": "305737515",
+    "amount": "10.00",
+    "purpose": "Тестирование оплаты",
+    "paymentMode": [
+      "sbp",
+      "card"
+    ],
+    "saveCard": true,
+    "ttl": 10080
+  }
+}
+
+### Список зарегестрированных предприятий, для получения customer code
+GET https://enter.tochka.com/uapi/open-banking/v1.0/customers
+Accept: application/json
+Authorization: Bearer {{jwt_token}}
+
+
+#### Информация об операции
+GET https://enter.tochka.com/uapi/acquiring/v1.0/payments/afe14f25-4b45-411e-9960-af21e81dc657
+Accept: application/json
+Authorization: Bearer {{jwt_token}}
+
+
+### Создание ссылки на оплату 2
+POST https://enter.tochka.com/uapi/acquiring/v1.0/payments
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIyMmZlODdiM2VkMTI1MzE1YzI3YmRiYWU1Y2MzYThmNCIsInN1YiI6IjY1MWY1ZTE5LWViZDYtNDRiZS1iNzRhLWZjY2ZlYzljMmIyZiIsImN1c3RvbWVyX2NvZGUiOiIzMDU3OTE4NTkifQ.pIjwWTRDDAep_XR22uZ1wmAXKQSL_Cjm6rInerzMvNFlP20Fr9a6GVF-pnNqVimiQs9TucnwXaKDQfb2NsAdixzCiJc41v_f2IkvhzaRIG0f0QNaJABMdof9zADqiur8TWzJkabgSK82cl1rtO7qo5w735oqvtXl5achNVzhRKH7s55JR4ZClwKRLSbBTdo1rqCjP_-mlcNLPsiuj-BrRcPYJB9U81TgIsUfiK4qlQb5t2nHcA8B8AUEF7B6sOqD3bbM-Dg4Ia8b2vLAD6eMbdftfijgY0Gi7fEHMwmCb5xw1hFp9TzcU37Q_uQl0ViTrFnKowCklwHnVQk4irlmjtUpcfQ3wWFxONZL7AtRrw5P9KrZ62OT6_p47bfSl-qbTYZIq3eEC0GOQlN1Vrbry3NgqFeMB2i4cAFMkPwqFSQFXQa1VsXEtTALObBx91GblIhvz0zXsdEGwXXeSXzsEHuT9QRXypIwSmPfLHJk18KnLyuskE6lcHiHmIflEBPp
+
+{
+  "Data": {
+    "customerCode": "305737515",
+    "amount": "3.00",
+    "purpose": "Тестирование оплаты",
+    "redirectUrl": "http://localhost:5173/",
+    "paymentMode": [
+      "sbp",
+      "card"
+    ],
+    "saveCard": true,
+    "ttl": 10080,
+    "paymentLinkId": "test_link3"
+  }
+}

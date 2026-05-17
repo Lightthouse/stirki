@@ -42,7 +42,7 @@ body {
 /* App container */
 .app {
   width: 380px;
-  height: 700px;
+  height: min(700px, 100dvh);
   background: var(--bg);
   overflow: hidden;
   position: relative;
@@ -58,11 +58,11 @@ body {
   bottom: 0;
   width: 4px;
   background: var(--pink);
-  z-index: 2;
+  z-index: 300;
   pointer-events: none;
 }
 
-@media (max-width: 430px) {
+@media (max-width: 600px) {
   .app {
     width: 100%;
     height: 100vh;
@@ -577,7 +577,10 @@ body {
 }
 
 .add-btn {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   width: 100%;
   padding: 16px;
   font-weight: 700;
@@ -591,10 +594,6 @@ body {
   text-align: center;
   margin-top: 20px;
   transition: all 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
 }
 
 .add-btn:active {
@@ -1151,41 +1150,6 @@ body {
   color: var(--teal);
 }
 
-.payment-options {
-  background: var(--bg-light);
-  border-radius: 24px;
-  padding: 16px;
-  margin: 15px 0;
-}
-
-.payment-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--teal);
-  margin-bottom: 12px;
-}
-
-.payment-option {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 0;
-  cursor: pointer;
-  color: var(--text);
-}
-
-.payment-option input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--teal);
-  margin: 0;
-  cursor: pointer;
-}
-
-.payment-option span {
-  font-size: 14px;
-  flex: 1;
-}
 
 .legal-text {
   font-size: 11px;
@@ -1246,6 +1210,18 @@ body {
   align-items: center;
   padding: 20px 20px 24px;
   overflow-y: auto;
+}
+
+.status-screen::before {
+  content: '';
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--pink);
+  z-index: 300;
+  pointer-events: none;
 }
 
 .check-circle {
@@ -1576,6 +1552,25 @@ body {
 
 .modal-box a {
   color: var(--teal);
+}
+
+.support-contact-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(154, 174, 170, 0.1);
+  border-radius: 12px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 15px;
+}
+
+.support-contact-link i {
+  width: 20px;
+  text-align: center;
+  color: var(--teal);
+  font-size: 18px;
 }
 
 /* ========== ORDER LIST ========== */

@@ -53,10 +53,10 @@ class SmsAeroSettings(BaseSettings):
     )
 
 
-class YooKassaSettings(BaseSettings):
-    YOOKASSA_SHOP_ID: str = ""
-    YOOKASSA_SECRET_KEY: str = ""
-    YOOKASSA_RETURN_URL: str = "http://localhost:5173"
+class TochkaSettings(BaseSettings):
+    TOCHKA_TOKEN: str = ""
+    TOCHKA_CUSTOMER_CODE_BUISNESS: str = ""
+    TOCHKA_CUSTOMER_CODE_PERSONAL: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

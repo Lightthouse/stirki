@@ -3,6 +3,8 @@ import { getServices } from '../../api'
 import type { ServiceItem } from '../../types'
 import type { Tariff } from './TariffCard'
 
+const BASE_SLUGS = new Set(['base', 'piece'])
+
 export interface CartItem {
   type: 'bag' | 'piece'
   addons: string[]
@@ -43,13 +45,17 @@ interface Props {
 
 export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, onAddToCart, adsWatched, onWatchAd, addressValid }: Props) {
   const [prices, setPrices] = useState<Record<string, number>>(FALLBACK_PRICES)
+  const [availableDops, setAvailableDops] = useState<ServiceItem[]>([])
   const [addons, setAddons] = useState<Set<string>>(new Set())
   const [added, setAdded] = useState(false)
   const [needAds, setNeedAds] = useState(false)
   const [dopHint, setDopHint] = useState(false)
 
   useEffect(() => {
-    getServices().then((services) => setPrices(buildPriceMap(services)))
+    getServices().then((services) => {
+      setPrices(buildPriceMap(services))
+      setAvailableDops(services.filter((s) => !BASE_SLUGS.has(s.slug)))
+    })
   }, [])
 
   const isFree = tariff === 'free'
@@ -72,9 +78,7 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
 
   function calcPrice(): number {
     let price = serviceType === 'piece' ? (prices.piece ?? 390) : (prices.base ?? 1490)
-    if (addons.has('conditioner')) price += prices.conditioner ?? 0
-    if (addons.has('vacuum_pack')) price += prices.vacuum_pack ?? 0
-    if (addons.has('ironing')) price += prices.ironing ?? 0
+    for (const slug of addons) price += prices[slug] ?? 0
     return price
   }
 
@@ -95,11 +99,11 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
 
   const canSubmit = canAdd && !!tariff && addressValid
 
-  const DOPS = [
-    { key: 'conditioner', label: 'Кондиционер', price: prices.conditioner ?? 100 },
-    { key: 'vacuum_pack', label: 'Вакуумная упаковка', price: prices.vacuum_pack ?? 150 },
-    { key: 'ironing', label: 'Глажка', price: prices.ironing ?? 990 },
-  ]
+  const DOPS = availableDops.map((s) => ({
+    key: s.slug,
+    label: s.name,
+    price: prices[s.slug] ?? s.price_rub,
+  }))
 
   function getBtnLabel() {
     if (added) return 'Добавлено!'

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isAuthenticated, clearToken, clearPhone } from '../api/client'
-import { getMe, createOrder, getAdImages, trackAdView, getAddresses, getSystemSettings } from '../api'
+import { getMe, createOrder, getOrder, getAdImages, trackAdView, getAddresses, getSystemSettings, verifyPayment, getOrderByPaymentToken } from '../api'
 import { AddressCard } from '../components/swipe/AddressCard'
 import { TariffCard } from '../components/swipe/TariffCard'
 import { MachinesCard } from '../components/swipe/MachinesCard'
@@ -16,7 +16,7 @@ import { PrivacyModal } from '../components/ui/PrivacyModal'
 import type { AddressData } from '../components/swipe/AddressCard'
 import type { Tariff } from '../components/swipe/TariffCard'
 import type { CartItem } from '../components/swipe/ServicesCard'
-import type { ClientInfo, Street } from '../types'
+import type { ClientInfo, Street, OrderDetail } from '../types'
 
 export function OrderPage() {
   const navigate = useNavigate()
@@ -37,6 +37,8 @@ export function OrderPage() {
   const [orderTotal, setOrderTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
+
+  const [paymentOrder, setPaymentOrder] = useState<OrderDetail | null>(null)
   const [hasPreviousAddress, setHasPreviousAddress] = useState(false)
   const [addressError, setAddressError] = useState(false)
   const [adsWatched, setAdsWatched] = useState(0)
@@ -49,6 +51,7 @@ export function OrderPage() {
   const [freeTariffAvailable, setFreeTariffAvailable] = useState(true)
   const [freeTariffError, setFreeTariffError] = useState(false)
   const [activeOrderError, setActiveOrderError] = useState(false)
+  const [orderError, setOrderError] = useState(false)
 
   // Hint states per card
   const [hints, setHints] = useState({ address: false, tariff: false, machines: false })
@@ -84,6 +87,25 @@ export function OrderPage() {
     getAdImages().then(setAdImages).catch(() => {})
     getAddresses().then((res) => setStreets(res.streets)).catch(() => {})
     getSystemSettings().then((s) => setFreeTariffAvailable(s.free_tariff_is_available)).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('payment_token')
+    if (token) {
+      window.history.replaceState({}, '', '/order')
+      getOrderByPaymentToken(token)
+        .then((result) => {
+          verifyPayment(result.order_id).catch(() => {})
+          return getOrder(result.order_id)
+        })
+        .then((order) => {
+          setPaymentOrder(order)
+          setOrderId(order.id)
+          setShowStatus(true)
+        })
+        .catch(() => {})
+    }
   }, [])
 
   useEffect(() => {
@@ -185,10 +207,16 @@ export function OrderPage() {
         is_free: tariff === 'free',
       })
 
-      setOrderId(result.order_id)
-      setOrderTotal(result.total_price_rub)
       setLoading(false)
       closeCart()
+
+      if (result.confirmation_url) {
+        window.location.href = result.confirmation_url
+        return
+      }
+
+      setOrderId(result.order_id)
+      setOrderTotal(result.total_price_rub)
       setShowStatus(true)
     } catch (e) {
       setLoading(false)
@@ -210,9 +238,8 @@ export function OrderPage() {
         }, 1000)
       } else {
         console.error('Ошибка создания заказа:', e)
-        setOrderId(0)
-        setOrderTotal(cart.reduce((sum, item) => sum + item.price, 0))
-        setShowStatus(true)
+        setOrderError(true)
+        setTimeout(() => setOrderError(false), 4000)
       }
     }
   }
@@ -309,18 +336,22 @@ export function OrderPage() {
       {/* Status screen */}
       {showStatus && orderId !== null && (
         <StatusScreen
-          orderId={orderId}
-          totalPrice={orderTotal}
-          serviceType={serviceType}
-          addons={statusAddons}
-          isFree={tariff === 'free'}
+          orderId={paymentOrder?.id ?? orderId}
+          totalPrice={paymentOrder?.total_price_rub ?? orderTotal}
+          serviceType={paymentOrder?.washing_type ?? serviceType}
+          bagsNumber={paymentOrder?.bags_number ?? (cart.length || 1)}
+          addons={paymentOrder?.services ?? statusAddons}
+          isFree={paymentOrder ? paymentOrder.is_free : tariff === 'free'}
           addressDisplay={(() => {
-            const street = streets.find((s) => s.slug === address.street)
-            const streetName = street?.name ?? address.street
-            return `${streetName}, д. ${address.house}, кв. ${address.apartment}`
+            const src = paymentOrder ?? null
+            const streetSlug = src ? src.street : address.street
+            const house = src ? src.house : address.house
+            const apt = src ? src.apartment : address.apartment
+            const streetName = streets.find((s) => s.slug === streetSlug)?.name ?? streetSlug
+            return `${streetName}, д. ${house}, кв. ${apt}`
           })()}
-          comment={address.comment || undefined}
-          onClose={() => { setShowStatus(false); navigate('/') }}
+          comment={paymentOrder?.comment ?? (address.comment || undefined) ?? undefined}
+          onClose={() => { setShowStatus(false); setPaymentOrder(null); navigate('/') }}
         />
       )}
 
@@ -349,6 +380,13 @@ export function OrderPage() {
       {activeOrderError && (
         <div className="toast-error">
           <i className="fas fa-clock" /> У вас уже есть активный заказ
+        </div>
+      )}
+
+      {/* Generic order error toast */}
+      {orderError && (
+        <div className="toast-error">
+          <i className="fas fa-exclamation-circle" /> Не удалось создать заказ. Попробуйте ещё раз
         </div>
       )}
 

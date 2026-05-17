@@ -48,8 +48,12 @@ export async function getOrders() {
   return api.get<OrderListItem[]>('/orders')
 }
 
-export async function simulatePayment(orderId: number) {
-  return api.post<{ status: string; order_id: number }>(`/payments/test/simulate/${orderId}`)
+export async function verifyPayment(orderId: number) {
+  return api.post<{ status: string }>(`/payments/verify/${orderId}`)
+}
+
+export async function getOrderByPaymentToken(token: string) {
+  return api.get<PaymentResponse>(`/payments/by-token/${token}`)
 }
 
 export async function trackVisit(ref: string): Promise<void> {
