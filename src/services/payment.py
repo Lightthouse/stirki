@@ -12,7 +12,8 @@ class PaymentService:
         app_settings = AppSettings()
 
         self.customer_code = settings.TOCHKA_CUSTOMER_CODE_BUISNESS
-        self._frontend_url = app_settings.FRONTEND_URL
+        domain = app_settings.DOMAIN
+        self._frontend_url = f"https://{domain}" if "localhost" not in domain else f"http://{domain}"
 
         headers = {
             'Accept': 'application/json',

@@ -29,7 +29,7 @@ class AppSettings(BaseSettings):
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000
     APP_ENV: str = "development"
-    FRONTEND_URL: str = "http://localhost:5173"
+    DOMAIN: str = "localhost:5173"
     SECRET_KEY: str = "change-me-in-production"
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str = "change-me-in-production"
