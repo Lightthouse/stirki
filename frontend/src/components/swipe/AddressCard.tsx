@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { getAddresses } from '../../api'
 import type { Street } from '../../types'
 
@@ -6,6 +7,7 @@ export interface AddressData {
   street: string
   house: string
   entrance: number
+  floor: number
   apartment: number
   comment: string
 }
@@ -18,9 +20,52 @@ interface Props {
   hasPreviousAddress?: boolean
 }
 
+interface SheetConfig {
+  title: string
+  options: Array<{ label: string; value: string | number }>
+  field: keyof AddressData
+}
+
+function BottomSheet({
+  config,
+  current,
+  onSelect,
+  onClose,
+}: {
+  config: SheetConfig
+  current: string | number
+  onSelect: (field: keyof AddressData, value: string | number) => void
+  onClose: () => void
+}) {
+  const portal = document.querySelector('.app') ?? document.body
+
+  return createPortal(
+    <div className="addr-overlay" onClick={onClose}>
+      <div className="addr-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="addr-sheet-handle" />
+        <div className="addr-sheet-title">{config.title}</div>
+        <div className="addr-sheet-list">
+          {config.options.map((opt) => (
+            <div
+              key={opt.value}
+              className={`addr-sheet-option${opt.value === current ? ' selected' : ''}`}
+              onClick={() => { onSelect(config.field, opt.value); onClose() }}
+            >
+              {opt.label}
+            </div>
+          ))}
+        </div>
+        <button className="addr-sheet-close" onClick={onClose}>Закрыть</button>
+      </div>
+    </div>,
+    portal,
+  )
+}
+
 export function AddressCard({ data, onChange, onHintActivate, hintActive, hasPreviousAddress }: Props) {
   const [streets, setStreets] = useState<Street[]>([])
   const [houses, setHouses] = useState<string[]>([])
+  const [sheet, setSheet] = useState<SheetConfig | null>(null)
 
   useEffect(() => {
     getAddresses().then((res) => setStreets(res.streets))
@@ -46,88 +91,111 @@ export function AddressCard({ data, onChange, onHintActivate, hintActive, hasPre
     onHintActivate()
   }
 
+  function openStreetSheet() {
+    setSheet({
+      title: 'Улица',
+      options: streets.map((s) => ({ label: s.name, value: s.slug })),
+      field: 'street',
+    })
+  }
+
+  function openHouseSheet() {
+    setSheet({
+      title: 'Дом',
+      options: houses.map((h) => ({ label: h, value: h })),
+      field: 'house',
+    })
+  }
+
+  function openNumSheet(field: 'entrance' | 'floor' | 'apartment', title: string, max: number) {
+    setSheet({
+      title,
+      options: Array.from({ length: max }, (_, i) => ({ label: String(i + 1), value: i + 1 })),
+      field,
+    })
+  }
+
+  const streetName = streets.find((s) => s.slug === data.street)?.name ?? data.street
+
   return (
     <div className="swipe-card">
       <div className="card-content">
         <div className="form-card">
-          <h3 style={{ color: '#4F9DA7', marginBottom: hasPreviousAddress ? 4 : 16, fontSize: 16 }}>
-            <i className="fas fa-map-marker-alt" /> адрес доставки
-          </h3>
+          <div className="card-subtitle">ВАШ АДРЕС:</div>
           {hasPreviousAddress && (
             <div className="address-prefilled-hint">
               <i className="fas fa-history" /> подставлен адрес с прошлого заказа
             </div>
           )}
 
-          <div className="input-field">
-            <i className="fas fa-street-view" />
-            <select
-              value={data.street}
-              onChange={(e) => update('street', e.target.value)}
-            >
-              {streets.map((s) => (
-                <option key={s.slug} value={s.slug}>{s.name}</option>
-              ))}
-            </select>
+          <div className="address-field-plain">
+            <span className="address-field-label">Улица</span>
+            <div className="addr-picker" onClick={openStreetSheet}>
+              <span className="addr-picker-value">{streetName || '—'}</span>
+              <i className="fas fa-chevron-down addr-picker-chevron" />
+            </div>
           </div>
 
-          <div className="address-inline-group">
+          <div className="address-inline-group address-inline-group--4">
             <div className="address-inline-item">
               <span className="address-inline-label">Дом</span>
-              <div className="input-field address-inline-field">
-                <select
-                  value={data.house}
-                  onChange={(e) => update('house', e.target.value)}
-                >
-                  {houses.map((h) => (
-                    <option key={h} value={h}>{h}</option>
-                  ))}
-                </select>
+              <div className="addr-picker addr-picker-sm" onClick={openHouseSheet}>
+                <span className="addr-picker-value">{data.house || '—'}</span>
+                <i className="fas fa-chevron-down addr-picker-chevron" />
               </div>
             </div>
             <div className="address-inline-item">
               <span className="address-inline-label">Подъезд</span>
-              <div className="input-field address-inline-field">
-                <select
-                  value={data.entrance}
-                  onChange={(e) => update('entrance', Number(e.target.value))}
-                >
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
+              <div className="addr-picker addr-picker-sm" onClick={() => openNumSheet('entrance', 'Подъезд', 9)}>
+                <span className="addr-picker-value">{data.entrance}</span>
+                <i className="fas fa-chevron-down addr-picker-chevron" />
+              </div>
+            </div>
+            <div className="address-inline-item">
+              <span className="address-inline-label">Этаж</span>
+              <div className="addr-picker addr-picker-sm" onClick={() => openNumSheet('floor', 'Этаж', 30)}>
+                <span className="addr-picker-value">{data.floor}</span>
+                <i className="fas fa-chevron-down addr-picker-chevron" />
               </div>
             </div>
             <div className="address-inline-item">
               <span className="address-inline-label">Кв.</span>
-              <div className="input-field address-inline-field">
-                <select
-                  value={data.apartment}
-                  onChange={(e) => update('apartment', Number(e.target.value))}
-                >
-                  {Array.from({ length: 1000 }, (_, i) => i + 1).map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
+              <div className="addr-picker addr-picker-sm" onClick={() => openNumSheet('apartment', 'Квартира', 1000)}>
+                <span className="addr-picker-value">{data.apartment}</span>
+                <i className="fas fa-chevron-down addr-picker-chevron" />
               </div>
             </div>
           </div>
 
-          <div className="input-field">
-            <i className="fas fa-comment" />
+          <div className="address-field-plain">
+            <span className="address-field-label">Комментарий для курьера</span>
             <input
+              className="address-field-input"
               type="text"
-              placeholder="Комментарий для курьера"
+              placeholder="Код домофона, ориентир..."
               value={data.comment}
               onChange={(e) => update('comment', e.target.value)}
             />
           </div>
         </div>
 
-        <div className={`swipe-hint${hintActive ? ' active' : ''}`}>
-          <i className="fas fa-chevron-up" /> потяните вверх <i className="fas fa-chevron-up" />
+        <div className={`nav-indicator${hintActive ? ' nav-indicator--active' : ''}`}>
+          <div className="nav-line" />
+          <div className="nav-text">
+            <span>после заполнения</span>
+            <span>листайте вверх</span>
+          </div>
         </div>
       </div>
+
+      {sheet && (
+        <BottomSheet
+          config={sheet}
+          current={data[sheet.field]}
+          onSelect={update}
+          onClose={() => setSheet(null)}
+        />
+      )}
     </div>
   )
 }

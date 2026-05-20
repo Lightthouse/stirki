@@ -132,8 +132,12 @@ export function MachinesCard({ onHintActivate, hintActive, onMachineSelect, free
           ))}
         </div>
 
-        <div className={`swipe-hint${hintActive ? ' active' : ''}`}>
-          <i className="fas fa-chevron-up" /> потяните вверх <i className="fas fa-chevron-up" />
+        <div className={`nav-indicator${hintActive ? ' nav-indicator--active' : ''}`}>
+          <div className="nav-line" />
+          <div className="nav-text">
+            <span>после выбора машинки</span>
+            <span>листайте вверх</span>
+          </div>
         </div>
       </div>
     </div>

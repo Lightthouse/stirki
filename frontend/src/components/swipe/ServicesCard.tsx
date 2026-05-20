@@ -9,6 +9,7 @@ export interface CartItem {
   type: 'bag' | 'piece'
   addons: string[]
   price: number
+  basePrice: number
 }
 
 // piece всегда 1; bag free=1, bag paid=5
@@ -90,8 +91,9 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
       setTimeout(() => setNeedAds(false), 2500)
       return
     }
+    const basePrice = isFree ? (prices.base ?? 1490) : (serviceType === 'piece' ? (prices.piece ?? 390) : (prices.base ?? 1490))
     const price = isFree ? 0 : calcPrice()
-    onAddToCart({ type: isFree ? 'bag' : serviceType, addons: isFree ? [] : Array.from(addons), price })
+    onAddToCart({ type: isFree ? 'bag' : serviceType, addons: isFree ? [] : Array.from(addons), price, basePrice })
     setAddons(new Set())
     setAdded(true)
     setTimeout(() => setAdded(false), 1000)
@@ -135,11 +137,16 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
           </div>
         </div>
 
-        <div className="price-big">
-          {isFree
-            ? '0 ₽'
-            : `${serviceType === 'piece' ? (prices.piece ?? 390) : (prices.base ?? 1490)} ₽`}
-        </div>
+        {isFree ? (
+          <div className="price-free-block">
+            <span className="price-strikethrough">{prices.base ?? 1490} ₽</span>
+            <span className="price-big price-big--free">0 ₽</span>
+          </div>
+        ) : (
+          <div className="price-big">
+            {serviceType === 'piece' ? (prices.piece ?? 390) : (prices.base ?? 1490)} ₽
+          </div>
+        )}
         <div className="price-label">
           {isFree
             ? 'бесплатная стирка'

@@ -2,20 +2,21 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isAuthenticated } from '../api/client'
 import { requestCode, verifyCode, updateMe } from '../api'
+import { InfoModal } from '../components/ui/InfoModal'
+import { OfferModal } from '../components/ui/OfferModal'
+import { PrivacyModal } from '../components/ui/PrivacyModal'
+
 
 type Phase = 'phone' | 'code' | 'name'
 
 function formatName(raw: string): string {
-  const cleaned = raw.replace(/[^a-zA-Zа-яА-ЯёЁ ]/g, '')
+  const cleaned = raw.replace(/[^а-яА-ЯёЁ ]/g, '')
   return cleaned
     .split(' ')
     .map((word) => (word.length > 0 ? word[0].toUpperCase() + word.slice(1).toLowerCase() : ''))
     .join(' ')
 }
 
-function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-}
 
 function formatPhone(raw: string): string {
   let digits = raw.replace(/\D/g, '')
@@ -26,10 +27,10 @@ function formatPhone(raw: string): string {
   if (digits.length === 0) return ''
   const d = digits
   if (d.length <= 1) return '+' + d
-  if (d.length <= 4) return `+${d[0]} (${d.slice(1)}`
-  if (d.length <= 7) return `+${d[0]} (${d.slice(1, 4)}) ${d.slice(4)}`
-  if (d.length <= 9) return `+${d[0]} (${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`
-  return `+${d[0]} (${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7, 9)}-${d.slice(9)}`
+  if (d.length <= 4) return `+${d[0]} ${d.slice(1)}`
+  if (d.length <= 7) return `+${d[0]} ${d.slice(1, 4)} ${d.slice(4)}`
+  if (d.length <= 9) return `+${d[0]} ${d.slice(1, 4)} ${d.slice(4, 7)}-${d.slice(7)}`
+  return `+${d[0]} ${d.slice(1, 4)} ${d.slice(4, 7)}-${d.slice(7, 9)}-${d.slice(9)}`
 }
 
 export function LoginPage() {
@@ -38,11 +39,13 @@ export function LoginPage() {
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [timer, setTimer] = useState(0)
   const [smsCode, setSmsCode] = useState('')
+  const [showInfo, setShowInfo] = useState(false)
+  const [showOffer, setShowOffer] = useState(false)
+  const [showPrivacy, setShowPrivacy] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -118,14 +121,10 @@ export function LoginPage() {
       setError('Введите ваше имя')
       return
     }
-    if (email.trim() && !isValidEmail(email.trim())) {
-      setError('Введите корректный email')
-      return
-    }
     setLoading(true)
     setError('')
     try {
-      await updateMe({ name: name.trim(), email: email.trim() || undefined })
+      await updateMe({ name: name.trim() })
       navigate('/order')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка сохранения')
@@ -151,19 +150,33 @@ export function LoginPage() {
 
   return (
     <div className="start-screen">
+      <div className="app-header">
+        <div className="app-logo">
+          стирка<span>он</span>
+        </div>
+        <div className="header-actions">
+          <div className="header-icon" onClick={() => setShowInfo(true)} title="О сервисе">
+            <i className="fas fa-info-circle" />
+          </div>
+          <div className="header-icon" onClick={() => navigate('/')} title="На главную">
+            <i className="fas fa-home" />
+          </div>
+        </div>
+      </div>
       <div className="form-card">
-        <div className="logo-large">стирка<span className="accent">он</span></div>
-        <h3 style={{ textAlign: 'center', marginBottom: 20, fontSize: 18, color: '#1A2A2A' }}>
-          Вход / Регистрация
-        </h3>
-
         {phase === 'phone' && (
           <>
-            <div className="input-field">
-              <i className="fas fa-phone" />
+            <div className="hero-title-large" style={{ marginBottom: 28 }}>
+              Бесплатный сервис<br />
+              по стирке и глажке<br />
+              повседневной одежды<br />
+              с доставкой
+            </div>
+            <div className="field-label-text">Номер телефона</div>
+            <div className="input-underline">
               <input
                 type="tel"
-                placeholder="+7 (___) ___-__-__"
+                placeholder="+7 999 887-76-65"
                 value={phone}
                 onChange={(e) => setPhone(formatPhone(e.target.value))}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendCode()}
@@ -171,30 +184,36 @@ export function LoginPage() {
               />
             </div>
             {error && <p className="error-text">{error}</p>}
-            <button className="btn-pill" onClick={handleSendCode} disabled={loading}>
-              <i className="fas fa-paper-plane" />
-              {loading ? 'Отправка...' : 'Получить код по SMS'}
+            <button className="btn-pill btn-pill-accent" onClick={handleSendCode} disabled={loading}>
+              {loading ? 'Отправка...' : 'Получить код'}
             </button>
+            <div className="login-agreement">
+              Нажимая «Получить код», вы соглашаетесь с{' '}
+              <span className="link-text" onClick={() => setShowOffer(true)}>публичной офертой</span> и{' '}
+              <span className="link-text" onClick={() => setShowPrivacy(true)}>политикой обработки данных</span>
+            </div>
           </>
         )}
 
         {phase === 'code' && (
           <>
-            <div className="input-field" style={{ opacity: 0.6 }}>
-              <i className="fas fa-phone" />
-              <input type="tel" value={phone} disabled />
+            <div className="login-title">Подтверждение</div>
+            <div className="login-subtitle">
+              Введите код, отправленный на номер
+              <br/>
+              <span>{phone}</span>
             </div>
             {smsCode && (
-              <p style={{ textAlign: 'center', fontSize: 13, color: '#9AAEAA', marginTop: 4 }}>
+              <p style={{ fontSize: 13, color: '#9AAEAA', marginBottom: 8 }}>
                 код: {smsCode}
               </p>
             )}
-            <div className="input-field">
-              <i className="fas fa-key" />
+            <div className="field-label-text">Код из SMS</div>
+            <div className="input-underline">
               <input
                 type="text"
                 inputMode="numeric"
-                placeholder="Код из SMS"
+                placeholder="Введите код"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleVerifyCode()}
@@ -203,8 +222,7 @@ export function LoginPage() {
             </div>
             {error && <p className="error-text">{error}</p>}
             <button className="btn-pill btn-pill-accent" onClick={handleVerifyCode} disabled={loading}>
-              <i className="fas fa-check-circle" />
-              {loading ? 'Проверка...' : 'Подтвердить код'}
+              {loading ? 'Проверка...' : 'Подтвердить'}
             </button>
             <p className="timer-text">
               {timer > 0 ? (
@@ -220,31 +238,21 @@ export function LoginPage() {
 
         {phase === 'name' && (
           <>
-            <div className="input-field">
-              <i className="fas fa-user" />
+            <div className="login-title" style={{ marginBottom: 28 }}>Заполните данные</div>
+            <div className="field-label-text">Ваше имя</div>
+            <div className="input-underline">
               <input
                 type="text"
-                placeholder="Ваше имя"
+                placeholder="Александр"
                 value={name}
                 onChange={(e) => setName(formatName(e.target.value))}
                 onKeyDown={(e) => e.key === 'Enter' && handleNameDone()}
                 autoFocus
               />
             </div>
-            <div className="input-field">
-              <i className="fas fa-envelope" />
-              <input
-                type="email"
-                placeholder="Email для чека (необязательно)"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleNameDone()}
-              />
-            </div>
             {error && <p className="error-text">{error}</p>}
             <button className="btn-pill btn-pill-accent" onClick={handleNameDone} disabled={loading}>
-              <i className="fas fa-arrow-right" />
-              {loading ? 'Сохранение...' : 'Продолжить'}
+              {loading ? 'Сохранение...' : 'Сохранить'}
             </button>
           </>
         )}
@@ -253,6 +261,10 @@ export function LoginPage() {
           <i className="fas fa-arrow-left" /> Назад
         </button>
       </div>
+
+      {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
+      {showOffer && <OfferModal onClose={() => setShowOffer(false)} />}
+      {showPrivacy && <PrivacyModal onClose={() => setShowPrivacy(false)} />}
     </div>
   )
 }

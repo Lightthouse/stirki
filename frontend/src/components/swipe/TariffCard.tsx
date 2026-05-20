@@ -25,7 +25,7 @@ export function TariffCard({ selected, onSelect, onHintActivate, hintActive }: P
             onClick={(e) => choose('free', e)}
           >
             <div className="tariff-header">
-              <span className="tariff-name"><i className="fas fa-gift" /> Бесплатно</span>
+              <span className="tariff-name">Бесплатно</span>
               <span className="tariff-price">0 ₽</span>
             </div>
             <ul className="tariff-features">
@@ -38,9 +38,7 @@ export function TariffCard({ selected, onSelect, onHintActivate, hintActive }: P
               className={`tariff-btn${selected === 'free' ? ' selected' : ''}`}
               onClick={(e) => choose('free', e)}
             >
-              {selected === 'free'
-                ? <><i className="fas fa-check" /> Выбрано</>
-                : 'Выбрать бесплатный'}
+              {selected === 'free' ? 'Выбрано' : 'Выбрать бесплатный'}
             </button>
           </div>
 
@@ -49,7 +47,7 @@ export function TariffCard({ selected, onSelect, onHintActivate, hintActive }: P
             onClick={(e) => choose('paid', e)}
           >
             <div className="tariff-header">
-              <span className="tariff-name"><i className="fas fa-bolt" /> Платно</span>
+              <span className="tariff-name">Платно</span>
               <span className="tariff-price">от 390 ₽</span>
             </div>
             <ul className="tariff-features">
@@ -62,16 +60,18 @@ export function TariffCard({ selected, onSelect, onHintActivate, hintActive }: P
               className={`tariff-btn${selected === 'paid' ? ' selected' : ''}`}
               onClick={(e) => choose('paid', e)}
             >
-              {selected === 'paid'
-                ? <><i className="fas fa-check" /> Выбрано</>
-                : 'Выбрать платный'}
+              {selected === 'paid' ? 'Выбрано' : 'Выбрать платный'}
             </button>
           </div>
 
         </div>
 
-        <div className={`swipe-hint${hintActive ? ' active' : ''}`}>
-          <i className="fas fa-chevron-up" /> потяните вверх <i className="fas fa-chevron-up" />
+        <div className={`nav-indicator${hintActive ? ' nav-indicator--active' : ''}`}>
+          <div className="nav-line" />
+          <div className="nav-text">
+            <span>после выбора тарифа</span>
+            <span>листайте вверх</span>
+          </div>
         </div>
       </div>
     </div>

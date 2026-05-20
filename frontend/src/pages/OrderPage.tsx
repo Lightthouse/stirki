@@ -25,7 +25,7 @@ export function OrderPage() {
 
   const [_client, setClient] = useState<ClientInfo | null>(null)
   const [address, setAddress] = useState<AddressData>({
-    street: '', house: '', entrance: 1, apartment: 1, comment: '',
+    street: '', house: '', entrance: 1, floor: 1, apartment: 1, comment: '',
   })
   const [tariff, setTariff] = useState<Tariff | null>(null)
   const [serviceType, setServiceType] = useState<'bag' | 'piece'>('bag')
@@ -72,6 +72,7 @@ export function OrderPage() {
             street: c.street,
             house: c.house || '',
             entrance: c.entrance || 1,
+            floor: c.floor || 1,
             apartment: c.apartment || 1,
             comment: '',
           })
@@ -199,7 +200,7 @@ export function OrderPage() {
         house: address.house,
         apartment: address.apartment,
         entrance: address.entrance,
-        floor: 1,
+        floor: address.floor,
         washing_type: serviceType,
         bags_number: cart.length,
         services: Array.from(servicesSet),
@@ -309,9 +310,9 @@ export function OrderPage() {
         />
       </div>
 
-      {/* Cart mini — visible when cart has items */}
-      {cart.length > 0 && !showCart && (
-        <CartMini cart={cart} onClick={openCart} />
+      {/* Cart mini — always visible on services card */}
+      {!showCart && (
+        <CartMini cart={cart} isFree={tariff === 'free'} onClick={openCart} />
       )}
 
       {/* Overlay */}
@@ -323,6 +324,7 @@ export function OrderPage() {
       {/* Cart expanded */}
       <CartExpanded
         cart={cart}
+        isFree={tariff === 'free'}
         show={showCart}
         onClose={closeCart}
         onRemove={handleRemoveFromCart}

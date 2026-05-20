@@ -109,5 +109,5 @@ async def update_me(
     session: AsyncSession = Depends(get_db),
 ):
     repo = ClientRepository(session)
-    updated = await repo.update(client, name=body.name, email=body.email)
+    updated = await repo.update(client, name=body.name)
     return ClientOut.model_validate(updated)

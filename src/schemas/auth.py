@@ -20,7 +20,6 @@ class ClientOut(BaseModel):
     id: int
     phone: str
     name: str | None
-    email: str | None
     street: str
     house: str
     apartment: int
@@ -32,4 +31,3 @@ class ClientOut(BaseModel):
 
 class UpdateClientIn(BaseModel):
     name: str | None = None
-    email: str | None = None

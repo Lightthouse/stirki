@@ -5,11 +5,11 @@ import { getStatusName } from '../utils/statusNames'
 const STATUS_STEP_MAP: Record<string, number> = {
   new: 1,
   courier_pickup: 2,
-  picked_up: 2,
-  washing: 3,
-  courier_delivery: 4,
-  delivered: 4,
-  canceled: 4,
+  picked_up: 3,
+  washing: 4,
+  courier_delivery: 5,
+  delivered: 6,
+  canceled: 6,
 }
 
 const TERMINAL_STATUSES = new Set(['delivered', 'canceled'])
@@ -18,6 +18,7 @@ const ADDON_LABELS: Record<string, string> = {
   ironing: 'Глажка',
   conditioner: 'Кондиционер',
   vacuum_pack: 'Вакуумная упаковка',
+  color_catcher_sheets: 'Салфетки против окрашивания',
 }
 
 interface Props {
@@ -74,8 +75,10 @@ export function StatusScreen({ orderId, totalPrice, serviceType, bagsNumber, add
 
   const timelineSteps = [
     { icon: 'fa-check', label: 'Заказ принят' },
-    { icon: 'fa-person-walking', label: 'Курьер в пути' },
-    { icon: 'fa-soap', label: 'Стирка' },
+    { icon: 'fa-person-walking', label: 'В пути' },
+    { icon: 'fa-box', label: 'Забрали' },
+    { icon: 'fa-soap', label: 'Чистим' },
+    { icon: 'fa-truck', label: 'Идём отдавать' },
     { icon: 'fa-box-open', label: 'Доставлено' },
   ]
 

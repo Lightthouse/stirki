@@ -82,34 +82,39 @@ export function LandingPage() {
 
   return (
     <div className="start-screen">
+      <div className="app-header">
+        <div className="app-logo">
+          стирка<span>он</span>
+        </div>
+        <div className="header-actions">
+          <div className="header-icon" onClick={() => setShowInfo(true)} title="О сервисе">
+            <i className="fas fa-info-circle" />
+          </div>
+        </div>
+      </div>
       <div className="form-card">
-        <div className="logo-large">стирка<span className="accent">он</span></div>
-
         {!authenticated ? (
           <>
-            <div style={{ fontSize: 13, color: '#5A6E6E', marginBottom: 20, lineHeight: 1.8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <i className="fas fa-door-open" style={{ color: '#4F9DA7', width: 18 }} />
-                <span>Забираем у двери в обычном пакете</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <i className="fas fa-tshirt" style={{ color: '#4F9DA7', width: 18 }} />
-                <span>Индивидуальная стирка — только ваши вещи</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <i className="fas fa-truck" style={{ color: '#4F9DA7', width: 18 }} />
-                <span>Стираем, сушим, гладим и возвращаем</span>
-              </div>
+            <div className="hero-title-large">
+              Бесплатный сервис<br />
+              по стирке и глажке<br />
+              повседневной одежды<br />
+              с доставкой
             </div>
+            <ul className="hero-features-list">
+              <li>Забираем у вашей двери в обычном пакете, возвращаем в нашей фирменной упаковке</li>
+              <li>Индивидуальная стирка — каждый заказ в отдельной стиральной машине</li>
+              <li>Стираем, сушим, гладим и возвращаем в тот же день</li>
+            </ul>
             <button className="btn-pill btn-pill-accent" onClick={() => navigate('/login')}>
-              <i className="fas fa-sign-in-alt" /> Вход / Регистрация
+              Вход / Регистрация
             </button>
             <div className="small-text" style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span className="link-text" onClick={() => setShowInfo(true)}>
-                📖 Подробнее о сервисе
+                Подробнее о сервисе
               </span>
               <span className="link-text" onClick={() => setShowOffer(true)}>
-                📄 Публичная оферта
+                Публичная оферта
               </span>
             </div>
           </>
@@ -164,12 +169,12 @@ export function LandingPage() {
             <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
               <div className="small-text">
                 <span className="link-text" onClick={() => setShowInfo(true)}>
-                  📖 Подробнее о сервисе
+                  Подробнее о сервисе
                 </span>
               </div>
               <div className="small-text">
                 <span className="link-text" onClick={() => setShowOffer(true)}>
-                  📄 Публичная оферта
+                  Публичная оферта
                 </span>
               </div>
               <button className="btn-ghost" onClick={handleLogout}>

@@ -64,7 +64,7 @@ export async function trackAdView(image_path: string): Promise<void> {
   await api.post('/analytics/track-ad-view', { image_path })
 }
 
-export async function updateMe(data: { name?: string; email?: string }) {
+export async function updateMe(data: { name?: string }) {
   return api.patch<ClientInfo>('/auth/me', data)
 }
 
