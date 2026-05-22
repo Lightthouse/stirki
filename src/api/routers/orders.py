@@ -38,14 +38,35 @@ async def create_order(
             detail="У вас уже есть активный заказ",
         )
 
-    if body.is_free:
-        result = await session.execute(select(SystemSettingsModel).limit(1))
-        sys_settings = result.scalar_one_or_none()
-        if sys_settings is not None and not sys_settings.free_tariff_is_available:
+    result = await session.execute(select(SystemSettingsModel).limit(1))
+    sys_settings = result.scalar_one_or_none()
+
+    if body.is_free and sys_settings is not None and not sys_settings.free_tariff_is_available:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Бесплатный тариф временно недоступен",
+        )
+
+    if sys_settings is not None:
+        bag_limit = sys_settings.free_bag_slots if body.is_free else sys_settings.paid_bag_slots
+        piece_limit = sys_settings.free_piece_slots if body.is_free else sys_settings.paid_piece_slots
+        if body.bags_number > bag_limit:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Бесплатный тариф временно недоступен",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Превышен лимит пакетов: не более {bag_limit}",
             )
+        if body.pieces_number > piece_limit:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Превышен лимит вещей: не более {piece_limit}",
+            )
+
+    if body.bags_number > 0 and body.pieces_number > 0:
+        washing_type = 'mixed'
+    elif body.pieces_number > 0:
+        washing_type = 'piece'
+    else:
+        washing_type = 'bag'
 
     # Обновляем адрес клиента
     client_repo = ClientRepository(session)
@@ -64,7 +85,7 @@ async def create_order(
     base_price = await service_repo.get_base_price()
     pricing = PricingService(base_price, all_services)
 
-    total_price = 0 if body.is_free else pricing.calculate_order_price(body.bags_number, body.services, body.washing_type)
+    total_price = 0 if body.is_free else pricing.calculate_order_price(body.bags_number, body.pieces_number, body.services)
     service_flags = Order.flags_from_slugs(body.services)
 
     order_service = OrderService(session)
@@ -72,8 +93,9 @@ async def create_order(
     if body.is_free:
         order = await order_service.create(
             client=client,
-            washing_type=body.washing_type,
+            washing_type=washing_type,
             bags_number=body.bags_number,
+            pieces_number=body.pieces_number,
             services=service_flags,
             total_price_rub=total_price,
             status_name=OrderStatusName.NEW,
@@ -91,8 +113,9 @@ async def create_order(
         payment_token = str(uuid4())
         order = await order_service.create(
             client=client,
-            washing_type=body.washing_type,
+            washing_type=washing_type,
             bags_number=body.bags_number,
+            pieces_number=body.pieces_number,
             services=service_flags,
             total_price_rub=total_price,
             status_name=OrderStatusName.NEW,
@@ -145,11 +168,12 @@ async def list_orders(
     return [
         OrderListOut(
             id=o.id,
-            status=o.status.name,
+            status=o.status.slug,
             total_price_rub=o.total_price_rub,
             payment_status=o.payment_status,
             washing_type=o.washing_type,
             bags_number=o.bags_number,
+            pieces_number=o.pieces_number,
             created_at=o.created_at,
         )
         for o in orders
@@ -173,7 +197,7 @@ async def get_order(
 
     return OrderOut(
         id=order.id,
-        status=order.status.name,
+        status=order.status.slug,
         street=order.street,
         house=order.house,
         apartment=order.apartment,
@@ -181,6 +205,7 @@ async def get_order(
         floor=order.floor,
         washing_type=order.washing_type,
         bags_number=order.bags_number,
+        pieces_number=order.pieces_number,
         services=order.service_slugs,
         total_price_rub=order.total_price_rub,
         payment_status=order.payment_status,

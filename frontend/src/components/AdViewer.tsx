@@ -56,16 +56,17 @@ export function AdViewer({ images, onComplete, onAdViewed }: Props) {
 
   return (
     <div className="ad-viewer-overlay">
-      <div className="ad-viewer-box">
-        <img
-          className="ad-viewer-image"
-          src={selected[current]}
-          alt={`Реклама ${current + 1}`}
-        />
-        <div className="ad-viewer-footer">
-          <span className="ad-viewer-counter">{current + 1}/{selected.length}</span>
-          <span className="ad-viewer-timer">{timeLeft} сек</span>
-        </div>
+      <div className="ad-viewer-header">
+        <span className="app-logo">стирка<span>он</span></span>
+      </div>
+      <img
+        className="ad-viewer-image"
+        src={selected[current]}
+        alt={`Реклама ${current + 1}`}
+      />
+      <div className="ad-viewer-footer">
+        <span className="ad-viewer-counter">{current + 1}/{selected.length}</span>
+        <span className="ad-viewer-timer">{timeLeft} сек</span>
       </div>
     </div>
   )

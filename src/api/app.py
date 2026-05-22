@@ -72,7 +72,13 @@ async def get_system_settings(session: AsyncSession = Depends(get_db)):
     result = await session.execute(select(SystemSettingsModel).limit(1))
     settings = result.scalar_one_or_none()
     if settings is None:
-        return SystemSettingsSchema(free_tariff_is_available=True)
+        return SystemSettingsSchema(
+            free_tariff_is_available=True,
+            free_bag_slots=1,
+            free_piece_slots=0,
+            paid_bag_slots=5,
+            paid_piece_slots=1,
+        )
     return SystemSettingsSchema.model_validate(settings)
 
 

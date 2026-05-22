@@ -29,6 +29,7 @@ class OrderRepository:
         client: Client,
         washing_type: str,
         bags_number: int,
+        pieces_number: int,
         services: dict[str, bool],
         total_price_rub: int,
         status_name: str,
@@ -51,6 +52,7 @@ class OrderRepository:
             apartment=client.apartment,
             washing_type=washing_type,
             bags_number=bags_number,
+            pieces_number=pieces_number,
             **services,
         )
         client.total_orders += 1

@@ -11,10 +11,10 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/admin/],
       },
       manifest: {
-        name: 'Стирки ON',
-        short_name: 'СтиркиON',
+        name: 'Стирка ON',
+        short_name: 'СтиркаON',
         description: 'Сервис стирки и доставки одежды',
-        theme_color: '#2563eb',
+        theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',
         start_url: '/',

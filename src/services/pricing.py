@@ -12,12 +12,10 @@ class PricingService:
     def calculate_order_price(
         self,
         bags_number: int,
+        pieces_number: int,
         service_slugs: list[str],
-        washing_type: str = "bag",
     ) -> int:
         addon_total = sum(self._price_map.get(slug, 0) for slug in service_slugs)
-        if washing_type == "piece":
-            piece_price = self._price_map.get("piece", 390)
-            return piece_price + addon_total
-        return (self.base_price + addon_total) * bags_number
+        piece_price = self._price_map.get("piece", 390)
+        return self.base_price * bags_number + piece_price * pieces_number + addon_total
 

@@ -1,32 +1,15 @@
 import { useEffect, useState } from 'react'
 import { getOrder } from '../api'
-import { getStatusName } from '../utils/statusNames'
-
-const STATUS_STEP_MAP: Record<string, number> = {
-  new: 1,
-  courier_pickup: 2,
-  picked_up: 3,
-  washing: 4,
-  courier_delivery: 5,
-  delivered: 6,
-  canceled: 6,
-}
-
-const TERMINAL_STATUSES = new Set(['delivered', 'canceled'])
-
-const ADDON_LABELS: Record<string, string> = {
-  ironing: 'Глажка',
-  conditioner: 'Кондиционер',
-  vacuum_pack: 'Вакуумная упаковка',
-  color_catcher_sheets: 'Салфетки против окрашивания',
-}
+import { getStatusName, STATUS_STEP_MAP, TERMINAL_STATUSES } from '../utils/orderStatuses'
 
 interface Props {
   orderId: number
   totalPrice: number
-  serviceType: 'bag' | 'piece'
+  serviceType: 'bag' | 'piece' | 'mixed'
   bagsNumber: number
+  piecesNumber: number
   addons: string[]
+  serviceNames: Record<string, string>
   isFree: boolean
   addressDisplay: string
   comment?: string
@@ -41,7 +24,7 @@ function getTimeWindow(): string {
   return `Сегодня, ${fmt(start)}–${fmt(end)}`
 }
 
-export function StatusScreen({ orderId, totalPrice, serviceType, bagsNumber, addons, isFree, addressDisplay, comment, onClose }: Props) {
+export function StatusScreen({ orderId, totalPrice, bagsNumber, piecesNumber, addons, serviceNames, isFree, addressDisplay, comment, onClose }: Props) {
   const [statusStep, setStatusStep] = useState(1)
   const [currentStatus, setCurrentStatus] = useState('new')
   const [showSupport, setShowSupport] = useState(false)
@@ -57,19 +40,19 @@ export function StatusScreen({ orderId, totalPrice, serviceType, bagsNumber, add
       } catch {
         // ignore
       }
-    }, 10000)
+    }, 60_000)
     return () => clearInterval(poll)
   }, [orderId])
 
   const mainAddons = addons.filter((a) => a !== 'ironing')
   const hasIroning = addons.includes('ironing')
-  const serviceLabel = serviceType === 'piece'
-    ? 'Стирка вещи'
-    : bagsNumber > 1
-      ? `Стирка пакетов ×${bagsNumber}`
-      : 'Стирка пакета'
-  const serviceFull = serviceLabel + (hasIroning ? ' + глажка' : '')
-  const addonsLabel = mainAddons.map((a) => ADDON_LABELS[a] || a).join(', ')
+  const parts: string[] = []
+  if (bagsNumber > 0) parts.push(bagsNumber > 1 ? `Пакетов ×${bagsNumber}` : 'Пакет')
+  if (piecesNumber > 0) parts.push(piecesNumber > 1 ? `Вещей ×${piecesNumber}` : 'Вещь')
+  const serviceLabel = parts.join(' + ') || 'Стирка'
+  const ironingName = (serviceNames['ironing'] ?? 'Глажка').toLowerCase()
+  const serviceFull = serviceLabel + (hasIroning ? ` + ${ironingName}` : '')
+  const addonsLabel = mainAddons.map((a) => serviceNames[a] || a).join(', ')
   const paymentLabel = isFree ? 'Бесплатно (реклама)' : 'Онлайн картой'
   const timeWindow = getTimeWindow()
 

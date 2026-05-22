@@ -47,6 +47,7 @@ class BaserowService:
             "ID заказа": order.id,
             "Телефон клиента": client_phone,
             "Мешков": order.bags_number,
+            "Вещей": order.pieces_number,
             "Услуги": ", ".join(services),
             "Сумма (руб)": order.total_price_rub,
             "Статус": order.status.name if order.status else "",

@@ -51,6 +51,7 @@ class OrderAdmin(ModelView, model=Order):
         "status",
         Order.washing_type,
         Order.bags_number,
+        Order.pieces_number,
         Order.total_price_rub,
         Order.payment_status,
         Order.created_at,
@@ -73,6 +74,7 @@ class OrderAdmin(ModelView, model=Order):
         "status_id": "Статус ID",
         "washing_type": "Тип стирки",
         "bags_number": "Мешков",
+        "pieces_number": "Вещей",
         "ironing": "Глажка",
         "conditioner": "Кондиционер",
         "vacuum_pack": "Вакуум",
@@ -208,15 +210,31 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
     name_plural = "Системные настройки"
     icon = "fa-solid fa-sliders"
 
-    column_list = [SystemSettings.free_tariff_is_available]
+    column_list = [
+        SystemSettings.free_tariff_is_available,
+        SystemSettings.free_bag_slots,
+        SystemSettings.free_piece_slots,
+        SystemSettings.paid_bag_slots,
+        SystemSettings.paid_piece_slots,
+    ]
     column_labels = {
         "id": "ID",
         "free_tariff_is_available": "Бесплатный тариф доступен",
+        "free_bag_slots": "Бесплатный: пакеты (макс.)",
+        "free_piece_slots": "Бесплатный: вещи (макс.)",
+        "paid_bag_slots": "Платный: пакеты (макс.)",
+        "paid_piece_slots": "Платный: вещи (макс.)",
     }
 
     can_create = False
     can_delete = False
-    form_columns = [SystemSettings.free_tariff_is_available]
+    form_columns = [
+        SystemSettings.free_tariff_is_available,
+        SystemSettings.free_bag_slots,
+        SystemSettings.free_piece_slots,
+        SystemSettings.paid_bag_slots,
+        SystemSettings.paid_piece_slots,
+    ]
 
 
 class OrderStatusHistoryAdmin(ModelView, model=OrderStatusHistory):

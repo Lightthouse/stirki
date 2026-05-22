@@ -38,8 +38,8 @@ export interface CreateOrderRequest {
   apartment: number
   entrance: number
   floor: number
-  washing_type: 'bag' | 'piece'
   bags_number: number
+  pieces_number: number
   services: string[]
   comment?: string
   is_free: boolean
@@ -59,8 +59,9 @@ export interface OrderDetail {
   apartment: number
   entrance: number
   floor: number
-  washing_type: 'bag' | 'piece'
+  washing_type: 'bag' | 'piece' | 'mixed'
   bags_number: number
+  pieces_number: number
   services: string[]
   total_price_rub: number
   payment_status: string
@@ -75,13 +76,18 @@ export interface OrderListItem {
   status: string
   total_price_rub: number
   payment_status: string
-  washing_type: 'bag' | 'piece'
+  washing_type: 'bag' | 'piece' | 'mixed'
   bags_number: number
+  pieces_number: number
   created_at: string
 }
 
 export interface SystemSettings {
   free_tariff_is_available: boolean
+  free_bag_slots: number
+  free_piece_slots: number
+  paid_bag_slots: number
+  paid_piece_slots: number
 }
 
 export type Step =

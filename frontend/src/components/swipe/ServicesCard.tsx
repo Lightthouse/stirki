@@ -1,22 +1,33 @@
-import { useEffect, useState } from 'react'
-import { getServices } from '../../api'
+import { useState } from 'react'
 import type { ServiceItem } from '../../types'
 import type { Tariff } from './TariffCard'
 
 const BASE_SLUGS = new Set(['base', 'piece'])
 
+export interface AddonItem {
+  slug: string
+  name: string
+  price: number
+}
+
 export interface CartItem {
   type: 'bag' | 'piece'
-  addons: string[]
+  addons: AddonItem[]
   price: number
   basePrice: number
 }
 
-// piece всегда 1; bag free=1, bag paid=5
-function getMaxItems(tariff: Tariff | null, serviceType: 'bag' | 'piece'): number {
+export interface OrderLimits {
+  freeBagSlots: number
+  freePieceSlots: number
+  paidBagSlots: number
+  paidPieceSlots: number
+}
+
+function getMaxItems(tariff: Tariff | null, serviceType: 'bag' | 'piece', limits: OrderLimits): number {
   if (!tariff) return 0
-  if (serviceType === 'piece') return 1
-  return tariff === 'free' ? 1 : 5
+  if (tariff === 'free') return serviceType === 'bag' ? limits.freeBagSlots : limits.freePieceSlots
+  return serviceType === 'bag' ? limits.paidBagSlots : limits.paidPieceSlots
 }
 
 const FALLBACK_PRICES: Record<string, number> = {
@@ -42,26 +53,45 @@ interface Props {
   adsWatched: number
   onWatchAd: () => void
   addressValid: boolean
+  limits: OrderLimits
+  services: ServiceItem[]
 }
 
-export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, onAddToCart, adsWatched, onWatchAd, addressValid }: Props) {
-  const [prices, setPrices] = useState<Record<string, number>>(FALLBACK_PRICES)
-  const [availableDops, setAvailableDops] = useState<ServiceItem[]>([])
+export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, onAddToCart, adsWatched, onWatchAd, addressValid, limits, services }: Props) {
+  const prices = buildPriceMap(services)
+  const availableDops = services.filter((s) => !BASE_SLUGS.has(s.slug))
+
   const [addons, setAddons] = useState<Set<string>>(new Set())
   const [added, setAdded] = useState(false)
   const [needAds, setNeedAds] = useState(false)
   const [dopHint, setDopHint] = useState(false)
-
-  useEffect(() => {
-    getServices().then((services) => {
-      setPrices(buildPriceMap(services))
-      setAvailableDops(services.filter((s) => !BASE_SLUGS.has(s.slug)))
-    })
-  }, [])
+  const [limitHint, setLimitHint] = useState(false)
 
   const isFree = tariff === 'free'
-  const maxItems = getMaxItems(tariff, serviceType)
-  const canAdd = cart.length < maxItems
+  const maxBags = getMaxItems(tariff, 'bag', limits)
+  const maxPieces = getMaxItems(tariff, 'piece', limits)
+  const bagsInCart = cart.filter((i) => i.type === 'bag').length
+  const piecesInCart = cart.filter((i) => i.type === 'piece').length
+  const canAddBag = maxBags > 0 && bagsInCart < maxBags
+  const canAddPiece = maxPieces > 0 && piecesInCart < maxPieces
+  const bagDisabled = !!tariff && !canAddBag
+  const pieceDisabled = !!tariff && !canAddPiece
+  const canAdd = serviceType === 'bag' ? canAddBag : canAddPiece
+
+  function showLimitHint() {
+    setLimitHint(true)
+    setTimeout(() => setLimitHint(false), 2000)
+  }
+
+  function handleSwitchToBag() {
+    if (bagDisabled) { showLimitHint(); return }
+    onServiceTypeChange('bag')
+  }
+
+  function handleSwitchToPiece() {
+    if (pieceDisabled) { showLimitHint(); return }
+    onServiceTypeChange('piece')
+  }
 
   function toggleAddon(key: string) {
     if (isFree) {
@@ -93,7 +123,11 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
     }
     const basePrice = isFree ? (prices.base ?? 1490) : (serviceType === 'piece' ? (prices.piece ?? 390) : (prices.base ?? 1490))
     const price = isFree ? 0 : calcPrice()
-    onAddToCart({ type: isFree ? 'bag' : serviceType, addons: isFree ? [] : Array.from(addons), price, basePrice })
+    const addonItems: AddonItem[] = isFree ? [] : Array.from(addons).map((slug) => {
+      const svc = availableDops.find((s) => s.slug === slug)
+      return { slug, name: svc?.name ?? slug, price: prices[slug] ?? 0 }
+    })
+    onAddToCart({ type: serviceType, addons: addonItems, price, basePrice })
     setAddons(new Set())
     setAdded(true)
     setTimeout(() => setAdded(false), 1000)
@@ -123,15 +157,14 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
 
         <div className="service-switch">
           <div
-            className={`switch-opt${serviceType === 'piece' && !isFree ? ' active' : ''}`}
-            onClick={() => !isFree && onServiceTypeChange('piece')}
-            style={isFree ? { opacity: 0.4, pointerEvents: 'none' } : {}}
+            className={`switch-opt${serviceType === 'piece' ? ' active' : ''}${pieceDisabled ? ' unavailable' : ''}`}
+            onClick={handleSwitchToPiece}
           >
             Вещь
           </div>
           <div
-            className={`switch-opt${serviceType === 'bag' || isFree ? ' active' : ''}`}
-            onClick={() => onServiceTypeChange('bag')}
+            className={`switch-opt${serviceType === 'bag' ? ' active' : ''}${bagDisabled ? ' unavailable' : ''}`}
+            onClick={handleSwitchToBag}
           >
             Пакет
           </div>
@@ -199,6 +232,12 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
       {dopHint && (
         <div className="dop-hint">
           <i className="fas fa-lock" /> Доступно только в платном тарифе
+        </div>
+      )}
+
+      {limitHint && (
+        <div className="dop-hint">
+          <i className="fas fa-ban" /> Превышает лимиты тарифа
         </div>
       )}
     </div>

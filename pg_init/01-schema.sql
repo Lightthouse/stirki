@@ -47,8 +47,9 @@ create table orders (
     apartment int not null,
     comment text,
 
-    washing_type text not null default 'bag' check (washing_type in ('bag', 'piece')),
-    bags_number int default 1,
+    washing_type text not null default 'bag' check (washing_type in ('bag', 'piece', 'mixed')),
+    bags_number int not null default 0,
+    pieces_number int not null default 0,
     ironing boolean default false,
     conditioner boolean default false,
     vacuum_pack boolean default false,
@@ -115,13 +116,18 @@ create table qr_codes (
 create table system_settings (
     id int primary key default 1,
     free_tariff_is_available bool not null default true,
+    free_bag_slots int not null default 1,
+    free_piece_slots int not null default 0,
+    paid_bag_slots int not null default 5,
+    paid_piece_slots int not null default 1,
     constraint system_settings_singleton check (id = 1)
 );
 
-insert into system_settings (id, free_tariff_is_available) values (1, true);
+insert into system_settings (id, free_tariff_is_available, free_bag_slots, free_piece_slots, paid_bag_slots, paid_piece_slots)
+values (1, true, 1, 0, 5, 1);
 
 insert into order_statuses (name, slug) values
-('Новый','new'), ('В пути','courier_pickup'), ('Забрали','picked_up'),
+('Заказ принят','new'), ('В пути','courier_pickup'), ('Забрали','picked_up'),
 ('Чистим','washing'),  ('Идём отдавать','courier_delivery'), ('Доставлено','delivered'),
 ('Отменено','canceled');
 

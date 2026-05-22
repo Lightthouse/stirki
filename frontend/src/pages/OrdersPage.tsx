@@ -3,16 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { getOrders, getOrder } from '../api'
 import { isAuthenticated } from '../api/client'
 import { Button } from '../components/ui/Button'
-import { STATUS_NAMES } from '../utils/statusNames'
+import { STATUS_NAMES, ACTIVE_STATUSES } from '../utils/orderStatuses'
 import type { OrderListItem, OrderDetail } from '../types'
-
-const ACTIVE_STATUSES = new Set([
-  'new',
-  'courier_pickup',
-  'picked_up',
-  'washing',
-  'courier_delivery',
-])
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('ru-RU', {
@@ -112,10 +104,18 @@ export function OrdersPage() {
                           <span>Адрес:</span>
                           <span>{selectedOrder.street}, д. {selectedOrder.house}, кв. {selectedOrder.apartment}</span>
                         </div>
-                        <div className="confirm-row">
-                          <span>Пакетов:</span>
-                          <span>{selectedOrder.bags_number}</span>
-                        </div>
+                        {selectedOrder.bags_number > 0 && (
+                          <div className="confirm-row">
+                            <span>Пакетов:</span>
+                            <span>{selectedOrder.bags_number}</span>
+                          </div>
+                        )}
+                        {selectedOrder.pieces_number > 0 && (
+                          <div className="confirm-row">
+                            <span>Вещей:</span>
+                            <span>{selectedOrder.pieces_number}</span>
+                          </div>
+                        )}
                         <div className="confirm-row">
                           <span>Сумма:</span>
                           <span>{selectedOrder.total_price_rub} &#8381;</span>

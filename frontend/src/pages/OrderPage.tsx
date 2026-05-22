@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isAuthenticated, clearToken, clearPhone } from '../api/client'
-import { getMe, createOrder, getOrder, getAdImages, trackAdView, getAddresses, getSystemSettings, verifyPayment, getOrderByPaymentToken } from '../api'
+import { getMe, createOrder, getOrder, getAdImages, trackAdView, getAddresses, getSystemSettings, getServices, verifyPayment, getOrderByPaymentToken } from '../api'
 import { AddressCard } from '../components/swipe/AddressCard'
 import { TariffCard } from '../components/swipe/TariffCard'
 import { MachinesCard } from '../components/swipe/MachinesCard'
@@ -15,8 +15,8 @@ import { OfferModal } from '../components/ui/OfferModal'
 import { PrivacyModal } from '../components/ui/PrivacyModal'
 import type { AddressData } from '../components/swipe/AddressCard'
 import type { Tariff } from '../components/swipe/TariffCard'
-import type { CartItem } from '../components/swipe/ServicesCard'
-import type { ClientInfo, Street, OrderDetail } from '../types'
+import type { CartItem, OrderLimits } from '../components/swipe/ServicesCard'
+import type { ClientInfo, Street, OrderDetail, ServiceItem } from '../types'
 
 export function OrderPage() {
   const navigate = useNavigate()
@@ -48,13 +48,21 @@ export function OrderPage() {
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [streets, setStreets] = useState<Street[]>([])
   const [statusAddons, setStatusAddons] = useState<string[]>([])
+  const [statusBagsNumber, setStatusBagsNumber] = useState(0)
+  const [statusPiecesNumber, setStatusPiecesNumber] = useState(0)
+  const [services, setServices] = useState<ServiceItem[]>([])
   const [freeTariffAvailable, setFreeTariffAvailable] = useState(true)
   const [freeTariffError, setFreeTariffError] = useState(false)
+  const [orderLimits, setOrderLimits] = useState<OrderLimits>({
+    freeBagSlots: 1, freePieceSlots: 0, paidBagSlots: 5, paidPieceSlots: 1,
+  })
   const [activeOrderError, setActiveOrderError] = useState(false)
   const [orderError, setOrderError] = useState(false)
 
   // Hint states per card
   const [hints, setHints] = useState({ address: false, tariff: false, machines: false })
+
+  const serviceNames: Record<string, string> = Object.fromEntries(services.map((s) => [s.slug, s.name]))
 
   const showMachines = tariff === 'free'
 
@@ -86,8 +94,17 @@ export function OrderPage() {
         }
       })
     getAdImages().then(setAdImages).catch(() => {})
+    getServices().then(setServices).catch(() => {})
     getAddresses().then((res) => setStreets(res.streets)).catch(() => {})
-    getSystemSettings().then((s) => setFreeTariffAvailable(s.free_tariff_is_available)).catch(() => {})
+    getSystemSettings().then((s) => {
+      setFreeTariffAvailable(s.free_tariff_is_available)
+      setOrderLimits({
+        freeBagSlots: s.free_bag_slots,
+        freePieceSlots: s.free_piece_slots,
+        paidBagSlots: s.paid_bag_slots,
+        paidPieceSlots: s.paid_piece_slots,
+      })
+    }).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -167,10 +184,7 @@ export function OrderPage() {
   }
 
   function handleServiceTypeChange(type: 'bag' | 'piece') {
-    if (type !== serviceType) {
-      setServiceType(type)
-      setCart([])
-    }
+    setServiceType(type)
   }
 
   function openCart() {
@@ -191,8 +205,12 @@ export function OrderPage() {
       return
     }
     const servicesSet = new Set<string>()
-    cart.forEach((item) => item.addons.forEach((a) => servicesSet.add(a)))
+    cart.forEach((item) => item.addons.forEach((a) => servicesSet.add(a.slug)))
+    const bagsInCart = cart.filter((i) => i.type === 'bag').length
+    const piecesInCart = cart.filter((i) => i.type === 'piece').length
     setStatusAddons(Array.from(servicesSet))
+    setStatusBagsNumber(bagsInCart)
+    setStatusPiecesNumber(piecesInCart)
     setLoading(true)
     try {
       const result = await createOrder({
@@ -201,8 +219,8 @@ export function OrderPage() {
         apartment: address.apartment,
         entrance: address.entrance,
         floor: address.floor,
-        washing_type: serviceType,
-        bags_number: cart.length,
+        bags_number: bagsInCart,
+        pieces_number: piecesInCart,
         services: Array.from(servicesSet),
         comment: address.comment || undefined,
         is_free: tariff === 'free',
@@ -307,6 +325,8 @@ export function OrderPage() {
           adsWatched={adsWatched}
           onWatchAd={handleWatchAd}
           addressValid={!!(address.street && address.house)}
+          limits={orderLimits}
+          services={services}
         />
       </div>
 
@@ -340,9 +360,11 @@ export function OrderPage() {
         <StatusScreen
           orderId={paymentOrder?.id ?? orderId}
           totalPrice={paymentOrder?.total_price_rub ?? orderTotal}
-          serviceType={paymentOrder?.washing_type ?? serviceType}
-          bagsNumber={paymentOrder?.bags_number ?? (cart.length || 1)}
+          serviceType={paymentOrder?.washing_type ?? (statusBagsNumber > 0 && statusPiecesNumber > 0 ? 'mixed' : serviceType)}
+          bagsNumber={paymentOrder?.bags_number ?? statusBagsNumber}
+          piecesNumber={paymentOrder?.pieces_number ?? statusPiecesNumber}
           addons={paymentOrder?.services ?? statusAddons}
+          serviceNames={serviceNames}
           isFree={paymentOrder ? paymentOrder.is_free : tariff === 'free'}
           addressDisplay={(() => {
             const src = paymentOrder ?? null
