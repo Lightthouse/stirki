@@ -53,7 +53,6 @@ export function StatusScreen({ orderId, totalPrice, bagsNumber, piecesNumber, ad
   const ironingName = (serviceNames['ironing'] ?? 'Глажка').toLowerCase()
   const serviceFull = serviceLabel + (hasIroning ? ` + ${ironingName}` : '')
   const addonsLabel = mainAddons.map((a) => serviceNames[a] || a).join(', ')
-  const paymentLabel = isFree ? 'Бесплатно (реклама)' : 'Онлайн картой'
   const timeWindow = getTimeWindow()
 
   const timelineSteps = [
@@ -96,10 +95,6 @@ export function StatusScreen({ orderId, totalPrice, bagsNumber, piecesNumber, ad
               <div className="detail-value">{addonsLabel}</div>
             </div>
           )}
-          <div className="detail-row">
-            <div className="detail-label"><i className="fas fa-credit-card" /> Оплата</div>
-            <div className="detail-value"><span className="badge-payment">{paymentLabel}</span></div>
-          </div>
           <div className="detail-row">
             <div className="detail-label"><i className="fas fa-calendar-alt" /> Время</div>
             <div className="detail-value">{timeWindow}</div>

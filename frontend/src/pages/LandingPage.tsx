@@ -238,14 +238,20 @@ export function LandingPage() {
                 day: 'numeric', month: 'long', year: 'numeric',
                 hour: '2-digit', minute: '2-digit',
               })
-              const parts: string[] = []
-              if (selectedOrder.bags_number > 0) parts.push(selectedOrder.bags_number > 1 ? `Пакетов × ${selectedOrder.bags_number}` : 'Пакет')
-              if (selectedOrder.pieces_number > 0) parts.push(selectedOrder.pieces_number > 1 ? `Вещей × ${selectedOrder.pieces_number}` : 'Вещь')
-              const typeLabel = parts.join(' + ') || 'Стирка'
-              const countLabel = ''
-              const addons = selectedOrder.services
-                .filter((s) => s !== 'base' && s !== 'piece')
-                .map((s) => serviceNames[s] || s)
+              const priceMap = Object.fromEntries(services.map((s) => [s.slug, s.price_rub]))
+              const basePrice = priceMap['base'] ?? 1490
+              const piecePrice = priceMap['piece'] ?? 390
+              const addonSlugs = selectedOrder.services.filter((s) => s !== 'base' && s !== 'piece')
+              const addonDetails = addonSlugs.map((slug) => ({
+                slug,
+                name: serviceNames[slug] || slug,
+                price: priceMap[slug] ?? 0,
+              }))
+              const calculatedTotal =
+                selectedOrder.bags_number * basePrice +
+                selectedOrder.pieces_number * piecePrice +
+                addonDetails.reduce((sum, a) => sum + a.price, 0)
+              const isFree = selectedOrder.is_free
 
               return (
                 <>
@@ -261,20 +267,52 @@ export function LandingPage() {
 
                   <section>
                     <h4><i className="fas fa-box-open" style={{ marginRight: 6 }} />Состав</h4>
-                    <ul>
-                      <li style={{ fontWeight: 600, color: 'var(--text)' }}>
-                        {typeLabel}{countLabel}
-                      </li>
-                      {addons.map((name) => (
-                        <li key={name}>+ {name}</li>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {Array.from({ length: selectedOrder.bags_number }, (_, i) => (
+                        <div key={`bag-${i}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div>
+                            <div style={{ fontWeight: 600 }}><i className="fas fa-box-open" /> Пакет</div>
+                            <div style={{ fontSize: 12, color: 'var(--text-faint)' }}>
+                              базовая:{' '}
+                              {isFree ? <><s>{basePrice} ₽</s> 0 ₽</> : `${basePrice} ₽`}
+                            </div>
+                          </div>
+                          <span style={{ fontWeight: 600, color: 'var(--teal)' }}>
+                            {isFree ? '0 ₽' : `${basePrice} ₽`}
+                          </span>
+                        </div>
                       ))}
-                    </ul>
+                      {Array.from({ length: selectedOrder.pieces_number }, (_, i) => (
+                        <div key={`piece-${i}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div>
+                            <div style={{ fontWeight: 600 }}><i className="fas fa-tshirt" /> Вещь</div>
+                            <div style={{ fontSize: 12, color: 'var(--text-faint)' }}>
+                              базовая:{' '}
+                              {isFree ? <><s>{piecePrice} ₽</s> 0 ₽</> : `${piecePrice} ₽`}
+                            </div>
+                          </div>
+                          <span style={{ fontWeight: 600, color: 'var(--teal)' }}>
+                            {isFree ? '0 ₽' : `${piecePrice} ₽`}
+                          </span>
+                        </div>
+                      ))}
+                      {addonDetails.map((addon) => (
+                        <div key={addon.slug} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-secondary, var(--text-faint))' }}>
+                          <span>+ {addon.name}</span>
+                          <span style={{ fontWeight: 500 }}>
+                            {isFree ? <><s>{addon.price} ₽</s> 0 ₽</> : `+${addon.price} ₽`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </section>
 
                   <section>
                     <h4><i className="fas fa-ruble-sign" style={{ marginRight: 6 }} />Итого</h4>
                     <p style={{ fontWeight: 700, color: 'var(--teal)', fontSize: 18 }}>
-                      {selectedOrder.is_free ? 'Бесплатно' : `${selectedOrder.total_price_rub} ₽`}
+                      {isFree
+                        ? <><s style={{ color: 'var(--text-faint)', fontWeight: 400, fontSize: 15 }}>{calculatedTotal} ₽</s>{' '}0 ₽</>
+                        : `${selectedOrder.total_price_rub} ₽`}
                     </p>
                   </section>
 

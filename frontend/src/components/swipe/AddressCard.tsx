@@ -81,7 +81,7 @@ export function AddressCard({ data, onChange, onHintActivate, hintActive, hasPre
   useEffect(() => {
     const found = streets.find((s) => s.slug === data.street)
     setHouses(found?.houses || [])
-    if (found && found.houses.length > 0 && !data.house) {
+    if (found && found.houses.length > 0 && (!data.house || !found.houses.includes(data.house))) {
       onChange({ ...data, house: found.houses[0] })
     }
   }, [data.street, streets])
