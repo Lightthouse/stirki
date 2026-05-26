@@ -9,6 +9,8 @@ create table clients (
     is_verified boolean default false,
     verification_code text,
     verification_expires_at timestamptz,
+    verification_attempts int not null default 0,
+    verification_sent_at timestamptz,
 
     street text not null default '',
     house text not null default '',

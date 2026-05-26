@@ -2,6 +2,7 @@ import logging
 
 import httpx
 from src.settings import TochkaSettings, AppSettings
+from icecream import ic
 
 logger = logging.getLogger(__name__)
 
@@ -52,10 +53,10 @@ class PaymentService:
                 "paymentLinkId": payment_token,
             }
         }
-        print(payload)
+        ic(payload)
         response = self.client.post("payments", json=payload)
         response.raise_for_status()
-        print(response.url)
+        ic(response.url)
         data = response.json().get("Data", {})
         return {
             "operation_id": data["operationId"],

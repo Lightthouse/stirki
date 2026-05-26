@@ -1,11 +1,12 @@
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_current_client, get_db
 from src.models.client import Client
-from src.repositories.client import ClientRepository
+from src.repositories.client import ClientRepository, TooManyVerifyAttemptsError
 from src.schemas.auth import RequestCodeIn, VerifyCodeIn, AuthTokenOut, ClientOut, UpdateClientIn
 from src.services.auth import generate_verification_code
 from src.services.baserow import BaserowService
@@ -15,6 +16,12 @@ from src.settings import AppSettings, SmsAeroSettings
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Минимальный интервал между запросами кода на один номер (антифлуд / анти-SMS-бомбинг).
+# Намеренно чуть меньше 60-секундного таймера на фронте (LoginPage.startTimer(60)):
+# запас на джиттер setInterval / сетевую задержку, чтобы мгновенный клик по «Отправить
+# повторно» сразу после таймера не упирался в 429.
+RESEND_INTERVAL_SECONDS = 58
 
 _app_settings = AppSettings()
 _sms_settings = SmsAeroSettings()
@@ -34,6 +41,15 @@ async def request_code(
 ):
     repo = ClientRepository(session)
     client = await repo.get_by_phone(body.phone)
+
+    if client is not None and client.verification_sent_at is not None:
+        elapsed = (datetime.now(timezone.utc) - client.verification_sent_at).total_seconds()
+        if elapsed < RESEND_INTERVAL_SECONDS:
+            wait = max(1, int(RESEND_INTERVAL_SECONDS - elapsed))
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Повторно запросить код можно через {wait} сек",
+            )
 
     is_new = not client
     if is_new:
@@ -78,7 +94,13 @@ async def verify_code(
             detail="Клиент не найден",
         )
 
-    token = await repo.verify_code(client, body.code)
+    try:
+        token = await repo.verify_code(client, body.code)
+    except TooManyVerifyAttemptsError:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Слишком много попыток. Запросите новый код.",
+        )
     if not token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -8,7 +8,10 @@ interface Props {
 
 export function CartMini({ cart, isFree, onClick }: Props) {
   const total = cart.reduce((sum, item) => sum + item.price, 0)
-  const fullTotal = cart.reduce((sum, item) => sum + item.basePrice, 0)
+  const fullTotal = cart.reduce(
+    (sum, item) => sum + item.basePrice + item.addons.reduce((s, a) => s + a.price, 0),
+    0,
+  )
 
   return (
     <div className="cart-mini" onClick={onClick}>

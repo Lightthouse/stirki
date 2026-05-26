@@ -40,6 +40,7 @@ export function OrderPage() {
 
   const [paymentOrder, setPaymentOrder] = useState<OrderDetail | null>(null)
   const [hasPreviousAddress, setHasPreviousAddress] = useState(false)
+  const [profileLoaded, setProfileLoaded] = useState(false)
   const [addressError, setAddressError] = useState(false)
   const [adsWatched, setAdsWatched] = useState(0)
   const [showAdViewer, setShowAdViewer] = useState(false)
@@ -58,6 +59,7 @@ export function OrderPage() {
   })
   const [activeOrderError, setActiveOrderError] = useState(false)
   const [orderError, setOrderError] = useState(false)
+  const [paymentError, setPaymentError] = useState(false)
 
   // Hint states per card
   const [hints, setHints] = useState({ address: false, tariff: false, machines: false })
@@ -93,6 +95,7 @@ export function OrderPage() {
           navigate('/login')
         }
       })
+      .finally(() => setProfileLoaded(true))
     getAdImages().then(setAdImages).catch(() => {})
     getServices().then(setServices).catch(() => {})
     getAddresses().then((res) => setStreets(res.streets)).catch(() => {})
@@ -110,21 +113,37 @@ export function OrderPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const token = params.get('payment_token')
-    if (token) {
-      window.history.replaceState({}, '', '/order')
-      getOrderByPaymentToken(token)
-        .then((result) => {
-          verifyPayment(result.order_id).catch(() => {})
-          return getOrder(result.order_id)
-        })
-        .then((order) => {
-          setPaymentOrder(order)
-          setOrderId(order.id)
-          setShowStatus(true)
-        })
-        .catch(() => {})
-    }
+    if (!token) return
+    window.history.replaceState({}, '', '/order')
+    ;(async () => {
+      try {
+        const result = await getOrderByPaymentToken(token)
+        // Дожидаемся верификации: бэкенд проверяет платёж в Точке и обновляет статус заказа.
+        const verify = await verifyPayment(result.order_id).catch(() => ({ status: 'pending' }))
+        if (verify.status === 'rejected') {
+          setPaymentError(true)
+          setTimeout(() => setPaymentError(false), 4000)
+          return
+        }
+        const order = await getOrder(result.order_id)
+        setPaymentOrder(order)
+        setOrderId(order.id)
+        setShowStatus(true)
+      } catch {
+        // ignore
+      }
+    })()
   }, [])
+
+  useEffect(() => {
+    // Новый пользователь без сохранённого адреса: после загрузки профиля
+    // подставляем первую доступную улицу/дом (раньше это делал AddressCard,
+    // что вызывало гонку с загрузкой профиля).
+    if (profileLoaded && !hasPreviousAddress && streets.length > 0 && !address.street) {
+      const first = streets[0]
+      setAddress((a) => ({ ...a, street: first.slug, house: first.houses[0] || '' }))
+    }
+  }, [profileLoaded, hasPreviousAddress, streets, address.street])
 
   useEffect(() => {
     const container = swipeRef.current
@@ -295,6 +314,7 @@ export function OrderPage() {
       <div className="swipe-container" ref={swipeRef}>
         <AddressCard
           data={address}
+          streets={streets}
           onChange={setAddress}
           onHintActivate={() => activateHint('address')}
           hintActive={hints.address}
@@ -411,6 +431,13 @@ export function OrderPage() {
       {orderError && (
         <div className="toast-error">
           <i className="fas fa-exclamation-circle" /> Не удалось создать заказ. Попробуйте ещё раз
+        </div>
+      )}
+
+      {/* Payment rejected toast */}
+      {paymentError && (
+        <div className="toast-error">
+          <i className="fas fa-credit-card" /> Платёж не прошёл, попробуйте ещё раз
         </div>
       )}
 

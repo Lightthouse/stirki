@@ -9,6 +9,18 @@ from src.models.client import Client
 
 TOKEN_LIFETIME = timedelta(days=60)
 
+# Как часто максимум продлеваем срок жизни токена. Без этого порога продление
+# писалось бы в БД на каждый аутентифицированный запрос (включая частый polling).
+TOKEN_REFRESH_THRESHOLD = timedelta(days=1)
+
+# Сколько неверных вводов кода допускается, прежде чем код инвалидируется
+# и клиенту нужно запросить новый (защита от перебора 4-значного кода).
+MAX_VERIFY_ATTEMPTS = 5
+
+
+class TooManyVerifyAttemptsError(Exception):
+    """Превышен лимит попыток ввода кода — код инвалидирован, нужен новый."""
+
 
 class ClientRepository:
     def __init__(self, session: AsyncSession):
@@ -28,8 +40,15 @@ class ClientRepository:
         )
         client = result.scalar_one_or_none()
         if client:
-            client.auth_token_expires_at = datetime.now(timezone.utc) + TOKEN_LIFETIME
-            await self.session.commit()
+            new_expiry = datetime.now(timezone.utc) + TOKEN_LIFETIME
+            # Разница new_expiry - текущий expiry равна времени с последнего продления.
+            # Продлеваем (и пишем в БД) не чаще раза в сутки на клиента.
+            if (
+                client.auth_token_expires_at is None
+                or new_expiry - client.auth_token_expires_at >= TOKEN_REFRESH_THRESHOLD
+            ):
+                client.auth_token_expires_at = new_expiry
+                await self.session.commit()
         return client
 
     async def create(self, phone: str) -> Client:
@@ -44,15 +63,29 @@ class ClientRepository:
         client.verification_expires_at = datetime.now(timezone.utc) + timedelta(
             minutes=5
         )
+        client.verification_sent_at = datetime.now(timezone.utc)
+        client.verification_attempts = 0
         await self.session.commit()
 
     async def verify_code(self, client: Client, code: str) -> str | None:
-        """Verify code and return auth token if valid, None otherwise."""
+        """Verify code and return auth token if valid, None otherwise.
+
+        Raises TooManyVerifyAttemptsError when the attempt limit is exceeded.
+        """
         if not client.verification_code or not client.verification_expires_at:
             return None
-        if client.verification_code != code:
-            return None
         if datetime.now(timezone.utc) > client.verification_expires_at:
+            return None
+        if client.verification_code != code:
+            client.verification_attempts += 1
+            too_many = client.verification_attempts >= MAX_VERIFY_ATTEMPTS
+            if too_many:
+                # Инвалидируем код: дальше можно только запросить новый.
+                client.verification_code = None
+                client.verification_expires_at = None
+            await self.session.commit()
+            if too_many:
+                raise TooManyVerifyAttemptsError
             return None
 
         token = str(uuid.uuid4())
@@ -61,6 +94,7 @@ class ClientRepository:
         client.is_verified = True
         client.verification_code = None
         client.verification_expires_at = None
+        client.verification_attempts = 0
         await self.session.commit()
         return token
 

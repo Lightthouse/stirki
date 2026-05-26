@@ -23,6 +23,12 @@ class Client(Base):
     verification_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
+    verification_attempts: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+    verification_sent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
 
     street: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
     house: Mapped[str] = mapped_column(Text, nullable=False, server_default="")

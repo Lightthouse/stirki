@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { getAddresses } from '../../api'
 import type { Street } from '../../types'
 
 export interface AddressData {
@@ -14,6 +13,7 @@ export interface AddressData {
 
 interface Props {
   data: AddressData
+  streets: Street[]
   onChange: (data: AddressData) => void
   onHintActivate: () => void
   hintActive: boolean
@@ -62,22 +62,13 @@ function BottomSheet({
   )
 }
 
-export function AddressCard({ data, onChange, onHintActivate, hintActive, hasPreviousAddress }: Props) {
-  const [streets, setStreets] = useState<Street[]>([])
+export function AddressCard({ data, streets, onChange, onHintActivate, hintActive, hasPreviousAddress }: Props) {
   const [houses, setHouses] = useState<string[]>([])
   const [sheet, setSheet] = useState<SheetConfig | null>(null)
 
-  useEffect(() => {
-    getAddresses().then((res) => setStreets(res.streets))
-  }, [])
-
-  useEffect(() => {
-    if (streets.length > 0 && !data.street) {
-      const first = streets[0]
-      onChange({ ...data, street: first.slug, house: first.houses[0] || '' })
-    }
-  }, [streets])
-
+  // Авто-выбор первой улицы вынесен в OrderPage (после загрузки профиля),
+  // чтобы сохранённый адрес не перетирался гонкой загрузок. Здесь — только
+  // валидация дома при смене улицы.
   useEffect(() => {
     const found = streets.find((s) => s.slug === data.street)
     setHouses(found?.houses || [])

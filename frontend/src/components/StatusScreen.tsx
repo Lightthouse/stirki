@@ -31,7 +31,7 @@ export function StatusScreen({ orderId, totalPrice, bagsNumber, piecesNumber, ad
 
   useEffect(() => {
     if (orderId === 0) return
-    const poll = setInterval(async () => {
+    const fetchStatus = async () => {
       try {
         const order = await getOrder(orderId)
         setCurrentStatus(order.status)
@@ -40,7 +40,9 @@ export function StatusScreen({ orderId, totalPrice, bagsNumber, piecesNumber, ad
       } catch {
         // ignore
       }
-    }, 60_000)
+    }
+    const poll = setInterval(fetchStatus, 60_000)
+    fetchStatus() // сразу, без минутной «слепой» паузы
     return () => clearInterval(poll)
   }, [orderId])
 

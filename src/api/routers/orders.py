@@ -2,14 +2,13 @@ import logging
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_db, get_current_client
 from src.models.client import Client
 from src.models.order import Order
 from src.models.system_settings import SystemSettings as SystemSettingsModel
-from src.repositories.client import ClientRepository
 from src.repositories.order import OrderRepository
 from src.repositories.service import ServiceRepository
 from src.schemas.order import CreateOrderIn, OrderOut, OrderListOut
@@ -31,6 +30,11 @@ async def create_order(
     client: Client = Depends(get_current_client),
     session: AsyncSession = Depends(get_db),
 ):
+    # Сериализуем создание заказа по client_id: advisory-блокировка держится до коммита
+    # транзакции (вставки заказа ниже), поэтому конкурентный запрос дождётся её, увидит
+    # уже созданный заказ в has_active_order и получит 409 вместо дубля.
+    await session.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": client.id})
+
     order_repo = OrderRepository(session)
     if await order_repo.has_active_order(client.id):
         raise HTTPException(
@@ -68,16 +72,13 @@ async def create_order(
     else:
         washing_type = 'bag'
 
-    # Обновляем адрес клиента
-    client_repo = ClientRepository(session)
-    await client_repo.update(
-        client,
-        street=body.street,
-        house=body.house,
-        apartment=body.apartment,
-        entrance=body.entrance,
-        floor=body.floor,
-    )
+    # Обновляем адрес клиента в памяти — будет закоммичено вместе с заказом
+    # одним коммитом под advisory-блокировкой (см. выше).
+    client.street = body.street
+    client.house = body.house
+    client.apartment = body.apartment
+    client.entrance = body.entrance
+    client.floor = body.floor
 
     # Рассчитываем цену
     service_repo = ServiceRepository(session)
@@ -85,8 +86,14 @@ async def create_order(
     base_price = await service_repo.get_base_price()
     pricing = PricingService(base_price, all_services)
 
-    total_price = 0 if body.is_free else pricing.calculate_order_price(body.bags_number, body.pieces_number, body.services)
-    service_flags = Order.flags_from_slugs(body.services)
+    # Бесплатный тариф: допуслуги недоступны — игнорируем body.services,
+    # чтобы платные опции не прикреплялись к заказу за 0 ₽.
+    if body.is_free:
+        total_price = 0
+        service_flags = Order.flags_from_slugs([])
+    else:
+        total_price = pricing.calculate_order_price(body.bags_number, body.pieces_number, body.services)
+        service_flags = Order.flags_from_slugs(body.services)
 
     order_service = OrderService(session)
 
