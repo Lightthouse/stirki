@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { isAuthenticated, clearToken, clearPhone } from '../api/client'
-import { trackVisit, getOrders, getMe, getAddresses, getOrder, getServices } from '../api'
+import { trackVisit, getOrders, getMe, getAddresses, getOrderByPaymentToken, verifyPayment } from '../api'
 
 const POLL_INTERVAL_MS = 60_000
 import { InfoModal } from '../components/ui/InfoModal'
 import { OfferModal } from '../components/ui/OfferModal'
 import { PwaBanner } from '../components/PwaBanner'
-import type { OrderListItem, OrderDetail, ServiceItem, ClientInfo } from '../types'
+import type { OrderListItem, ClientInfo } from '../types'
 import { getStatusName, ACTIVE_STATUSES } from '../utils/orderStatuses'
 
 export function LandingPage() {
@@ -20,10 +20,7 @@ export function LandingPage() {
   const [orders, setOrders] = useState<OrderListItem[]>([])
   const [loadingOrders, setLoadingOrders] = useState(false)
   const [slugToStreet, setSlugToStreet] = useState<Record<string, string>>({})
-  const [services, setServices] = useState<ServiceItem[]>([])
-  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
-  const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null)
-  const [loadingDetail, setLoadingDetail] = useState(false)
+  const [paymentError, setPaymentError] = useState(false)
 
   const authenticated = isAuthenticated()
   const hasActiveOrders = orders.some((o) => ACTIVE_STATUSES.has(o.status))
@@ -41,7 +38,6 @@ export function LandingPage() {
         setSlugToStreet(map)
       })
       .catch(() => {})
-    getServices().then(setServices).catch(() => {})
 
     if (authenticated) {
       getMe().then(setClient).catch(() => {})
@@ -61,6 +57,28 @@ export function LandingPage() {
     return () => clearInterval(poll)
   }, [authenticated, hasActiveOrders])
 
+  // Возврат после оплаты: Точка редиректит на /?payment_token=…
+  useEffect(() => {
+    const token = searchParams.get('payment_token')
+    if (!token || !authenticated) return
+    window.history.replaceState({}, '', '/')
+    ;(async () => {
+      try {
+        const result = await getOrderByPaymentToken(token)
+        // Дожидаемся верификации: бэкенд проверяет платёж в Точке и обновляет статус заказа.
+        const verify = await verifyPayment(result.order_id).catch(() => ({ status: 'pending' }))
+        if (verify.status === 'rejected') {
+          setPaymentError(true)
+          setTimeout(() => setPaymentError(false), 4000)
+          return
+        }
+        navigate(`/order/${result.order_id}`)
+      } catch {
+        // ignore
+      }
+    })()
+  }, [])
+
   function handleOrder() {
     if (orders.some((o) => ACTIVE_STATUSES.has(o.status))) {
       setShowActiveOrderModal(true)
@@ -70,18 +88,8 @@ export function LandingPage() {
   }
 
   function handleOrderClick(orderId: number) {
-    setSelectedOrderId(orderId)
-    setSelectedOrder(null)
-    setLoadingDetail(true)
-    getOrder(orderId)
-      .then(setSelectedOrder)
-      .catch(() => {})
-      .finally(() => setLoadingDetail(false))
+    navigate(`/order/${orderId}`)
   }
-
-  const serviceNames: Record<string, string> = Object.fromEntries(
-    services.map((s) => [s.slug, s.name])
-  )
 
   function handleLogout() {
     clearToken()
@@ -220,122 +228,9 @@ export function LandingPage() {
           </div>
         </div>
       )}
-      {selectedOrderId !== null && (
-        <div className="modal-overlay" onClick={() => setSelectedOrderId(null)}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <h3><i className="fas fa-receipt" /> Заказ #{selectedOrderId}</h3>
-
-            {loadingDetail && (
-              <p style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: 13 }}>
-                Загрузка...
-              </p>
-            )}
-
-            {!loadingDetail && selectedOrder && (() => {
-              const streetName = slugToStreet[selectedOrder.street] ?? selectedOrder.street
-              const address = `${streetName}, д. ${selectedOrder.house}, кв. ${selectedOrder.apartment}`
-              const createdAt = new Date(selectedOrder.created_at).toLocaleString('ru-RU', {
-                day: 'numeric', month: 'long', year: 'numeric',
-                hour: '2-digit', minute: '2-digit',
-              })
-              const priceMap = Object.fromEntries(services.map((s) => [s.slug, s.price_rub]))
-              const basePrice = priceMap['base'] ?? 1490
-              const piecePrice = priceMap['piece'] ?? 390
-              const addonSlugs = selectedOrder.services.filter((s) => s !== 'base' && s !== 'piece')
-              const addonDetails = addonSlugs.map((slug) => ({
-                slug,
-                name: serviceNames[slug] || slug,
-                price: priceMap[slug] ?? 0,
-              }))
-              const calculatedTotal =
-                selectedOrder.bags_number * basePrice +
-                selectedOrder.pieces_number * piecePrice +
-                addonDetails.reduce((sum, a) => sum + a.price, 0)
-              const isFree = selectedOrder.is_free
-
-              return (
-                <>
-                  <section>
-                    <h4><i className="fas fa-map-pin" style={{ marginRight: 6 }} />Адрес</h4>
-                    <p>{address}</p>
-                  </section>
-
-                  <section>
-                    <h4><i className="fas fa-calendar-alt" style={{ marginRight: 6 }} />Оформлен</h4>
-                    <p>{createdAt}</p>
-                  </section>
-
-                  <section>
-                    <h4><i className="fas fa-box-open" style={{ marginRight: 6 }} />Состав</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {Array.from({ length: selectedOrder.bags_number }, (_, i) => (
-                        <div key={`bag-${i}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <div>
-                            <div style={{ fontWeight: 600 }}><i className="fas fa-box-open" /> Пакет</div>
-                            <div style={{ fontSize: 12, color: 'var(--text-faint)' }}>
-                              базовая:{' '}
-                              {isFree ? <><s>{basePrice} ₽</s> 0 ₽</> : `${basePrice} ₽`}
-                            </div>
-                          </div>
-                          <span style={{ fontWeight: 600, color: 'var(--teal)' }}>
-                            {isFree ? '0 ₽' : `${basePrice} ₽`}
-                          </span>
-                        </div>
-                      ))}
-                      {Array.from({ length: selectedOrder.pieces_number }, (_, i) => (
-                        <div key={`piece-${i}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <div>
-                            <div style={{ fontWeight: 600 }}><i className="fas fa-tshirt" /> Вещь</div>
-                            <div style={{ fontSize: 12, color: 'var(--text-faint)' }}>
-                              базовая:{' '}
-                              {isFree ? <><s>{piecePrice} ₽</s> 0 ₽</> : `${piecePrice} ₽`}
-                            </div>
-                          </div>
-                          <span style={{ fontWeight: 600, color: 'var(--teal)' }}>
-                            {isFree ? '0 ₽' : `${piecePrice} ₽`}
-                          </span>
-                        </div>
-                      ))}
-                      {addonDetails.map((addon) => (
-                        <div key={addon.slug} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-secondary, var(--text-faint))' }}>
-                          <span>+ {addon.name}</span>
-                          <span style={{ fontWeight: 500 }}>
-                            {isFree ? <><s>{addon.price} ₽</s> 0 ₽</> : `+${addon.price} ₽`}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-
-                  <section>
-                    <h4><i className="fas fa-ruble-sign" style={{ marginRight: 6 }} />Итого</h4>
-                    <p style={{ fontWeight: 700, color: 'var(--teal)', fontSize: 18 }}>
-                      {isFree
-                        ? <><s style={{ color: 'var(--text-faint)', fontWeight: 400, fontSize: 15 }}>{calculatedTotal} ₽</s>{' '}0 ₽</>
-                        : `${selectedOrder.total_price_rub} ₽`}
-                    </p>
-                  </section>
-
-                  {selectedOrder.comment && (
-                    <section>
-                      <h4><i className="fas fa-comment" style={{ marginRight: 6 }} />Комментарий</h4>
-                      <p>{selectedOrder.comment}</p>
-                    </section>
-                  )}
-                </>
-              )
-            })()}
-
-            {!loadingDetail && !selectedOrder && (
-              <p style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: 13 }}>
-                Не удалось загрузить данные
-              </p>
-            )}
-
-            <button className="btn-pill" onClick={() => setSelectedOrderId(null)}>
-              Закрыть
-            </button>
-          </div>
+      {paymentError && (
+        <div className="toast-error">
+          <i className="fas fa-credit-card" /> Платёж не прошёл, попробуйте ещё раз
         </div>
       )}
 

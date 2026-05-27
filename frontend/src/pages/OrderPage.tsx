@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isAuthenticated, clearToken, clearPhone } from '../api/client'
-import { getMe, createOrder, getOrder, getAdImages, trackAdView, getAddresses, getSystemSettings, getServices, verifyPayment, getOrderByPaymentToken } from '../api'
+import { getMe, createOrder, getAdImages, trackAdView, getAddresses, getSystemSettings, getServices } from '../api'
 import { AddressCard } from '../components/swipe/AddressCard'
 import { TariffCard } from '../components/swipe/TariffCard'
 import { MachinesCard } from '../components/swipe/MachinesCard'
 import { ServicesCard } from '../components/swipe/ServicesCard'
 import { CartMini } from '../components/CartMini'
 import { CartExpanded } from '../components/CartExpanded'
-import { StatusScreen } from '../components/StatusScreen'
 import { InfoModal } from '../components/ui/InfoModal'
 import { AdViewer } from '../components/AdViewer'
 import { OfferModal } from '../components/ui/OfferModal'
@@ -16,7 +15,7 @@ import { PrivacyModal } from '../components/ui/PrivacyModal'
 import type { AddressData } from '../components/swipe/AddressCard'
 import type { Tariff } from '../components/swipe/TariffCard'
 import type { CartItem, OrderLimits } from '../components/swipe/ServicesCard'
-import type { ClientInfo, Street, OrderDetail, ServiceItem } from '../types'
+import type { ClientInfo, Street, ServiceItem } from '../types'
 
 export function OrderPage() {
   const navigate = useNavigate()
@@ -32,13 +31,9 @@ export function OrderPage() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [showCart, setShowCart] = useState(false)
   const [overlayVisible, setOverlayVisible] = useState(false)
-  const [showStatus, setShowStatus] = useState(false)
-  const [orderId, setOrderId] = useState<number | null>(null)
-  const [orderTotal, setOrderTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
 
-  const [paymentOrder, setPaymentOrder] = useState<OrderDetail | null>(null)
   const [hasPreviousAddress, setHasPreviousAddress] = useState(false)
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [addressError, setAddressError] = useState(false)
@@ -48,9 +43,6 @@ export function OrderPage() {
   const [showOffer, setShowOffer] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [streets, setStreets] = useState<Street[]>([])
-  const [statusAddons, setStatusAddons] = useState<string[]>([])
-  const [statusBagsNumber, setStatusBagsNumber] = useState(0)
-  const [statusPiecesNumber, setStatusPiecesNumber] = useState(0)
   const [services, setServices] = useState<ServiceItem[]>([])
   const [freeTariffAvailable, setFreeTariffAvailable] = useState(true)
   const [freeTariffError, setFreeTariffError] = useState(false)
@@ -59,12 +51,9 @@ export function OrderPage() {
   })
   const [activeOrderError, setActiveOrderError] = useState(false)
   const [orderError, setOrderError] = useState(false)
-  const [paymentError, setPaymentError] = useState(false)
 
   // Hint states per card
   const [hints, setHints] = useState({ address: false, tariff: false, machines: false })
-
-  const serviceNames: Record<string, string> = Object.fromEntries(services.map((s) => [s.slug, s.name]))
 
   const showMachines = tariff === 'free'
 
@@ -108,31 +97,6 @@ export function OrderPage() {
         paidPieceSlots: s.paid_piece_slots,
       })
     }).catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const token = params.get('payment_token')
-    if (!token) return
-    window.history.replaceState({}, '', '/order')
-    ;(async () => {
-      try {
-        const result = await getOrderByPaymentToken(token)
-        // Дожидаемся верификации: бэкенд проверяет платёж в Точке и обновляет статус заказа.
-        const verify = await verifyPayment(result.order_id).catch(() => ({ status: 'pending' }))
-        if (verify.status === 'rejected') {
-          setPaymentError(true)
-          setTimeout(() => setPaymentError(false), 4000)
-          return
-        }
-        const order = await getOrder(result.order_id)
-        setPaymentOrder(order)
-        setOrderId(order.id)
-        setShowStatus(true)
-      } catch {
-        // ignore
-      }
-    })()
   }, [])
 
   useEffect(() => {
@@ -227,9 +191,6 @@ export function OrderPage() {
     cart.forEach((item) => item.addons.forEach((a) => servicesSet.add(a.slug)))
     const bagsInCart = cart.filter((i) => i.type === 'bag').length
     const piecesInCart = cart.filter((i) => i.type === 'piece').length
-    setStatusAddons(Array.from(servicesSet))
-    setStatusBagsNumber(bagsInCart)
-    setStatusPiecesNumber(piecesInCart)
     setLoading(true)
     try {
       const result = await createOrder({
@@ -253,9 +214,7 @@ export function OrderPage() {
         return
       }
 
-      setOrderId(result.order_id)
-      setOrderTotal(result.total_price_rub)
-      setShowStatus(true)
+      navigate(`/order/${result.order_id}`)
     } catch (e) {
       setLoading(false)
       closeCart()
@@ -375,30 +334,6 @@ export function OrderPage() {
         onShowPrivacy={() => setShowPrivacy(true)}
       />
 
-      {/* Status screen */}
-      {showStatus && orderId !== null && (
-        <StatusScreen
-          orderId={paymentOrder?.id ?? orderId}
-          totalPrice={paymentOrder?.total_price_rub ?? orderTotal}
-          serviceType={paymentOrder?.washing_type ?? (statusBagsNumber > 0 && statusPiecesNumber > 0 ? 'mixed' : serviceType)}
-          bagsNumber={paymentOrder?.bags_number ?? statusBagsNumber}
-          piecesNumber={paymentOrder?.pieces_number ?? statusPiecesNumber}
-          addons={paymentOrder?.services ?? statusAddons}
-          serviceNames={serviceNames}
-          isFree={paymentOrder ? paymentOrder.is_free : tariff === 'free'}
-          addressDisplay={(() => {
-            const src = paymentOrder ?? null
-            const streetSlug = src ? src.street : address.street
-            const house = src ? src.house : address.house
-            const apt = src ? src.apartment : address.apartment
-            const streetName = streets.find((s) => s.slug === streetSlug)?.name ?? streetSlug
-            return `${streetName}, д. ${house}, кв. ${apt}`
-          })()}
-          comment={paymentOrder?.comment ?? (address.comment || undefined) ?? undefined}
-          onClose={() => { setShowStatus(false); setPaymentOrder(null); navigate('/') }}
-        />
-      )}
-
       {/* Info modal */}
       {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
 
@@ -431,13 +366,6 @@ export function OrderPage() {
       {orderError && (
         <div className="toast-error">
           <i className="fas fa-exclamation-circle" /> Не удалось создать заказ. Попробуйте ещё раз
-        </div>
-      )}
-
-      {/* Payment rejected toast */}
-      {paymentError && (
-        <div className="toast-error">
-          <i className="fas fa-credit-card" /> Платёж не прошёл, попробуйте ещё раз
         </div>
       )}
 

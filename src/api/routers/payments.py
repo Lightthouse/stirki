@@ -46,7 +46,7 @@ async def verify_payment(
         if tochka_status == "APPROVED":
             await order_service.update_status(
                 order,
-                status_name=OrderStatusName.NEW,
+                status_name=OrderStatusName.COURIER_PICKUP,
                 payment_status=PaymentStatus.SUCCEEDED,
                 changed_by="tochka",
             )
@@ -69,13 +69,14 @@ async def verify_payment(
 @router.get("/by-token/{payment_token}", response_model=PaymentOut)
 async def get_order_by_payment_token(
     payment_token: str,
+    client: Client = Depends(get_current_client),
     session: AsyncSession = Depends(get_db),
 ):
     """Получить заказ по payment_token после редиректа с оплаты."""
     order_service = OrderService(session)
     order = await order_service.get_by_payment_token(payment_token)
 
-    if not order:
+    if not order or order.client_id != client.id:
         raise HTTPException(status_code=404, detail="Заказ не найден")
 
     return PaymentOut(

@@ -35,7 +35,7 @@ class PaymentService:
             purpose: str = "Оплата заказа на стирку",
     ) -> dict:
         """Создание ссылки на оплату через Точка Банк."""
-        return_url = f"{self._frontend_url}/order?payment_token={payment_token}"
+        return_url = f"{self._frontend_url}/?payment_token={payment_token}"
         payload = {
             "Data": {
                 "customerCode": self.customer_code,

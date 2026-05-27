@@ -129,7 +129,7 @@ insert into system_settings (id, free_tariff_is_available, free_bag_slots, free_
 values (1, true, 1, 0, 5, 1);
 
 insert into order_statuses (name, slug) values
-('Заказ принят','new'), ('В пути','courier_pickup'), ('Забрали','picked_up'),
+('В пути','courier_pickup'), ('Забрали','picked_up'),
 ('Чистим','washing'),  ('Идём отдавать','courier_delivery'), ('Доставлено','delivered'),
 ('Отменено','canceled');
 

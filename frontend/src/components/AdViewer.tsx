@@ -6,7 +6,7 @@ interface Props {
   onAdViewed?: (imagePath: string) => void
 }
 
-const AD_DURATION = 5
+const AD_DURATION = 1
 
 export function AdViewer({ images, onComplete, onAdViewed }: Props) {
   const onCompleteRef = useRef(onComplete)
@@ -17,7 +17,7 @@ export function AdViewer({ images, onComplete, onAdViewed }: Props) {
   const [selected] = useState<string[]>(() => {
     if (images.length === 0) return []
     const shuffled = [...images].sort(() => Math.random() - 0.5)
-    return shuffled.slice(0, 3)
+    return shuffled.slice(0, 1)
   })
   const [current, setCurrent] = useState(0)
   const [timeLeft, setTimeLeft] = useState(AD_DURATION)

@@ -105,13 +105,13 @@ async def create_order(
             pieces_number=body.pieces_number,
             services=service_flags,
             total_price_rub=total_price,
-            status_name=OrderStatusName.NEW,
+            status_name=OrderStatusName.COURIER_PICKUP,
             comment=body.comment,
             is_free=True,
         )
         await order_service.update_status(
             order,
-            status_name=OrderStatusName.NEW,
+            status_name=OrderStatusName.COURIER_PICKUP,
             payment_status=PaymentStatus.SUCCEEDED,
             changed_by="free-tariff",
         )
@@ -125,7 +125,7 @@ async def create_order(
             pieces_number=body.pieces_number,
             services=service_flags,
             total_price_rub=total_price,
-            status_name=OrderStatusName.NEW,
+            status_name=OrderStatusName.COURIER_PICKUP,
             comment=body.comment,
             is_free=False,
         )

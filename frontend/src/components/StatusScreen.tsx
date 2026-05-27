@@ -1,18 +1,12 @@
-import { useEffect, useState } from 'react'
-import { getOrder } from '../api'
-import { getStatusName, STATUS_STEP_MAP, TERMINAL_STATUSES } from '../utils/orderStatuses'
+import { useState } from 'react'
+import { getStatusName, STATUS_STEP_MAP, ACTIVE_STATUSES } from '../utils/orderStatuses'
+import type { OrderDetail } from '../types'
 
 interface Props {
-  orderId: number
-  totalPrice: number
-  serviceType: 'bag' | 'piece' | 'mixed'
-  bagsNumber: number
-  piecesNumber: number
-  addons: string[]
+  order: OrderDetail
   serviceNames: Record<string, string>
-  isFree: boolean
-  addressDisplay: string
-  comment?: string
+  servicePrices: Record<string, number>
+  streetName: string
   onClose: () => void
 }
 
@@ -24,109 +18,116 @@ function getTimeWindow(): string {
   return `Сегодня, ${fmt(start)}–${fmt(end)}`
 }
 
-export function StatusScreen({ orderId, totalPrice, bagsNumber, piecesNumber, addons, serviceNames, isFree, addressDisplay, comment, onClose }: Props) {
-  const [statusStep, setStatusStep] = useState(1)
-  const [currentStatus, setCurrentStatus] = useState('new')
+const timelineSteps = [
+  { icon: 'fa-person-walking', label: 'В пути' },
+  { icon: 'fa-box', label: 'Забрали' },
+  { icon: 'fa-soap', label: 'Чистим' },
+  { icon: 'fa-truck', label: 'Идём отдавать' },
+  { icon: 'fa-box-open', label: 'Доставлено' },
+]
+
+export function StatusScreen({ order, serviceNames, servicePrices, streetName, onClose }: Props) {
   const [showSupport, setShowSupport] = useState(false)
 
-  useEffect(() => {
-    if (orderId === 0) return
-    const fetchStatus = async () => {
-      try {
-        const order = await getOrder(orderId)
-        setCurrentStatus(order.status)
-        setStatusStep(STATUS_STEP_MAP[order.status] || 1)
-        if (TERMINAL_STATUSES.has(order.status)) clearInterval(poll)
-      } catch {
-        // ignore
-      }
-    }
-    const poll = setInterval(fetchStatus, 60_000)
-    fetchStatus() // сразу, без минутной «слепой» паузы
-    return () => clearInterval(poll)
-  }, [orderId])
+  const isCanceled = order.status === 'canceled'
+  const isActive = ACTIVE_STATUSES.has(order.status)
+  const statusStep = STATUS_STEP_MAP[order.status] || 1
+  const isFree = order.is_free
 
-  const mainAddons = addons.filter((a) => a !== 'ironing')
-  const hasIroning = addons.includes('ironing')
-  const parts: string[] = []
-  if (bagsNumber > 0) parts.push(bagsNumber > 1 ? `Пакетов ×${bagsNumber}` : 'Пакет')
-  if (piecesNumber > 0) parts.push(piecesNumber > 1 ? `Вещей ×${piecesNumber}` : 'Вещь')
-  const serviceLabel = parts.join(' + ') || 'Стирка'
-  const ironingName = (serviceNames['ironing'] ?? 'Глажка').toLowerCase()
-  const serviceFull = serviceLabel + (hasIroning ? ` + ${ironingName}` : '')
-  const addonsLabel = mainAddons.map((a) => serviceNames[a] || a).join(', ')
-  const timeWindow = getTimeWindow()
+  const basePrice = servicePrices['base'] ?? 1490
+  const piecePrice = servicePrices['piece'] ?? 390
+  const addonDetails = order.services
+    .filter((s) => s !== 'base' && s !== 'piece')
+    .map((slug) => ({ slug, name: serviceNames[slug] || slug, price: servicePrices[slug] ?? 0 }))
 
-  const timelineSteps = [
-    { icon: 'fa-check', label: 'Заказ принят' },
-    { icon: 'fa-person-walking', label: 'В пути' },
-    { icon: 'fa-box', label: 'Забрали' },
-    { icon: 'fa-soap', label: 'Чистим' },
-    { icon: 'fa-truck', label: 'Идём отдавать' },
-    { icon: 'fa-box-open', label: 'Доставлено' },
-  ]
+  const addressDisplay = `${streetName}, д. ${order.house}, кв. ${order.apartment}`
 
   return (
     <div className="status-screen">
-      <div className="check-circle">
-        <i className="fas fa-check" />
-      </div>
+      {isCanceled ? (
+        <>
+          <div className="check-circle" style={{ background: 'linear-gradient(135deg, #E26D7B, #c9505f)' }}>
+            <i className="fas fa-times" />
+          </div>
+          <div className="status-title">Заказ отменён</div>
+        </>
+      ) : isActive ? (
+        <>
+          <div className="check-circle">
+            <i className="fas fa-check" />
+          </div>
+          <div className="status-title">Заказ оформлен</div>
+        </>
+      ) : (
+        <div className="status-title">{getStatusName(order.status)}</div>
+      )}
 
-      <div className="status-title">Заказ принят</div>
       <div style={{ marginBottom: 4 }}>
         <span className="order-number">
-          <i className="fas fa-receipt" /> № {orderId > 0 ? `ST-${orderId}` : 'ST-—'}
+          <i className="fas fa-receipt" /> № ST-{order.id}
         </span>
       </div>
-      {orderId > 0 && (
-        <div className="status-current-label">
-          {getStatusName(currentStatus)}
-        </div>
+      {isActive && (
+        <div className="status-current-label">{getStatusName(order.status)}</div>
       )}
-      {!isFree && <div className="order-total"><i className="fas fa-ruble-sign" /> {totalPrice} ₽</div>}
+      {!isFree && <div className="order-total"><i className="fas fa-ruble-sign" /> {order.total_price_rub} ₽</div>}
 
       <div className="details-card">
         <div className="card-content">
-          <div className="detail-row">
-            <div className="detail-label"><i className="fas fa-tshirt" /> Услуга</div>
-            <div className="detail-value">{serviceFull}</div>
-          </div>
-          {mainAddons.length > 0 && (
+          {Array.from({ length: order.bags_number }, (_, i) => (
+            <div key={`bag-${i}`} className="detail-row">
+              <div className="detail-label"><i className="fas fa-box-open" /> Пакет</div>
+              <div className="detail-value">{isFree ? <><s>{basePrice} ₽</s> 0 ₽</> : `${basePrice} ₽`}</div>
+            </div>
+          ))}
+          {Array.from({ length: order.pieces_number }, (_, i) => (
+            <div key={`piece-${i}`} className="detail-row">
+              <div className="detail-label"><i className="fas fa-tshirt" /> Вещь</div>
+              <div className="detail-value">{isFree ? <><s>{piecePrice} ₽</s> 0 ₽</> : `${piecePrice} ₽`}</div>
+            </div>
+          ))}
+          {addonDetails.map((addon) => (
+            <div key={addon.slug} className="detail-row">
+              <div className="detail-label"><i className="fas fa-plus-circle" /> {addon.name}</div>
+              <div className="detail-value">{isFree ? <><s>{addon.price} ₽</s> 0 ₽</> : `+${addon.price} ₽`}</div>
+            </div>
+          ))}
+          {isActive && (
             <div className="detail-row">
-              <div className="detail-label"><i className="fas fa-plus-circle" /> Дополнительно</div>
-              <div className="detail-value">{addonsLabel}</div>
+              <div className="detail-label"><i className="fas fa-calendar-alt" /> Время</div>
+              <div className="detail-value">{getTimeWindow()}</div>
             </div>
           )}
-          <div className="detail-row">
-            <div className="detail-label"><i className="fas fa-calendar-alt" /> Время</div>
-            <div className="detail-value">{timeWindow}</div>
-          </div>
           <div className="detail-row">
             <div className="detail-label"><i className="fas fa-map-pin" /> Адрес</div>
             <div className="detail-value">{addressDisplay}</div>
           </div>
-          {comment && (
+          {order.comment && (
             <div className="detail-row">
               <div className="detail-label"><i className="fas fa-comment" /> Комментарий</div>
-              <div className="detail-value">{comment}</div>
+              <div className="detail-value">{order.comment}</div>
             </div>
           )}
         </div>
       </div>
 
-      <div className="small-card">
-        <p><i className="fas fa-truck-fast" /> Курьер приедет в течение 15 минут</p>
-        <p><i className="fas fa-door-open" /> Заберёт вещи у двери, вернёт чистыми через 3–5 часов</p>
-      </div>
+      {isActive && (
+        <div className="small-card">
+          <p><i className="fas fa-truck-fast" /> Курьер приедет в течение 15 минут</p>
+          <p><i className="fas fa-door-open" /> Заберёт вещи у двери, вернёт чистыми через 3–5 часов</p>
+        </div>
+      )}
 
-      <div className="status-timeline">
-        {timelineSteps.map((s, i) => (
-          <div key={i} className={`timeline-step${statusStep >= i + 1 ? ' active' : ''}`}>
-            <div className="step-icon"><i className={`fas ${s.icon}`} /></div>
-            <div className="step-label">{s.label}</div>
-          </div>
-        ))}
-      </div>
+      {!isCanceled && (
+        <div className="status-timeline">
+          {timelineSteps.map((s, i) => (
+            <div key={i} className={`timeline-step${statusStep === i + 1 ? ' active' : ''}`}>
+              <div className="step-icon"><i className={`fas ${s.icon}`} /></div>
+              <div className="step-label">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="status-actions">
         <button className="status-btn" onClick={() => setShowSupport(true)}>
@@ -157,9 +158,11 @@ export function StatusScreen({ orderId, totalPrice, bagsNumber, piecesNumber, ad
         </div>
       )}
 
-      <div className="status-note">
-        <i className="fas fa-info-circle" /> Вы можете закрыть сайт — мы пришлём уведомление, когда курьер будет рядом
-      </div>
+      {isActive && (
+        <div className="status-note">
+          <i className="fas fa-info-circle" /> Вы можете закрыть сайт — мы пришлём уведомление, когда курьер будет рядом
+        </div>
+      )}
     </div>
   )
 }
