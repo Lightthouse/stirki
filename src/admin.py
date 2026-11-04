@@ -1,8 +1,11 @@
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
-from sqladmin import Admin, ModelView
+from sqladmin import Admin, BaseView, ModelView, expose
 from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
+from wtforms.validators import NumberRange
 
 from src.addresses import STREETS_SLUG
 from src.database import async_session, engine
@@ -11,9 +14,30 @@ from src.models.client import Client
 from src.models.order import Order, OrderStatus, OrderStatusHistory
 from src.models.service import Service
 from src.models.system_settings import SystemSettings
+from src.services.schedule import MSK
 from src.settings import AppSettings
 
 _SLUG_TO_STREET = {slug: name for name, slug in STREETS_SLUG.items()}
+
+_TEMPLATES_DIR = Path(__file__).parent / "admin_templates"
+
+
+def _msk(value: datetime | None) -> str:
+    """Время из БД (UTC) → московское, в читаемом виде для сотрудников."""
+    return value.astimezone(MSK).strftime("%d.%m.%Y %H:%M") if value else "—"
+
+
+def _msk_formatters(*fields: str) -> dict:
+    return {f: (lambda m, a, f=f: _msk(getattr(m, f))) for f in fields}
+
+
+class HelpView(BaseView):
+    name = "Инструкция"
+    icon = "fa-solid fa-circle-question"
+
+    @expose("/help", methods=["GET"])
+    async def help_page(self, request: Request):
+        return await self.templates.TemplateResponse(request, "help.html")
 
 
 class AdminAuth(AuthenticationBackend):
@@ -44,7 +68,8 @@ class OrderAdmin(ModelView, model=Order):
 
     column_list = [
         Order.id,
-        Order.client_id,
+        Order.created_at,
+        "client",
         Order.street,
         Order.house,
         Order.apartment,
@@ -54,7 +79,6 @@ class OrderAdmin(ModelView, model=Order):
         Order.pieces_number,
         Order.total_price_rub,
         Order.payment_status,
-        Order.created_at,
     ]
     column_details_list = "__all__"
     column_searchable_list = [Order.street, Order.house]
@@ -64,6 +88,8 @@ class OrderAdmin(ModelView, model=Order):
     column_labels = {
         "id": "№",
         "client_id": "Клиент ID",
+        "client": "Клиент",
+        "history": "История",
         "street": "Улица",
         "house": "Дом",
         "apartment": "Кв.",
@@ -93,7 +119,10 @@ class OrderAdmin(ModelView, model=Order):
     column_formatters = {
         "street": lambda m, a: _SLUG_TO_STREET.get(m.street, m.street),
         "status": lambda m, a: str(m.status) if m.status else "—",
+        "client": lambda m, a: f"{m.client.name or '—'}, {m.client.phone}" if m.client else "—",
+        **_msk_formatters("created_at", "updated_at"),
     }
+    column_formatters_detail = column_formatters
 
     form_include_pk = False
     form_columns = [
@@ -159,7 +188,9 @@ class ClientAdmin(ModelView, model=Client):
     ]
     column_formatters = {
         "street": lambda m, a: _SLUG_TO_STREET.get(m.street, m.street),
+        **_msk_formatters("registered_at"),
     }
+    column_formatters_detail = column_formatters
 
     column_searchable_list = [Client.phone, Client.name]
     column_sortable_list = [Client.id, Client.registered_at, Client.total_orders]
@@ -216,6 +247,11 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
         SystemSettings.free_piece_slots,
         SystemSettings.paid_bag_slots,
         SystemSettings.paid_piece_slots,
+        SystemSettings.order_accept_from_hour,
+        SystemSettings.order_accept_to_hour,
+        SystemSettings.free_orders_per_address_per_day,
+        SystemSettings.ad_count,
+        SystemSettings.ad_duration_sec,
     ]
     column_labels = {
         "id": "ID",
@@ -224,6 +260,11 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
         "free_piece_slots": "Бесплатный: вещи (макс.)",
         "paid_bag_slots": "Платный: пакеты (макс.)",
         "paid_piece_slots": "Платный: вещи (макс.)",
+        "order_accept_from_hour": "Приём заказов с (час, МСК)",
+        "order_accept_to_hour": "Приём заказов до (час, МСК)",
+        "free_orders_per_address_per_day": "Бесплатных заказов на адрес в сутки",
+        "ad_count": "Реклама: картинок за просмотр",
+        "ad_duration_sec": "Реклама: секунд на картинку",
     }
 
     can_create = False
@@ -234,7 +275,19 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
         SystemSettings.free_piece_slots,
         SystemSettings.paid_bag_slots,
         SystemSettings.paid_piece_slots,
+        SystemSettings.order_accept_from_hour,
+        SystemSettings.order_accept_to_hour,
+        SystemSettings.free_orders_per_address_per_day,
+        SystemSettings.ad_count,
+        SystemSettings.ad_duration_sec,
     ]
+    form_args = {
+        "order_accept_from_hour": {"validators": [NumberRange(0, 23)]},
+        "order_accept_to_hour": {"validators": [NumberRange(1, 24)]},
+        "free_orders_per_address_per_day": {"validators": [NumberRange(0, 100)]},
+        "ad_count": {"validators": [NumberRange(0, 10)]},
+        "ad_duration_sec": {"validators": [NumberRange(1, 60)]},
+    }
 
 
 class OrderStatusHistoryAdmin(ModelView, model=OrderStatusHistory):
@@ -260,7 +313,9 @@ class OrderStatusHistoryAdmin(ModelView, model=OrderStatusHistory):
     }
     column_formatters = {
         "status": lambda m, a: str(m.status) if m.status else "—",
+        **_msk_formatters("changed_at"),
     }
+    column_formatters_detail = column_formatters
 
     can_create = False
     can_edit = False
@@ -330,6 +385,7 @@ class LandingVisitAdmin(ModelView, model=LandingVisit):
             else _SLUG_TO_STREET.get(m.ref_code.rsplit("-", 1)[0], m.ref_code) + ", " + m.ref_code.rsplit("-", 1)[-1]
             if "-" in m.ref_code else m.ref_code
         ),
+        **_msk_formatters("visited_at"),
     }
 
     can_create = False
@@ -349,7 +405,9 @@ def create_admin(app) -> Admin:
         engine,
         title="Стирки ON — Админка",
         authentication_backend=auth_backend,
+        templates_dir=str(_TEMPLATES_DIR),
     )
+    admin.add_base_view(HelpView)
     admin.add_view(OrderAdmin)
     admin.add_view(OrderStatusAdmin)
     admin.add_view(ClientAdmin)

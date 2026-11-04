@@ -16,7 +16,9 @@ wheels/
 
 .env
 
-http_requests
+http_requests/
+# черновики с ключами API — не коммитить
+sandbox.py
 
 
 # Docker volumes и данные БД

@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { isAuthenticated, clearToken, clearPhone } from '../api/client'
-import { trackVisit, getOrders, getMe, getAddresses, getOrderByPaymentToken, verifyPayment } from '../api'
-
-const POLL_INTERVAL_MS = 60_000
+import { trackVisit, getOrders, getMe, getAddresses, getOrderByPaymentToken, verifyPayment, getSystemSettings } from '../api'
 import { InfoModal } from '../components/ui/InfoModal'
 import { OfferModal } from '../components/ui/OfferModal'
 import { PwaBanner } from '../components/PwaBanner'
-import type { OrderListItem, ClientInfo } from '../types'
+import type { OrderListItem, ClientInfo, SystemSettings } from '../types'
+import { acceptHoursText } from '../types'
 import { getStatusName, ACTIVE_STATUSES } from '../utils/orderStatuses'
+
+const POLL_INTERVAL_MS = 60_000
 
 export function LandingPage() {
   const navigate = useNavigate()
@@ -21,6 +22,8 @@ export function LandingPage() {
   const [loadingOrders, setLoadingOrders] = useState(false)
   const [slugToStreet, setSlugToStreet] = useState<Record<string, string>>({})
   const [paymentError, setPaymentError] = useState(false)
+  const [settings, setSettings] = useState<SystemSettings | null>(null)
+  const [showClosedModal, setShowClosedModal] = useState(false)
 
   const authenticated = isAuthenticated()
   const hasActiveOrders = orders.some((o) => ACTIVE_STATUSES.has(o.status))
@@ -30,6 +33,8 @@ export function LandingPage() {
     if (ref && !authenticated) {
       trackVisit(ref).catch(() => {})
     }
+
+    getSystemSettings().then(setSettings).catch(() => {})
 
     getAddresses()
       .then((res) => {
@@ -82,6 +87,10 @@ export function LandingPage() {
   function handleOrder() {
     if (orders.some((o) => ACTIVE_STATUSES.has(o.status))) {
       setShowActiveOrderModal(true)
+      return
+    }
+    if (settings && !settings.is_accepting_orders) {
+      setShowClosedModal(true)
       return
     }
     navigate('/order')
@@ -158,6 +167,11 @@ export function LandingPage() {
             <button className="btn-pill btn-pill-accent" onClick={handleOrder}>
               <i className="fas fa-plus" /> Новый заказ
             </button>
+            {settings && (
+              <p style={{ textAlign: 'center', color: '#9AAEAA', fontSize: 12, marginTop: 8 }}>
+                Приём заказов ежедневно {acceptHoursText(settings)}
+              </p>
+            )}
 
             {loadingOrders ? (
               <p style={{ textAlign: 'center', color: '#9AAEAA', fontSize: 13, marginTop: 16 }}>
@@ -223,6 +237,17 @@ export function LandingPage() {
               У вас есть активный заказ. Оформить новый можно будет после его завершения.
             </p>
             <button className="btn-pill btn-pill-accent" onClick={() => setShowActiveOrderModal(false)}>
+              Понятно
+            </button>
+          </div>
+        </div>
+      )}
+      {showClosedModal && settings && (
+        <div className="modal-overlay" onClick={() => setShowClosedModal(false)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <h3><i className="fas fa-clock" /> Сейчас заказы не принимаются</h3>
+            <p>Мы принимаем заказы ежедневно {acceptHoursText(settings)}. Будем рады видеть вас в это время!</p>
+            <button className="btn-pill btn-pill-accent" onClick={() => setShowClosedModal(false)}>
               Понятно
             </button>
           </div>

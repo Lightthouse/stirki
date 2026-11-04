@@ -2,6 +2,7 @@ from enum import StrEnum
 
 
 class OrderStatusName(StrEnum):
+    WAITING_PAYMENT = "waiting_payment"
     COURIER_PICKUP = "courier_pickup"
     PICKED_UP = "picked_up"
     WASHING = "washing"

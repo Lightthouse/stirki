@@ -30,21 +30,31 @@ export function StatusScreen({ order, serviceNames, servicePrices, streetName, o
   const [showSupport, setShowSupport] = useState(false)
 
   const isCanceled = order.status === 'canceled'
+  const isWaitingPayment = order.status === 'waiting_payment'
   const isActive = ACTIVE_STATUSES.has(order.status)
   const statusStep = STATUS_STEP_MAP[order.status] || 1
   const isFree = order.is_free
 
   const basePrice = servicePrices['base'] ?? 1490
   const piecePrice = servicePrices['piece'] ?? 390
+  const positions = order.bags_number + order.pieces_number
+  // Допуслуги считаются за каждую позицию (как и на бэкенде, src/services/pricing.py)
   const addonDetails = order.services
     .filter((s) => s !== 'base' && s !== 'piece')
-    .map((slug) => ({ slug, name: serviceNames[slug] || slug, price: servicePrices[slug] ?? 0 }))
+    .map((slug) => ({ slug, name: serviceNames[slug] || slug, price: (servicePrices[slug] ?? 0) * positions }))
 
   const addressDisplay = `${streetName}, д. ${order.house}, кв. ${order.apartment}`
 
   return (
     <div className="status-screen">
-      {isCanceled ? (
+      {isWaitingPayment ? (
+        <>
+          <div className="check-circle" style={{ background: 'linear-gradient(135deg, #F2B84B, #d99a2b)' }}>
+            <i className="fas fa-credit-card" />
+          </div>
+          <div className="status-title">Ожидает оплаты</div>
+        </>
+      ) : isCanceled ? (
         <>
           <div className="check-circle" style={{ background: 'linear-gradient(135deg, #E26D7B, #c9505f)' }}>
             <i className="fas fa-times" />
@@ -118,7 +128,7 @@ export function StatusScreen({ order, serviceNames, servicePrices, streetName, o
         </div>
       )}
 
-      {!isCanceled && (
+      {!isCanceled && !isWaitingPayment && (
         <div className="status-timeline">
           {timelineSteps.map((s, i) => (
             <div key={i} className={`timeline-step${statusStep === i + 1 ? ' active' : ''}`}>
@@ -126,6 +136,17 @@ export function StatusScreen({ order, serviceNames, servicePrices, streetName, o
               <div className="step-label">{s.label}</div>
             </div>
           ))}
+        </div>
+      )}
+
+      {isWaitingPayment && (
+        <div className="small-card">
+          <p><i className="fas fa-info-circle" /> Курьер выедет сразу после оплаты. Если вы уже оплатили — статус обновится в течение минуты.</p>
+          {order.payment_link && (
+            <a className="btn-pill btn-pill-accent" href={order.payment_link} style={{ display: 'block', textAlign: 'center', marginTop: 12 }}>
+              <i className="fas fa-credit-card" /> Перейти к оплате
+            </a>
+          )}
         </div>
       )}
 

@@ -5,7 +5,7 @@ export const STATUS_NAMES: Record<string, string> = {
   courier_delivery: 'Идём отдавать',
   delivered: 'Доставлено',
   canceled: 'Отменён',
-  waiting_for_capture: 'Ожидание оплаты',
+  waiting_payment: 'Ожидает оплаты',
 }
 
 export function getStatusName(status: string): string {

@@ -11,8 +11,9 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./pg_init:/docker-entrypoint-initdb.d
+    # Только localhost: Docker обходит файрвол, и без 127.0.0.1 порт открыт в интернет.
     ports:
-      - "${DB_PORT}:5432"
+      - "127.0.0.1:${DB_PORT}:5432"
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${DB_USER}", "-d", "stirki"]
       interval: 5s
@@ -30,10 +31,8 @@ services:
     environment:
       DB_HOST: postgres
       APP_ENV: ${APP_ENV:-development}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
-      YOOKASSA_RETURN_URL: ${YOOKASSA_RETURN_URL:-http://localhost}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -74,7 +73,7 @@ services:
     container_name: stirki-adminer
     restart: unless-stopped
     ports:
-      - "${ADMINER_PORT:-8081}:8080"
+      - "127.0.0.1:${ADMINER_PORT:-8081}:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,7 +85,7 @@ services:
     container_name: stirki-baserow
     restart: unless-stopped
     ports:
-      - "${BASEROW_PORT:-8082}:80"
+      - "127.0.0.1:${BASEROW_PORT:-8082}:80"
     volumes:
       - baserow_data:/baserow/data
     environment:

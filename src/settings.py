@@ -81,3 +81,23 @@ class BaserowSettings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+
+class SmtpSettings(BaseSettings):
+    """Почта для уведомлений операторов о новых заказах.
+
+    Для mail.ru: SMTP_HOST=smtp.mail.ru, SMTP_PORT=465, SMTP_USER — ящик-отправитель,
+    SMTP_PASSWORD — «пароль для внешних приложений» (не обычный пароль от ящика).
+    """
+
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 465
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    NOTIFY_EMAIL: str = ""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )

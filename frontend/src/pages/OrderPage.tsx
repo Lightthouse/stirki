@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { isAuthenticated, clearToken, clearPhone } from '../api/client'
+import { isAuthenticated } from '../api/client'
 import { getMe, createOrder, getAdImages, trackAdView, getAddresses, getSystemSettings, getServices } from '../api'
 import { AddressCard } from '../components/swipe/AddressCard'
 import { TariffCard } from '../components/swipe/TariffCard'
@@ -14,8 +14,10 @@ import { OfferModal } from '../components/ui/OfferModal'
 import { PrivacyModal } from '../components/ui/PrivacyModal'
 import type { AddressData } from '../components/swipe/AddressCard'
 import type { Tariff } from '../components/swipe/TariffCard'
-import type { CartItem, OrderLimits } from '../components/swipe/ServicesCard'
+import { buildPriceMap } from '../components/swipe/ServicesCard'
+import type { AddonItem, CartItem, OrderLimits } from '../components/swipe/ServicesCard'
 import type { ClientInfo, Street, ServiceItem } from '../types'
+import { acceptHoursText } from '../types'
 
 export function OrderPage() {
   const navigate = useNavigate()
@@ -29,6 +31,7 @@ export function OrderPage() {
   const [tariff, setTariff] = useState<Tariff | null>(null)
   const [serviceType, setServiceType] = useState<'bag' | 'piece'>('bag')
   const [cart, setCart] = useState<CartItem[]>([])
+  const [addons, setAddons] = useState<Set<string>>(new Set())
   const [showCart, setShowCart] = useState(false)
   const [overlayVisible, setOverlayVisible] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -49,13 +52,22 @@ export function OrderPage() {
   const [orderLimits, setOrderLimits] = useState<OrderLimits>({
     freeBagSlots: 1, freePieceSlots: 0, paidBagSlots: 5, paidPieceSlots: 1,
   })
+  const [adSettings, setAdSettings] = useState({ count: 1, durationSec: 1 })
+  // null — настройки ещё не загружены; строка — текст часов приёма, если сейчас заказы не принимаются
+  const [closedHours, setClosedHours] = useState<string | null>(null)
   const [activeOrderError, setActiveOrderError] = useState(false)
-  const [orderError, setOrderError] = useState(false)
+  const [orderError, setOrderError] = useState<string | null>(null)
 
   // Hint states per card
   const [hints, setHints] = useState({ address: false, tariff: false, machines: false })
 
   const showMachines = tariff === 'free'
+  const prices = buildPriceMap(services)
+  const minPaidPrice = Math.min(prices.piece ?? 390, prices.base ?? 1490)
+  const adsRequired = Math.max(0, Math.min(adSettings.count, adImages.length))
+  const addonItems: AddonItem[] = tariff === 'free' ? [] : services
+    .filter((s) => addons.has(s.slug))
+    .map((s) => ({ slug: s.slug, name: s.name, price: s.price_rub }))
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -77,13 +89,7 @@ export function OrderPage() {
           })
         }
       })
-      .catch((e: Error) => {
-        if (e.message.includes('401')) {
-          clearToken()
-          clearPhone()
-          navigate('/login')
-        }
-      })
+      .catch(() => {})  // 401 обрабатывается в api/client.ts
       .finally(() => setProfileLoaded(true))
     getAdImages().then(setAdImages).catch(() => {})
     getServices().then(setServices).catch(() => {})
@@ -96,6 +102,8 @@ export function OrderPage() {
         paidBagSlots: s.paid_bag_slots,
         paidPieceSlots: s.paid_piece_slots,
       })
+      setAdSettings({ count: s.ad_count, durationSec: s.ad_duration_sec })
+      if (!s.is_accepting_orders) setClosedHours(acceptHoursText(s))
     }).catch(() => {})
   }, [])
 
@@ -135,7 +143,7 @@ export function OrderPage() {
 
   function handleAdComplete() {
     setShowAdViewer(false)
-    setAdsWatched(3)
+    setAdsWatched(adsRequired)
   }
 
   function handleTariffSelect(t: Tariff) {
@@ -143,6 +151,7 @@ export function OrderPage() {
     if (t === 'free') {
       setServiceType('bag')
       setCart([])
+      setAddons(new Set())
       setAdsWatched(0)
     }
     setTimeout(() => {
@@ -160,6 +169,15 @@ export function OrderPage() {
 
   function handleRemoveFromCart(idx: number) {
     setCart((prev) => prev.filter((_, i) => i !== idx))
+  }
+
+  function handleToggleAddon(slug: string) {
+    setAddons((prev) => {
+      const next = new Set(prev)
+      if (next.has(slug)) next.delete(slug)
+      else next.add(slug)
+      return next
+    })
   }
 
   function handleClearCart() {
@@ -187,8 +205,6 @@ export function OrderPage() {
       setTimeout(() => setAddressError(false), 3000)
       return
     }
-    const servicesSet = new Set<string>()
-    cart.forEach((item) => item.addons.forEach((a) => servicesSet.add(a.slug)))
     const bagsInCart = cart.filter((i) => i.type === 'bag').length
     const piecesInCart = cart.filter((i) => i.type === 'piece').length
     setLoading(true)
@@ -201,7 +217,7 @@ export function OrderPage() {
         floor: address.floor,
         bags_number: bagsInCart,
         pieces_number: piecesInCart,
-        services: Array.from(servicesSet),
+        services: addonItems.map((a) => a.slug),
         comment: address.comment || undefined,
         is_free: tariff === 'free',
       })
@@ -235,8 +251,13 @@ export function OrderPage() {
         }, 1000)
       } else {
         console.error('Ошибка создания заказа:', e)
-        setOrderError(true)
-        setTimeout(() => setOrderError(false), 4000)
+        // Бэкенд отдаёт понятные русские тексты (часы приёма, лимит бесплатных заказов, зона
+        // обслуживания); технические ошибки вида «HTTP 500» заменяем общим текстом.
+        const msg = e instanceof Error && !e.message.startsWith('HTTP ') && e.message !== 'Failed to fetch'
+          ? e.message
+          : 'Не удалось создать заказ. Попробуйте ещё раз'
+        setOrderError(msg)
+        setTimeout(() => setOrderError(null), 5000)
       }
     }
   }
@@ -280,6 +301,9 @@ export function OrderPage() {
           hasPreviousAddress={hasPreviousAddress}
         />
         <TariffCard
+          limits={orderLimits}
+          minPaidPrice={minPaidPrice}
+          adsRequired={adsRequired}
           selected={tariff}
           onSelect={handleTariffSelect}
           onHintActivate={() => activateHint('tariff')}
@@ -302,7 +326,10 @@ export function OrderPage() {
           cart={cart}
           onAddToCart={handleAddToCart}
           adsWatched={adsWatched}
+          adsRequired={adsRequired}
           onWatchAd={handleWatchAd}
+          addons={addons}
+          onToggleAddon={handleToggleAddon}
           addressValid={!!(address.street && address.house)}
           limits={orderLimits}
           services={services}
@@ -311,7 +338,7 @@ export function OrderPage() {
 
       {/* Cart mini — always visible on services card */}
       {!showCart && (
-        <CartMini cart={cart} isFree={tariff === 'free'} onClick={openCart} />
+        <CartMini cart={cart} addons={addonItems} isFree={tariff === 'free'} onClick={openCart} />
       )}
 
       {/* Overlay */}
@@ -323,6 +350,7 @@ export function OrderPage() {
       {/* Cart expanded */}
       <CartExpanded
         cart={cart}
+        addons={addonItems}
         isFree={tariff === 'free'}
         show={showCart}
         onClose={closeCart}
@@ -365,7 +393,20 @@ export function OrderPage() {
       {/* Generic order error toast */}
       {orderError && (
         <div className="toast-error">
-          <i className="fas fa-exclamation-circle" /> Не удалось создать заказ. Попробуйте ещё раз
+          <i className="fas fa-exclamation-circle" /> {orderError}
+        </div>
+      )}
+
+      {/* Вне часов приёма заказов */}
+      {closedHours && (
+        <div className="modal-overlay">
+          <div className="modal-box">
+            <h3><i className="fas fa-clock" /> Сейчас заказы не принимаются</h3>
+            <p>Мы принимаем заказы ежедневно {closedHours}. Будем рады видеть вас в это время!</p>
+            <button className="btn-pill btn-pill-accent" onClick={() => navigate('/')}>
+              На главную
+            </button>
+          </div>
         </div>
       )}
 
@@ -373,6 +414,8 @@ export function OrderPage() {
       {showAdViewer && (
         <AdViewer
           images={adImages}
+          count={adsRequired}
+          durationSec={adSettings.durationSec}
           onComplete={handleAdComplete}
           onAdViewed={(path) => { trackAdView(path).catch(() => {}) }}
         />

@@ -25,6 +25,7 @@ class OrderService:
         status_name: str,
         comment: str | None = None,
         is_free: bool = False,
+        payment_status: str = "pending",
     ) -> Order:
         order = await self._repo.create(
             client=client,
@@ -36,6 +37,7 @@ class OrderService:
             status_name=status_name,
             comment=comment,
             is_free=is_free,
+            payment_status=payment_status,
         )
 
         await BaserowService().sync_order(order, client.phone)

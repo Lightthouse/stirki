@@ -12,9 +12,15 @@ export interface AddonItem {
 
 export interface CartItem {
   type: 'bag' | 'piece'
-  addons: AddonItem[]
-  price: number
   basePrice: number
+}
+
+/** Итог корзины: допуслуги выбираются на весь заказ и считаются за каждую позицию. */
+export function calcCartTotals(cart: CartItem[], addons: AddonItem[], isFree: boolean) {
+  const positionsTotal = cart.reduce((sum, item) => sum + item.basePrice, 0)
+  const addonsPerPosition = addons.reduce((sum, a) => sum + a.price, 0)
+  const fullTotal = positionsTotal + addonsPerPosition * cart.length
+  return { fullTotal, total: isFree ? 0 : fullTotal, addonsPerPosition }
 }
 
 export interface OrderLimits {
@@ -33,12 +39,13 @@ function getMaxItems(tariff: Tariff | null, serviceType: 'bag' | 'piece', limits
 const FALLBACK_PRICES: Record<string, number> = {
   base: 1490,
   piece: 390,
-  ironing: 990,
+  ironing: 190,
   conditioner: 100,
   vacuum_pack: 150,
+  color_catcher_sheets: 100,
 }
 
-function buildPriceMap(services: ServiceItem[]): Record<string, number> {
+export function buildPriceMap(services: ServiceItem[]): Record<string, number> {
   const map: Record<string, number> = { ...FALLBACK_PRICES }
   for (const s of services) map[s.slug] = s.price_rub
   return map
@@ -51,17 +58,19 @@ interface Props {
   cart: CartItem[]
   onAddToCart: (item: CartItem) => void
   adsWatched: number
+  adsRequired: number
   onWatchAd: () => void
+  addons: Set<string>
+  onToggleAddon: (slug: string) => void
   addressValid: boolean
   limits: OrderLimits
   services: ServiceItem[]
 }
 
-export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, onAddToCart, adsWatched, onWatchAd, addressValid, limits, services }: Props) {
+export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, onAddToCart, adsWatched, adsRequired, onWatchAd, addons, onToggleAddon, addressValid, limits, services }: Props) {
   const prices = buildPriceMap(services)
   const availableDops = services.filter((s) => !BASE_SLUGS.has(s.slug))
 
-  const [addons, setAddons] = useState<Set<string>>(new Set())
   const [added, setAdded] = useState(false)
   const [needAds, setNeedAds] = useState(false)
   const [dopHint, setDopHint] = useState(false)
@@ -99,36 +108,19 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
       setTimeout(() => setDopHint(false), 2000)
       return
     }
-    setAddons((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-  }
-
-  function calcPrice(): number {
-    let price = serviceType === 'piece' ? (prices.piece ?? 390) : (prices.base ?? 1490)
-    for (const slug of addons) price += prices[slug] ?? 0
-    return price
+    onToggleAddon(key)
   }
 
   function handleAdd() {
     if (!tariff) return
     if (!canAdd) return
-    if (isFree && adsWatched < 3) {
+    if (isFree && adsWatched < adsRequired) {
       setNeedAds(true)
       setTimeout(() => setNeedAds(false), 2500)
       return
     }
-    const basePrice = isFree ? (prices.base ?? 1490) : (serviceType === 'piece' ? (prices.piece ?? 390) : (prices.base ?? 1490))
-    const price = isFree ? 0 : calcPrice()
-    const addonItems: AddonItem[] = isFree ? [] : Array.from(addons).map((slug) => {
-      const svc = availableDops.find((s) => s.slug === slug)
-      return { slug, name: svc?.name ?? slug, price: prices[slug] ?? 0 }
-    })
-    onAddToCart({ type: serviceType, addons: addonItems, price, basePrice })
-    setAddons(new Set())
+    const basePrice = serviceType === 'piece' ? (prices.piece ?? 390) : (prices.base ?? 1490)
+    onAddToCart({ type: serviceType, basePrice })
     setAdded(true)
     setTimeout(() => setAdded(false), 1000)
   }
@@ -188,6 +180,11 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
               : 'стоимость пакета до 3 кг'}
         </div>
 
+        {DOPS.length > 0 && (
+          <div className="price-label" style={{ marginTop: 12 }}>
+            допуслуги — на весь заказ, цена за каждую позицию
+          </div>
+        )}
         {DOPS.map((dop) => (
           <div
             key={dop.key}
@@ -199,17 +196,17 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
           </div>
         ))}
 
-        {isFree && (
+        {isFree && adsRequired > 0 && (
           <div
-            className={`ad-block${adsWatched >= 3 ? ' ad-block--done' : ''}`}
+            className={`ad-block${adsWatched >= adsRequired ? ' ad-block--done' : ''}`}
             style={{ marginTop: 16 }}
-            onClick={adsWatched >= 3 ? undefined : onWatchAd}
+            onClick={adsWatched >= adsRequired ? undefined : onWatchAd}
           >
             <span>
-              <i className={`fas ${adsWatched >= 3 ? 'fa-check-circle' : 'fa-play-circle'}`} />
-              {adsWatched >= 3 ? ' реклама просмотрена' : ' СМОТРЕТЬ РЕКЛАМУ'}
+              <i className={`fas ${adsWatched >= adsRequired ? 'fa-check-circle' : 'fa-play-circle'}`} />
+              {adsWatched >= adsRequired ? ' реклама просмотрена' : ' СМОТРЕТЬ РЕКЛАМУ'}
             </span>
-            <span className="ad-counter">{adsWatched}/3</span>
+            <span className="ad-counter">{adsWatched}/{adsRequired}</span>
           </div>
         )}
 

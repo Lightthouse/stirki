@@ -122,6 +122,14 @@ create table system_settings (
     free_piece_slots int not null default 0,
     paid_bag_slots int not null default 5,
     paid_piece_slots int not null default 1,
+    -- приём заказов, часы по МСК: [order_accept_from_hour, order_accept_to_hour)
+    order_accept_from_hour int not null default 9,
+    order_accept_to_hour int not null default 22,
+    -- сколько бесплатных заказов в сутки (МСК) допускается на один адрес (улица+дом+квартира)
+    free_orders_per_address_per_day int not null default 1,
+    -- реклама на бесплатном тарифе: сколько картинок показывать и сколько секунд каждую
+    ad_count int not null default 1,
+    ad_duration_sec int not null default 1,
     constraint system_settings_singleton check (id = 1)
 );
 
@@ -131,7 +139,7 @@ values (1, true, 1, 0, 5, 1);
 insert into order_statuses (name, slug) values
 ('В пути','courier_pickup'), ('Забрали','picked_up'),
 ('Чистим','washing'),  ('Идём отдавать','courier_delivery'), ('Доставлено','delivered'),
-('Отменено','canceled');
+('Отменено','canceled'), ('Ожидает оплаты','waiting_payment');
 
 insert into services (name, slug, price_rub, is_active) values
 ('Стирка', 'base', 1490, true),

@@ -61,6 +61,16 @@ async function request<T>(
     clearTimeout(timeoutId)
   }
 
+  // Токен истёк или неизвестен серверу (например, после пересоздания БД):
+  // сбрасываем локальную авторизацию и отправляем на вход, иначе клиент застревает
+  // в «авторизованном» состоянии, где ни один запрос не проходит.
+  if (response.status === 401 && token) {
+    clearToken()
+    clearPhone()
+    window.location.href = '/login'
+    throw new Error('Сессия истекла. Войдите заново.')
+  }
+
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}))
     throw new Error(errorBody.detail || `HTTP ${response.status}`)

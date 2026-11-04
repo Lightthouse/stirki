@@ -1,10 +1,11 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
@@ -12,16 +13,23 @@ from src.database import engine
 from src.settings import AppSettings
 from src.api.routers import addresses, auth, services, orders, payments, analytics
 from src.api.dependencies import get_db
-from src.models.system_settings import SystemSettings as SystemSettingsModel
+from src.repositories.system_settings import get_system_settings as load_system_settings
 from src.schemas.system_settings import SystemSettings as SystemSettingsSchema
+from src.services.payment_sync import payment_sync_loop
+from src.services.schedule import is_accepting_orders
 from src.admin import create_admin
+
+# Без этого logger.info/exception из модулей src.* не видны в логах uvicorn.
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 app_settings = AppSettings()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    sync_task = asyncio.create_task(payment_sync_loop())
     yield
+    sync_task.cancel()
     await engine.dispose()
 
 
@@ -69,18 +77,20 @@ async def list_ads():
 
 @app.get("/api/system-settings", response_model=SystemSettingsSchema)
 async def get_system_settings(session: AsyncSession = Depends(get_db)):
-    result = await session.execute(select(SystemSettingsModel).limit(1))
-    settings = result.scalar_one_or_none()
-    if settings is None:
-        return SystemSettingsSchema(
-            free_tariff_is_available=True,
-            free_bag_slots=1,
-            free_piece_slots=0,
-            paid_bag_slots=5,
-            paid_piece_slots=1,
-        )
-    return SystemSettingsSchema.model_validate(settings)
-
+    settings = await load_system_settings(session)
+    return SystemSettingsSchema(
+        free_tariff_is_available=settings.free_tariff_is_available,
+        free_bag_slots=settings.free_bag_slots,
+        free_piece_slots=settings.free_piece_slots,
+        paid_bag_slots=settings.paid_bag_slots,
+        paid_piece_slots=settings.paid_piece_slots,
+        order_accept_from_hour=settings.order_accept_from_hour,
+        order_accept_to_hour=settings.order_accept_to_hour,
+        free_orders_per_address_per_day=settings.free_orders_per_address_per_day,
+        ad_count=settings.ad_count,
+        ad_duration_sec=settings.ad_duration_sec,
+        is_accepting_orders=is_accepting_orders(settings),
+    )
 
 
 @app.get("/api/health")

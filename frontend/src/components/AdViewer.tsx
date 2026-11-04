@@ -2,25 +2,26 @@ import { useEffect, useRef, useState } from 'react'
 
 interface Props {
   images: string[]
+  count: number
+  durationSec: number
   onComplete: () => void
   onAdViewed?: (imagePath: string) => void
 }
 
-const AD_DURATION = 1
-
-export function AdViewer({ images, onComplete, onAdViewed }: Props) {
+export function AdViewer({ images, count, durationSec, onComplete, onAdViewed }: Props) {
   const onCompleteRef = useRef(onComplete)
   onCompleteRef.current = onComplete
   const onAdViewedRef = useRef(onAdViewed)
   onAdViewedRef.current = onAdViewed
+  const duration = Math.max(1, durationSec)
 
   const [selected] = useState<string[]>(() => {
-    if (images.length === 0) return []
+    if (images.length === 0 || count <= 0) return []
     const shuffled = [...images].sort(() => Math.random() - 0.5)
-    return shuffled.slice(0, 1)
+    return shuffled.slice(0, count)
   })
   const [current, setCurrent] = useState(0)
-  const [timeLeft, setTimeLeft] = useState(AD_DURATION)
+  const [timeLeft, setTimeLeft] = useState(duration)
 
   useEffect(() => {
     if (selected.length === 0) {
@@ -29,7 +30,7 @@ export function AdViewer({ images, onComplete, onAdViewed }: Props) {
     }
 
     let idx = 0
-    let t = AD_DURATION
+    let t = duration
 
     const interval = setInterval(() => {
       t--
@@ -39,9 +40,9 @@ export function AdViewer({ images, onComplete, onAdViewed }: Props) {
         onAdViewedRef.current?.(selected[idx])
         if (idx < selected.length - 1) {
           idx++
-          t = AD_DURATION
+          t = duration
           setCurrent(idx)
-          setTimeLeft(AD_DURATION)
+          setTimeLeft(duration)
         } else {
           clearInterval(interval)
           onCompleteRef.current()
@@ -50,7 +51,7 @@ export function AdViewer({ images, onComplete, onAdViewed }: Props) {
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [selected])
+  }, [selected, duration])
 
   if (selected.length === 0) return null
 

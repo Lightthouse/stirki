@@ -1,8 +1,25 @@
+import { useEffect, useState } from 'react'
+import { getServices, getSystemSettings } from '../../api'
+import type { ServiceItem, SystemSettings } from '../../types'
+import { acceptHoursText } from '../../types'
+
 interface Props {
   onClose: () => void
 }
 
 export function InfoModal({ onClose }: Props) {
+  const [services, setServices] = useState<ServiceItem[]>([])
+  const [settings, setSettings] = useState<SystemSettings | null>(null)
+
+  useEffect(() => {
+    getServices().then(setServices).catch(() => {})
+    getSystemSettings().then(setSettings).catch(() => {})
+  }, [])
+
+  const base = services.find((s) => s.slug === 'base')
+  const piece = services.find((s) => s.slug === 'piece')
+  const addons = services.filter((s) => s.slug !== 'base' && s.slug !== 'piece')
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box" onClick={(e) => e.stopPropagation()}>
@@ -30,10 +47,11 @@ export function InfoModal({ onClose }: Props) {
         <section>
           <h4>Тарифы</h4>
           <ul>
-            <li>Партия — 890 ₽ (пакет одежды или белья, до 3 кг)</li>
-            <li>Глажка — 990 ₽</li>
-            <li>Кондиционер — +100 ₽</li>
-            <li>Вакуумный пакет — +150 ₽</li>
+            {base && <li>Пакет одежды или белья (до 3 кг) — {base.price_rub} ₽</li>}
+            {piece && <li>Одна вещь — {piece.price_rub} ₽</li>}
+            {addons.map((a) => (
+              <li key={a.slug}>{a.name} — +{a.price_rub} ₽ за позицию</li>
+            ))}
           </ul>
         </section>
 
@@ -42,7 +60,7 @@ export function InfoModal({ onClose }: Props) {
           <ul>
             <li>Локация — Мытищи</li>
             <li>Связь —  <a href="mailto:prihodko_1989@mail.ru">prihodko_1989@mail.ru</a></li>
-            <li>График — ежедневно с 07:00 до 23:00</li>
+            {settings && <li>Приём заказов — ежедневно {acceptHoursText(settings)}</li>}
           </ul>
         </section>
 

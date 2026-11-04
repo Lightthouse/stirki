@@ -1,0 +1,5 @@
+{# Главная страница админки: вместо пустой страницы sqladmin показываем инструкцию. #}
+{% extends "sqladmin/layout.html" %}
+{% block content %}
+{% include "_help_content.html" %}
+{% endblock %}

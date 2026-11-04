@@ -15,7 +15,12 @@ class PricingService:
         pieces_number: int,
         service_slugs: list[str],
     ) -> int:
-        addon_total = sum(self._price_map.get(slug, 0) for slug in service_slugs)
-        piece_price = self._price_map.get("piece", 390)
-        return self.base_price * bags_number + piece_price * pieces_number + addon_total
+        """Цена = база × пакеты + цена вещи × вещи + допуслуги × число позиций.
 
+        Допуслуги выбираются на весь заказ и применяются к каждой позиции
+        (глажка для 3 пакетов = 3 × цена глажки).
+        """
+        positions = bags_number + pieces_number
+        addon_total = sum(self._price_map.get(slug, 0) for slug in set(service_slugs))
+        piece_price = self._price_map.get("piece", 390)
+        return self.base_price * bags_number + piece_price * pieces_number + addon_total * positions

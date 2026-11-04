@@ -1,18 +1,18 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CreateOrderIn(BaseModel):
     street: str
     house: str
-    apartment: int
-    entrance: int = 1
-    floor: int = 1
-    bags_number: int = 0
-    pieces_number: int = 0
+    apartment: int = Field(ge=1, le=1000)
+    entrance: int = Field(default=1, ge=1, le=30)
+    floor: int = Field(default=1, ge=1, le=50)
+    bags_number: int = Field(default=0, ge=0)
+    pieces_number: int = Field(default=0, ge=0)
     services: list[str] = []
-    comment: str | None = None
+    comment: str | None = Field(default=None, max_length=500)
     is_free: bool = False
 
 
@@ -32,6 +32,8 @@ class OrderOut(BaseModel):
     payment_status: str
     is_free: bool
     comment: str | None
+    # Ссылка на оплату — только пока заказ ждёт оплаты, чтобы клиент мог вернуться к ней.
+    payment_link: str | None = None
     created_at: datetime
     updated_at: datetime
 

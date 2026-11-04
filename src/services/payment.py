@@ -1,10 +1,30 @@
 import logging
+import ssl
+from pathlib import Path
 
+import certifi
 import httpx
 from src.settings import TochkaSettings, AppSettings
-from icecream import ic
 
 logger = logging.getLogger(__name__)
+
+# API Точки (enter.tochka.com) подписан корневым сертификатом Минцифры (Russian Trusted
+# Root CA), которого нет в стандартном наборе certifi. Доверяем ему дополнительно к
+# стандартным. Источник: https://gu-st.ru/content/lending/russian_trusted_root_ca_pem.crt
+# SHA-256: D2:6D:2D:02:31:B7:C3:9F:92:CC:73:85:12:BA:54:10:35:19:E4:40:5D:68:B5:BD:70:3E:97:88:CA:8E:CF:31
+# Действует до 27.02.2032.
+_RUSSIAN_ROOT_CA = Path(__file__).resolve().parent.parent / "certs" / "russian_trusted_root_ca.pem"
+
+
+def _tochka_ssl_context() -> ssl.SSLContext:
+    ctx = ssl.create_default_context(cafile=certifi.where())
+    ctx.load_verify_locations(cafile=str(_RUSSIAN_ROOT_CA))
+    return ctx
+
+
+# Время жизни платёжной ссылки. Короткое, чтобы брошенные неоплаченные заказы
+# быстро получали от Точки статус EXPIRED и автоматически отменялись.
+PAYMENT_LINK_TTL_MINUTES = 60
 
 
 class PaymentService:
@@ -26,6 +46,11 @@ class PaymentService:
             base_url='https://enter.tochka.com/uapi/acquiring/v1.0/',
             headers=headers,
             timeout=30.0,
+            verify=_tochka_ssl_context(),
+            # Не брать прокси из окружения (HTTP_PROXY/ALL_PROXY): запросы к российскому
+            # банку не должны идти через VPN/прокси разработчика, а схему socks:// httpx
+            # без доп. зависимостей вообще не поддерживает.
+            trust_env=False,
         )
 
     def create_payment(
@@ -39,8 +64,7 @@ class PaymentService:
         payload = {
             "Data": {
                 "customerCode": self.customer_code,
-                "amount": "1.00",
-                # "amount": f"{amount}.00",
+                "amount": f"{amount}.00",
                 "purpose": purpose,
                 "redirectUrl": return_url,
                 "failRedirectUrl": return_url,
@@ -49,14 +73,12 @@ class PaymentService:
                     "card"
                 ],
                 "saveCard": True,
-                "ttl": 10080,
+                "ttl": PAYMENT_LINK_TTL_MINUTES,
                 "paymentLinkId": payment_token,
             }
         }
-        ic(payload)
         response = self.client.post("payments", json=payload)
         response.raise_for_status()
-        ic(response.url)
         data = response.json().get("Data", {})
         return {
             "operation_id": data["operationId"],

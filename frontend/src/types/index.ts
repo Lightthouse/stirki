@@ -67,6 +67,7 @@ export interface OrderDetail {
   payment_status: string
   is_free: boolean
   comment: string | null
+  payment_link: string | null
   created_at: string
   updated_at: string
 }
@@ -88,6 +89,16 @@ export interface SystemSettings {
   free_piece_slots: number
   paid_bag_slots: number
   paid_piece_slots: number
+  order_accept_from_hour: number
+  order_accept_to_hour: number
+  free_orders_per_address_per_day: number
+  ad_count: number
+  ad_duration_sec: number
+  is_accepting_orders: boolean
+}
+
+export function acceptHoursText(s: Pick<SystemSettings, 'order_accept_from_hour' | 'order_accept_to_hour'>): string {
+  return `с ${s.order_accept_from_hour}:00 до ${s.order_accept_to_hour}:00`
 }
 
 export type Step =

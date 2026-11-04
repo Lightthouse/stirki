@@ -1,10 +1,11 @@
 import logging
+from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.enums import PaymentStatus
+from src.enums import OrderStatusName, PaymentStatus
 from src.models.client import Client
 from src.models.order import Order, OrderStatus, OrderStatusHistory
 
@@ -35,6 +36,7 @@ class OrderRepository:
         status_name: str,
         comment: str | None = None,
         is_free: bool = False,
+        payment_status: str = PaymentStatus.PENDING,
     ) -> Order:
         status = await self.get_status_by_slug(status_name)
 
@@ -43,7 +45,7 @@ class OrderRepository:
             status_id=status.id,
             is_free=is_free,
             total_price_rub=total_price_rub,
-            payment_status=PaymentStatus.PENDING,
+            payment_status=payment_status,
             comment=comment,
             street=client.street,
             house=client.house,
@@ -88,7 +90,13 @@ class OrderRepository:
             .join(OrderStatus, Order.status_id == OrderStatus.id)
             .where(
                 Order.client_id == client_id,
-                OrderStatus.slug.not_in(["delivered", "canceled"]),
+                # Неоплаченный заказ не блокирует новый: брошенная оплата не должна
+                # запирать клиента (такие заказы сами отменяются по EXPIRED от Точки).
+                OrderStatus.slug.not_in([
+                    OrderStatusName.DELIVERED,
+                    OrderStatusName.CANCELED,
+                    OrderStatusName.WAITING_PAYMENT,
+                ]),
             )
             .limit(1)
         )
@@ -122,7 +130,7 @@ class OrderRepository:
         )
         self.session.add(history)
         await self.session.commit()
-        await self.session.refresh(order)
+        await self.session.refresh(order, attribute_names=["status_id", "payment_status", "updated_at", "status"])
 
         return order
 
@@ -149,3 +157,64 @@ class OrderRepository:
             .options(selectinload(Order.client), selectinload(Order.status))
         )
         return result.scalar_one_or_none()
+
+    async def count_free_orders_for_address_since(
+        self, street: str, house: str, apartment: int, since: datetime
+    ) -> int:
+        """Сколько неотменённых бесплатных заказов было на адрес начиная с `since`."""
+        result = await self.session.execute(
+            select(func.count(Order.id))
+            .join(OrderStatus, Order.status_id == OrderStatus.id)
+            .where(
+                Order.is_free == True,  # noqa: E712
+                Order.street == street,
+                Order.house == house,
+                Order.apartment == apartment,
+                Order.created_at >= since,
+                OrderStatus.slug != OrderStatusName.CANCELED,
+            )
+        )
+        return result.scalar_one()
+
+    async def get_waiting_payment(self) -> list[Order]:
+        result = await self.session.execute(
+            select(Order)
+            .join(OrderStatus, Order.status_id == OrderStatus.id)
+            .where(
+                OrderStatus.slug == OrderStatusName.WAITING_PAYMENT,
+                Order.operation_id.is_not(None),
+            )
+            .options(selectinload(Order.client), selectinload(Order.status))
+        )
+        return list(result.scalars().all())
+
+    async def resolve_payment(
+        self,
+        order: Order,
+        status_name: str,
+        payment_status: str,
+        changed_by: str,
+    ) -> bool:
+        """Атомарно перевести заказ из «оплата pending» в итоговое состояние.
+
+        Возвращает True только тому вызову, который реально сменил статус —
+        это защищает от двойных уведомлений, когда оплату одновременно проверяют
+        фоновая задача и клиент.
+        """
+        new_status = await self.get_status_by_slug(status_name)
+        result = await self.session.execute(
+            update(Order)
+            .where(Order.id == order.id, Order.payment_status == PaymentStatus.PENDING)
+            .values(status_id=new_status.id, payment_status=payment_status, updated_at=func.now())
+            .returning(Order.id)
+        )
+        changed = result.scalar_one_or_none() is not None
+        if changed:
+            self.session.add(OrderStatusHistory(
+                order_id=order.id, status_id=new_status.id, changed_by=changed_by,
+            ))
+        await self.session.commit()
+        await self.session.refresh(
+            order, attribute_names=["status_id", "payment_status", "updated_at", "status"]
+        )
+        return changed

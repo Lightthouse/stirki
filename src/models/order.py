@@ -93,7 +93,11 @@ class Order(Base):
 
     client: Mapped["Client"] = relationship(back_populates="orders")  # noqa: F821
     status: Mapped["OrderStatus"] = relationship()
-    history: Mapped[list["OrderStatusHistory"]] = relationship(back_populates="order")
+    # История удаляется вместе с заказом. passive_deletes — удаление делает сама БД
+    # (on delete cascade в схеме), иначе SQLAlchemy пытается обнулить order_id в истории.
+    history: Mapped[list["OrderStatusHistory"]] = relationship(
+        back_populates="order", cascade="all, delete-orphan", passive_deletes=True
+    )
 
     @property
     def service_slugs(self) -> list[str]:

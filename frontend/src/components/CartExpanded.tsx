@@ -1,21 +1,22 @@
-import type { CartItem } from './swipe/ServicesCard'
+import { calcCartTotals } from './swipe/ServicesCard'
+import type { AddonItem, CartItem } from './swipe/ServicesCard'
 
 interface Props {
   cart: CartItem[]
+  addons: AddonItem[]
   isFree: boolean
   show: boolean
   onClose: () => void
   onRemove: (idx: number) => void
   onClear: () => void
-  onCheckout: (paymentMethod: string) => void
+  onCheckout: () => void
   loading: boolean
   onShowOffer: () => void
   onShowPrivacy: () => void
 }
 
-export function CartExpanded({ cart, isFree, show, onClose, onRemove, onClear, onCheckout, loading, onShowOffer, onShowPrivacy }: Props) {
-  const total = cart.reduce((sum, item) => sum + item.price, 0)
-  const fullTotal = cart.reduce((sum, item) => sum + item.basePrice + item.addons.reduce((s, a) => s + a.price, 0), 0)
+export function CartExpanded({ cart, addons, isFree, show, onClose, onRemove, onClear, onCheckout, loading, onShowOffer, onShowPrivacy }: Props) {
+  const { total, fullTotal } = calcCartTotals(cart, addons, isFree)
 
   return (
     <div className={`cart-expanded${show ? ' show' : ''}`}>
@@ -44,15 +45,10 @@ export function CartExpanded({ cart, isFree, show, onClose, onRemove, onClear, o
                   ? <><s>{item.basePrice} ₽</s> 0 ₽</>
                   : `${item.basePrice} ₽`}
               </div>
-              {item.addons.length > 0 && (
-                <div className="cart-item-detail">
-                  {item.addons.map((a) => `${a.name} +${a.price} ₽`).join(' · ')}
-                </div>
-              )}
             </div>
             <div className="cart-item-right">
               <span className="cart-item-price">
-                {isFree ? '0 ₽' : `${item.price} ₽`}
+                {isFree ? '0 ₽' : `${item.basePrice} ₽`}
               </span>
               <button className="remove-item-btn" onClick={() => onRemove(idx)}>
                 <i className="fas fa-trash-alt" />
@@ -61,6 +57,22 @@ export function CartExpanded({ cart, isFree, show, onClose, onRemove, onClear, o
           </div>
         ))
       )}
+
+      {cart.length > 0 && addons.map((a) => (
+        <div key={a.slug} className="cart-item">
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600 }}>
+              <i className="fas fa-plus-circle" /> {a.name}
+            </div>
+            <div className="cart-item-detail">
+              {a.price} ₽ × {cart.length} поз.
+            </div>
+          </div>
+          <div className="cart-item-right">
+            <span className="cart-item-price">{a.price * cart.length} ₽</span>
+          </div>
+        </div>
+      ))}
 
       <div className="cart-total">
         <span>Итого</span>
@@ -86,10 +98,7 @@ export function CartExpanded({ cart, isFree, show, onClose, onRemove, onClear, o
       <button
         className="checkout-btn"
         disabled={cart.length === 0 || loading}
-        onClick={() => {
-          const checked = document.querySelector<HTMLInputElement>('input[name="payment"]:checked')
-          onCheckout(checked?.value || 'card')
-        }}
+        onClick={onCheckout}
       >
         {loading ? (
           'Создание заказа...'
