@@ -831,7 +831,10 @@ body {
 }
 
 /* ========== AD BLOCK ========== */
-.ad-block {
+/* Классы рекламного блока намеренно без слов ad/sponsor/banner: блокировщики рекламы
+   (EasyList, RU AdList) скрывают .ad-block, .sponsor-block и т.п., и клиент с блокировщиком
+   не видел кнопку просмотра рекламы — бесплатный заказ было не оформить. */
+.unlock-card {
   background: var(--gradient);
   border-radius: var(--radius-pill);
   padding: 12px 16px;
@@ -931,12 +934,12 @@ body {
   animation: fadeIn 0.2s ease;
 }
 
-.ad-block--done {
+.unlock-card--done {
   background: linear-gradient(90deg, #43a047, #81c784);
   cursor: default;
 }
 
-.ad-counter {
+.unlock-counter {
   font-size: 13px;
   background: rgba(255, 255, 255, 0.25);
   border-radius: 20px;
@@ -944,7 +947,7 @@ body {
 }
 
 /* ========== AD VIEWER ========== */
-.ad-viewer-overlay {
+.showcase-overlay {
   position: absolute;
   inset: 0;
   background: #000;
@@ -953,7 +956,7 @@ body {
   z-index: 200;
 }
 
-.ad-viewer-header {
+.showcase-header {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -963,7 +966,7 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
-.ad-viewer-image {
+.showcase-image {
   flex: 1;
   width: 100%;
   min-height: 0;
@@ -971,7 +974,7 @@ body {
   display: block;
 }
 
-.ad-viewer-footer {
+.showcase-footer {
   flex-shrink: 0;
   display: flex;
   justify-content: space-between;
@@ -981,11 +984,11 @@ body {
   font-weight: 600;
 }
 
-.ad-viewer-counter {
+.showcase-counter {
   color: var(--pink);
 }
 
-.ad-viewer-timer {
+.showcase-timer {
   color: rgba(255, 255, 255, 0.7);
 }
 

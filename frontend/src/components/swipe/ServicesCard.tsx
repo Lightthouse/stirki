@@ -198,7 +198,7 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
 
         {isFree && adsRequired > 0 && (
           <div
-            className={`ad-block${adsWatched >= adsRequired ? ' ad-block--done' : ''}`}
+            className={`unlock-card${adsWatched >= adsRequired ? ' unlock-card--done' : ''}`}
             style={{ marginTop: 16 }}
             onClick={adsWatched >= adsRequired ? undefined : onWatchAd}
           >
@@ -206,7 +206,7 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
               <i className={`fas ${adsWatched >= adsRequired ? 'fa-check-circle' : 'fa-play-circle'}`} />
               {adsWatched >= adsRequired ? ' реклама просмотрена' : ' СМОТРЕТЬ РЕКЛАМУ'}
             </span>
-            <span className="ad-counter">{adsWatched}/{adsRequired}</span>
+            <span className="unlock-counter">{adsWatched}/{adsRequired}</span>
           </div>
         )}
 

@@ -56,18 +56,18 @@ export function AdViewer({ images, count, durationSec, onComplete, onAdViewed }:
   if (selected.length === 0) return null
 
   return (
-    <div className="ad-viewer-overlay">
-      <div className="ad-viewer-header">
+    <div className="showcase-overlay">
+      <div className="showcase-header">
         <span className="app-logo">стирка<span>он</span></span>
       </div>
       <img
-        className="ad-viewer-image"
+        className="showcase-image"
         src={selected[current]}
         alt={`Реклама ${current + 1}`}
       />
-      <div className="ad-viewer-footer">
-        <span className="ad-viewer-counter">{current + 1}/{selected.length}</span>
-        <span className="ad-viewer-timer">{timeLeft} сек</span>
+      <div className="showcase-footer">
+        <span className="showcase-counter">{current + 1}/{selected.length}</span>
+        <span className="showcase-timer">{timeLeft} сек</span>
       </div>
     </div>
   )
