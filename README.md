@@ -159,17 +159,36 @@ cp .env.example .env
 Локально: код входа показывается прямо под полем ввода. Админка — http://localhost:5173/admin,
 Adminer — http://localhost:8081, Baserow — http://localhost:8082.
 
-### Деплой на сервер
+### Сервер
 
-Требования: Ubuntu 24.04, 1–2 GB RAM, открытые порты 80 и 443, A-запись домена на IP сервера.
+Рабочий сервер: FirstVDS, Ubuntu 24.04, `ssh stirki` (root), проект в `/opt/stirki`, домен
+stirkaon.com → 195.140.146.185 (DNS у FirstVDS). Секреты — только в `/opt/stirki/.env` на сервере.
+
+**Обновление** (код берётся из GitHub, на сервере код не править — только `.env`):
 
 ```bash
-curl -fsSL https://get.docker.com | sh          # Docker
-git clone <репозиторий> /opt/stirki && cd /opt/stirki
-cp .env.example .env && nano .env                # DOMAIN=stirkaon.com, APP_ENV=production, пароли, ключи
-openssl rand -hex 32                             # для SECRET_KEY
+ssh stirki
+cd /opt/stirki && git pull && ./run.sh dev       # пока идут тесты; перед запуском клиентов — ./run.sh prod
+```
+
+**ISPmanager отключён.** Хостер предустановил панель, её nginx занимал порт 80. Службы панели
+(nginx, apache2, mysql, named, exim4, dovecot, proftpd, php-fpm, ihttpd) остановлены и убраны
+из автозапуска, cron-задачи панели закомментированы (копия — `/root/crontab.before-disable-ispmanager.bak`).
+Без этого панель сама поднимает nginx обратно. Вернуть: `crontab /root/crontab.before-disable-ispmanager.bak`
+и `systemctl enable --now <служба>` — но тогда Caddy не сможет занять порты 80/443.
+
+**Первичная установка на чистый сервер:**
+
+```bash
+apt-get install -y git && curl -fsSL https://get.docker.com | sh
+git clone https://github.com/Lightthouse/stirki.git /opt/stirki && cd /opt/stirki
+cp .env.example .env && chmod 600 .env && nano .env   # DOMAIN=stirkaon.com, пароли (openssl rand -hex 32), ключи
 ./run.sh prod
 ```
+
+> Если контейнер Caddy при первом запуске упал на занятом порту, после освобождения порта его
+> нужно пересоздать (`docker compose --profile prod up -d --force-recreate --no-deps caddy`),
+> иначе он остаётся без сети и не может получить сертификат.
 
 Caddy сам получит HTTPS-сертификат. Проверка: `curl https://stirkaon.com/api/health`.
 
