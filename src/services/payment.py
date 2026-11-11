@@ -77,6 +77,8 @@ class PaymentService:
                 "paymentLinkId": payment_token,
             }
         }
+        # response = self.client.post("payments_with_receipt", json=payload)
+        # https://chat.deepseek.com/a/chat/s/8385ad91-b26e-4b1b-a1a3-43415a0052ea
         response = self.client.post("payments", json=payload)
         response.raise_for_status()
         data = response.json().get("Data", {})
