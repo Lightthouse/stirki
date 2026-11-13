@@ -68,7 +68,6 @@
 - [ ] **Rate limit** — `request-code` ограничен только по номеру (раз в 58 с), по IP — нет; `/analytics/track-visit` открыт без ограничений.
 - [ ] Нет React Error Boundary — `frontend/src/App.tsx`.
 - [ ] Мёртвый код: `frontend/src/pages/OrdersPage.tsx`, `frontend/src/components/UserHeader.tsx`, `frontend/src/hooks/useOrderFlow.ts`, `frontend/src/utils/statusNames.ts`.
-- [ ] Мусорные переменные: в `.env` остались `KAITEN_*`, `BOT_*`, `PAYMENT_PROVIDER_TOKEN`, `BASEROW_*` от удалённых интеграций.
 
 ## Админка
 
