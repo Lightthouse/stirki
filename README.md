@@ -213,6 +213,8 @@ cd /opt/stirki && git pull && ./run.sh dev       # пока идут тесты;
 > ⚠️ Так отключить панель не получилось (проверено 2026-11-13): процесс `core ispmgr` остался запущен,
 > заново дописал свои задачи в crontab и поднял службы обратно — из интернета снова открыты FTP, почта,
 > DNS и сама панель (:1500). Панель нужно отключить в личном кабинете FirstVDS (TODO, «Деплой»).
+> Пока она работает, любой простой Caddy (`docker compose down`, перезагрузка) панель использует, чтобы занять
+> порт 80 своим nginx. Тогда: `systemctl stop nginx` и пересоздать Caddy (команда ниже, в «Первичной установке»).
 
 **Первичная установка на чистый сервер:**
 
@@ -245,10 +247,11 @@ ssh -L 8081:localhost:8081 stirki
 ```
 
 **Резервные копии БД.** `./run.sh backup` пишет сжатый `pg_dump` в `/var/backups/stirki` (вне репозитория:
-он публичный) и оставляет 14 последних копий — сейчас это килобайты. На сервере запускается по cron в 04:00:
+он публичный) и оставляет 14 последних копий — сейчас это килобайты. На сервере запускается в 04:00 из
+`/etc/cron.d/stirki-backup` (не из crontab root: его переписывает ISPmanager), лог — `/var/log/stirki-backup.log`:
 
 ```bash
-0 4 * * * cd /opt/stirki && ./run.sh backup >> /var/log/stirki-backup.log 2>&1
+0 4 * * * root cd /opt/stirki && ./run.sh backup >> /var/log/stirki-backup.log 2>&1
 ```
 
 Восстановление: `gunzip -c /var/backups/stirki/<файл>.sql.gz | docker exec -i stirki-db psql -U stirki -d stirki`
