@@ -7,7 +7,10 @@ const BASE_SLUGS = new Set(['base', 'piece'])
 export interface AddonItem {
   slug: string
   name: string
+  /** цена за вещь */
   price: number
+  /** цена за пакет (может отличаться, см. addonBagPrice) */
+  bagPrice: number
 }
 
 export interface CartItem {
@@ -15,12 +18,16 @@ export interface CartItem {
   basePrice: number
 }
 
-/** Итог корзины: допуслуги выбираются на весь заказ и считаются за каждую позицию. */
+/** Итог корзины: допуслуги выбираются на весь заказ и считаются за каждую позицию
+ *  (за пакет — по цене пакета), как в src/services/pricing.py. */
 export function calcCartTotals(cart: CartItem[], addons: AddonItem[], isFree: boolean) {
-  const positionsTotal = cart.reduce((sum, item) => sum + item.basePrice, 0)
-  const addonsPerPosition = addons.reduce((sum, a) => sum + a.price, 0)
-  const fullTotal = positionsTotal + addonsPerPosition * cart.length
-  return { fullTotal, total: isFree ? 0 : fullTotal, addonsPerPosition }
+  const addonsPiece = addons.reduce((sum, a) => sum + a.price, 0)
+  const addonsBag = addons.reduce((sum, a) => sum + a.bagPrice, 0)
+  const fullTotal = cart.reduce(
+    (sum, item) => sum + item.basePrice + (item.type === 'bag' ? addonsBag : addonsPiece),
+    0,
+  )
+  return { fullTotal, total: isFree ? 0 : fullTotal }
 }
 
 export interface OrderLimits {
@@ -36,13 +43,26 @@ function getMaxItems(tariff: Tariff | null, serviceType: 'bag' | 'piece', limits
   return serviceType === 'bag' ? limits.paidBagSlots : limits.paidPieceSlots
 }
 
+// Цены по оферте — на случай, если прайс не загрузился. Актуальные цены приходят из БД.
 const FALLBACK_PRICES: Record<string, number> = {
-  base: 1490,
-  piece: 390,
+  base: 990,
+  piece: 190,
   ironing: 190,
+  ironing_bag: 990,
   conditioner: 100,
   vacuum_pack: 150,
-  color_catcher_sheets: 100,
+}
+
+// Услуга `<slug>_bag` — цена допуслуги за пакет; сама по себе не выбирается (как BAG_PRICE_SUFFIX на бэкенде).
+const BAG_PRICE_SUFFIX = '_bag'
+
+export function isAddonSlug(slug: string): boolean {
+  return !BASE_SLUGS.has(slug) && !slug.endsWith(BAG_PRICE_SUFFIX)
+}
+
+/** Цена допуслуги за пакет: `<slug>_bag`, если задана, иначе обычная цена. */
+export function addonBagPrice(prices: Record<string, number>, slug: string): number {
+  return prices[slug + BAG_PRICE_SUFFIX] ?? prices[slug] ?? 0
 }
 
 export function buildPriceMap(services: ServiceItem[]): Record<string, number> {
@@ -69,7 +89,7 @@ interface Props {
 
 export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, onAddToCart, adsWatched, adsRequired, onWatchAd, addons, onToggleAddon, addressValid, limits, services }: Props) {
   const prices = buildPriceMap(services)
-  const availableDops = services.filter((s) => !BASE_SLUGS.has(s.slug))
+  const availableDops = services.filter((s) => isAddonSlug(s.slug))
 
   const [added, setAdded] = useState(false)
   const [needAds, setNeedAds] = useState(false)
@@ -119,7 +139,7 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
       setTimeout(() => setNeedAds(false), 2500)
       return
     }
-    const basePrice = serviceType === 'piece' ? (prices.piece ?? 390) : (prices.base ?? 1490)
+    const basePrice = serviceType === 'piece' ? prices.piece : prices.base
     onAddToCart({ type: serviceType, basePrice })
     setAdded(true)
     setTimeout(() => setAdded(false), 1000)
@@ -130,7 +150,8 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
   const DOPS = availableDops.map((s) => ({
     key: s.slug,
     label: s.name,
-    price: prices[s.slug] ?? s.price_rub,
+    // показываем цену для выбранного типа: вещь или пакет
+    price: serviceType === 'bag' ? addonBagPrice(prices, s.slug) : prices[s.slug],
   }))
 
   function getBtnLabel() {
@@ -164,12 +185,12 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
 
         {isFree ? (
           <div className="price-free-block">
-            <span className="price-strikethrough">{prices.base ?? 1490} ₽</span>
+            <span className="price-strikethrough">{prices.base} ₽</span>
             <span className="price-big price-big--free">0 ₽</span>
           </div>
         ) : (
           <div className="price-big">
-            {serviceType === 'piece' ? (prices.piece ?? 390) : (prices.base ?? 1490)} ₽
+            {serviceType === 'piece' ? prices.piece : prices.base} ₽
           </div>
         )}
         <div className="price-label">

@@ -19,6 +19,7 @@ export interface ClientInfo {
   id: number
   phone: string
   name: string | null
+  email: string | null
   street: string
   house: string
   apartment: number

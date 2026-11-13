@@ -66,12 +66,14 @@ class OrderService:
         operation_id: str,
         payment_link: str | None = None,
         payment_token: str | None = None,
+        payment_link_id: str | None = None,
     ) -> Order:
         return await self._repo.update_payment(
             order,
             operation_id=operation_id,
             payment_link=payment_link,
             payment_token=payment_token,
+            payment_link_id=payment_link_id,
         )
 
     async def get_by_payment_token(self, payment_token: str) -> Order | None:

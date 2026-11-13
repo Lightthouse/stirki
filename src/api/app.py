@@ -1,20 +1,21 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from pathlib import Path
-
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from src.database import engine
+from src.models.analytics import Ad
 from src.settings import AppSettings
 from src.api.routers import addresses, auth, services, orders, payments, analytics
 from src.api.dependencies import get_db
 from src.repositories.system_settings import get_system_settings as load_system_settings
 from src.schemas.system_settings import SystemSettings as SystemSettingsSchema
+from src.services.ads import ADS_DIR
 from src.services.payment_sync import payment_sync_loop
 from src.services.schedule import is_accepting_orders
 from src.admin import create_admin
@@ -49,7 +50,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/advertising", StaticFiles(directory="advertising"), name="advertising")
+ADS_DIR.mkdir(exist_ok=True)
+app.mount("/advertising", StaticFiles(directory=ADS_DIR), name="advertising")
 
 app.include_router(addresses.router, prefix="/api/addresses", tags=["addresses"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
@@ -61,18 +63,13 @@ app.include_router(analytics.router, prefix="/api")
 create_admin(app)
 
 
-_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
-_ADVERTISING_DIR = Path("advertising")
-
-
 @app.get("/api/advertising")
-async def list_ads():
-    files = sorted(
-        f"/advertising/{p.name}"
-        for p in _ADVERTISING_DIR.iterdir()
-        if p.suffix.lower() in _IMAGE_EXTENSIONS
+async def list_ads(session: AsyncSession = Depends(get_db)):
+    """Включённые в админке («Реклама») картинки."""
+    result = await session.execute(
+        select(Ad.image_path).where(Ad.is_active == True).order_by(Ad.id)  # noqa: E712
     )
-    return {"images": files}
+    return {"images": list(result.scalars())}
 
 
 @app.get("/api/system-settings", response_model=SystemSettingsSchema)

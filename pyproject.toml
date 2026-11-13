@@ -23,5 +23,4 @@ dependencies = [
 dev = [
     "icecream>=2.1.8",
     "ruff>=0.14.1",
-    "qrcode[pil]>=8.0",
 ]

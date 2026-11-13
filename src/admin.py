@@ -1,19 +1,24 @@
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from markupsafe import Markup, escape
 from sqladmin import Admin, BaseView, ModelView, expose
+from sqladmin.fields import FileField
 from sqladmin.authentication import AuthenticationBackend
+from sqlalchemy import Select
 from starlette.requests import Request
 from wtforms.validators import NumberRange
 
 from src.addresses import STREETS_SLUG
 from src.database import async_session, engine
-from src.models.analytics import AdViewStats, LandingVisit, QrCode
+from src.models.analytics import Ad, AdViewStats, LandingVisitStats
 from src.models.client import Client
 from src.models.order import Order, OrderStatus, OrderStatusHistory
 from src.models.service import Service
 from src.models.system_settings import SystemSettings
+from src.services.ads import ALLOWED_EXTENSIONS, AdUploadError, delete_ad_file, save_ad_file
 from src.services.schedule import MSK
 from src.settings import AppSettings
 
@@ -81,7 +86,18 @@ class OrderAdmin(ModelView, model=Order):
         Order.payment_status,
     ]
     column_details_list = "__all__"
-    column_searchable_list = [Order.street, Order.house]
+    # № платежа в Точке — чтобы найти заказ по реестру платежей Точки (ST-123-K7Q2).
+    column_searchable_list = [Order.street, Order.house, Order.payment_link_id]
+
+    def search_query(self, stmt: Select, term: str) -> Select:
+        """«ST-123» или «123» — точный поиск по номеру заказа (в т.ч. бесплатного, без платежа)."""
+        match = re.fullmatch(r"(?:st-?)?(\d+)", term.strip(), flags=re.IGNORECASE)
+        if match:
+            return stmt.filter(Order.id == int(match.group(1)))
+        return super().search_query(stmt, term)
+
+    def search_placeholder(self) -> str:
+        return "№ заказа (ST-123), № платежа, улица, дом"
     column_sortable_list = [Order.id, Order.created_at, Order.total_price_rub]
     column_default_sort = [(Order.created_at, True)]
 
@@ -111,12 +127,14 @@ class OrderAdmin(ModelView, model=Order):
         "total_price_rub": "Цена (₽)",
         "payment_status": "Оплата",
         "payment_link": "Ссылка оплаты",
-        "operation_id": "ID операции",
+        "payment_link_id": "№ платежа в Точке",
+        "operation_id": "ID операции в Точке",
         "created_at": "Создан",
         "updated_at": "Обновлён",
     }
 
     column_formatters = {
+        "id": lambda m, a: m.number,
         "street": lambda m, a: _SLUG_TO_STREET.get(m.street, m.street),
         "status": lambda m, a: str(m.status) if m.status else "—",
         "client": lambda m, a: f"{m.client.name or '—'}, {m.client.phone}" if m.client else "—",
@@ -179,6 +197,7 @@ class ClientAdmin(ModelView, model=Client):
         Client.house,
         Client.apartment,
         Client.is_verified,
+        Client.sms_marketing_consent_at,
         Client.total_orders,
         Client.registered_at,
     ]
@@ -188,11 +207,12 @@ class ClientAdmin(ModelView, model=Client):
     ]
     column_formatters = {
         "street": lambda m, a: _SLUG_TO_STREET.get(m.street, m.street),
-        **_msk_formatters("registered_at"),
+        **_msk_formatters("registered_at", "offer_accepted_at", "sms_marketing_consent_at"),
     }
     column_formatters_detail = column_formatters
 
-    column_searchable_list = [Client.phone, Client.name]
+    # email — чтобы найти клиента по кассовому чеку
+    column_searchable_list = [Client.phone, Client.name, Client.email]
     column_sortable_list = [Client.id, Client.registered_at, Client.total_orders]
     column_default_sort = [(Client.registered_at, True)]
 
@@ -210,6 +230,8 @@ class ClientAdmin(ModelView, model=Client):
         "comment": "Комментарий",
         "total_orders": "Заказов",
         "registered_at": "Зарегистрирован",
+        "offer_accepted_at": "Принял оферту",
+        "sms_marketing_consent_at": "Согласие на рассылку",
     }
 
     can_create = False
@@ -312,6 +334,7 @@ class OrderStatusHistoryAdmin(ModelView, model=OrderStatusHistory):
         "changed_by": "Кем",
     }
     column_formatters = {
+        "order_id": lambda m, a: f"ST-{m.order_id}",
         "status": lambda m, a: str(m.status) if m.status else "—",
         **_msk_formatters("changed_at"),
     }
@@ -322,22 +345,94 @@ class OrderStatusHistoryAdmin(ModelView, model=OrderStatusHistory):
     can_delete = False
 
 
+def _ad_preview(image_path: str | None, height: int) -> Markup:
+    if not image_path:
+        return Markup("—")
+    src = escape(image_path)
+    return Markup(f'<a href="{src}" target="_blank"><img src="{src}" style="height:{height}px"></a>')
+
+
+class AdAdmin(ModelView, model=Ad):
+    """Модерация рекламы: загрузка, включение/выключение, удаление картинок."""
+    name = "Картинка"
+    name_plural = "Реклама"
+    icon = "fa-solid fa-image"
+
+    column_list = [Ad.id, "preview", Ad.title, Ad.is_active, Ad.created_at]
+    column_details_list = [Ad.id, "preview", Ad.title, Ad.image_path, Ad.is_active, Ad.created_at]
+    column_default_sort = [(Ad.id, True)]
+    column_labels = {
+        "id": "ID",
+        "preview": "Картинка",
+        "title": "Название",
+        "image_path": "Файл",
+        "is_active": "Показывать",
+        "created_at": "Добавлена",
+        "image": "Файл картинки",
+    }
+    column_formatters = {
+        "preview": lambda m, a: _ad_preview(m.image_path, 60),
+        **_msk_formatters("created_at"),
+    }
+    column_formatters_detail = {
+        "preview": lambda m, a: _ad_preview(m.image_path, 300),
+        **_msk_formatters("created_at"),
+    }
+
+    # Файл задаётся только при создании; заменить картинку = загрузить новую, старую выключить.
+    form_create_rules = ["title", "image", "is_active"]
+    form_edit_rules = ["title", "is_active"]
+    form_columns = [Ad.title, Ad.is_active]
+
+    async def scaffold_form(self, rules=None):
+        base = await super().scaffold_form(None)
+
+        class AdForm(base):
+            image = FileField(
+                "Файл картинки",
+                description=f"{', '.join(sorted(ALLOWED_EXTENSIONS))}, до 5 МБ",
+            )
+
+        if rules:
+            # убирает из формы поля, которых нет в rules (на редактировании — image)
+            self._validate_form_class(rules, AdForm)
+        return AdForm
+
+    async def insert_model(self, request: Request, data: dict) -> Any:
+        upload = data.pop("image", None)
+        content = await upload.read() if upload else b""
+        try:
+            data["image_path"] = save_ad_file(upload.filename if upload else "", content)
+        except AdUploadError as e:
+            raise ValueError(str(e)) from e
+        try:
+            return await super().insert_model(request, data)
+        except Exception:
+            delete_ad_file(data["image_path"])
+            raise
+
+    async def after_model_delete(self, model: Any, request: Request) -> None:
+        delete_ad_file(model.image_path)
+
+
 class AdViewStatsAdmin(ModelView, model=AdViewStats):
     name = "Реклама"
     name_plural = "Статистика рекламы"
     icon = "fa-solid fa-chart-bar"
 
-    column_list = [AdViewStats.image_path, AdViewStats.total_views, AdViewStats.unique_viewers]
+    column_list = [AdViewStats.title, AdViewStats.image_path, AdViewStats.total_views, AdViewStats.unique_viewers]
     column_sortable_list = [AdViewStats.total_views, AdViewStats.unique_viewers]
     column_default_sort = [(AdViewStats.total_views, True)]
 
     column_labels = {
-        "image_path": "Картинка",
+        "title": "Название",
+        "image_path": "Файл",
         "total_views": "Просмотров всего",
         "unique_viewers": "Уникальных зрителей",
     }
     column_formatters = {
         "image_path": lambda m, a: m.image_path.rsplit("/", 1)[-1],
+        "title": lambda m, a: m.title or "— (удалена)",
     }
 
     can_create = False
@@ -345,47 +440,22 @@ class AdViewStatsAdmin(ModelView, model=AdViewStats):
     can_delete = False
 
 
-class QrCodeAdmin(ModelView, model=QrCode):
-    name = "QR-код"
-    name_plural = "QR-коды (аналитика)"
-    icon = "fa-solid fa-qrcode"
-
-    column_list = [QrCode.address_name, QrCode.code, QrCode.visit_count]
-    column_sortable_list = [QrCode.visit_count, QrCode.address_name, QrCode.code]
-    column_default_sort = [(QrCode.visit_count, True)]
-
-    column_labels = {
-        "address_name": "Адрес",
-        "address_slug": "Slug",
-        "code": "Код",
-        "visit_count": "Переходов",
-    }
-
-    can_create = False
-    can_edit = False
-    can_delete = False
-
-
-class LandingVisitAdmin(ModelView, model=LandingVisit):
-    name = "Визит"
-    name_plural = "Визиты по QR"
+class LandingVisitStatsAdmin(ModelView, model=LandingVisitStats):
+    name = "Посещения"
+    name_plural = "Посещения сайта"
     icon = "fa-solid fa-chart-line"
 
-    column_list = [LandingVisit.id, LandingVisit.ref_code, LandingVisit.visited_at]
-    column_default_sort = [(LandingVisit.visited_at, True)]
+    column_list = [LandingVisitStats.day, LandingVisitStats.visits, LandingVisitStats.unique_visitors]
+    column_sortable_list = [LandingVisitStats.day, LandingVisitStats.visits, LandingVisitStats.unique_visitors]
+    column_default_sort = [(LandingVisitStats.day, True)]
 
     column_labels = {
-        "id": "ID",
-        "ref_code": "Адрес",
-        "visited_at": "Время",
+        "day": "День (МСК)",
+        "visits": "Заходов",
+        "unique_visitors": "Уникальных посетителей",
     }
     column_formatters = {
-        "ref_code": lambda m, a: (
-            "Неизвестный код" if m.ref_code == "invalid"
-            else _SLUG_TO_STREET.get(m.ref_code.rsplit("-", 1)[0], m.ref_code) + ", " + m.ref_code.rsplit("-", 1)[-1]
-            if "-" in m.ref_code else m.ref_code
-        ),
-        **_msk_formatters("visited_at"),
+        "day": lambda m, a: m.day.strftime("%d.%m.%Y"),
     }
 
     can_create = False
@@ -414,7 +484,7 @@ def create_admin(app) -> Admin:
     admin.add_view(ServiceAdmin)
     admin.add_view(SystemSettingsAdmin)
     admin.add_view(OrderStatusHistoryAdmin)
+    admin.add_view(AdAdmin)
     admin.add_view(AdViewStatsAdmin)
-    admin.add_view(QrCodeAdmin)
-    admin.add_view(LandingVisitAdmin)
+    admin.add_view(LandingVisitStatsAdmin)
     return admin

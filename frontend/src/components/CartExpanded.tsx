@@ -17,6 +17,8 @@ interface Props {
 
 export function CartExpanded({ cart, addons, isFree, show, onClose, onRemove, onClear, onCheckout, loading, onShowOffer, onShowPrivacy }: Props) {
   const { total, fullTotal } = calcCartTotals(cart, addons, isFree)
+  const bags = cart.filter((i) => i.type === 'bag').length
+  const pieces = cart.length - bags
 
   return (
     <div className={`cart-expanded${show ? ' show' : ''}`}>
@@ -65,11 +67,14 @@ export function CartExpanded({ cart, addons, isFree, show, onClose, onRemove, on
               <i className="fas fa-plus-circle" /> {a.name}
             </div>
             <div className="cart-item-detail">
-              {a.price} ₽ × {cart.length} поз.
+              {a.price === a.bagPrice
+                ? `${a.price} ₽ × ${cart.length} поз.`
+                : [pieces > 0 && `${a.price} ₽ × ${pieces} вещ.`, bags > 0 && `${a.bagPrice} ₽ × ${bags} пак.`]
+                    .filter(Boolean).join(' + ')}
             </div>
           </div>
           <div className="cart-item-right">
-            <span className="cart-item-price">{a.price * cart.length} ₽</span>
+            <span className="cart-item-price">{a.price * pieces + a.bagPrice * bags} ₽</span>
           </div>
         </div>
       ))}

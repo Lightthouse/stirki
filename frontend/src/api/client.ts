@@ -28,6 +28,24 @@ export function getPhone(): string | null {
   return localStorage.getItem('client_phone')
 }
 
+/**
+ * Текст ошибки из ответа FastAPI. Обычно `detail` — строка (HTTPException),
+ * но при ошибке проверки данных (422) это массив `[{msg, loc, ...}]`.
+ * Наши сообщения из валидаторов (`raise ValueError("…")`) приходят как «Value error, …» —
+ * показываем их; стандартные сообщения pydantic английские — вместо них общий текст.
+ */
+function errorMessage(detail: unknown, status: number): string {
+  if (typeof detail === 'string' && detail) return detail
+  if (Array.isArray(detail)) {
+    const ours = detail
+      .map((e) => (typeof e?.msg === 'string' ? e.msg : ''))
+      .filter((msg) => msg.startsWith('Value error, '))
+      .map((msg) => msg.slice('Value error, '.length))
+    return ours.length > 0 ? ours.join('. ') : 'Проверьте введённые данные'
+  }
+  return `Ошибка сервера (${status}). Попробуйте ещё раз.`
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -73,7 +91,7 @@ async function request<T>(
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}))
-    throw new Error(errorBody.detail || `HTTP ${response.status}`)
+    throw new Error(errorMessage(errorBody.detail, response.status))
   }
 
   return response.json()

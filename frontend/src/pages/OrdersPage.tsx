@@ -86,7 +86,7 @@ export function OrdersPage() {
                     onClick={() => handleOrderClick(order.id)}
                   >
                     <div className="order-card-header">
-                      <span className="order-card-id">#{order.id}</span>
+                      <span className="order-card-id">№ ST-{order.id}</span>
                       <span className="order-card-date">{formatDate(order.created_at)}</span>
                     </div>
                     <div className="order-card-body">

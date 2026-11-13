@@ -19,6 +19,11 @@ create table clients (
     apartment int not null default 0,
     comment text,
 
+    -- согласия, данные при входе (галочки под номером телефона): время последнего входа с галочкой.
+    -- Оферта и политика обязательны; рассылка — по желанию, null = согласия нет (или отозвано)
+    offer_accepted_at timestamptz,
+    sms_marketing_consent_at timestamptz,
+
     registered_at timestamptz default now(),
     total_orders int default 0
 );
@@ -80,13 +85,36 @@ create table order_status_history (
     changed_by text
 );
 
+-- заходы неавторизованных посетителей на главную: QR на листовках ведёт на сайт без параметров,
+-- поэтому источник не различаем — считаем все заходы
 create table landing_visits (
     id bigserial primary key,
-    ref_code text not null,
+    visitor_id uuid not null,     -- случайный id браузера (localStorage) — для подсчёта уникальных посетителей
     visited_at timestamptz default now()
 );
 
-create index idx_landing_visits_ref_code on landing_visits (ref_code);
+create index idx_landing_visits_visited_at on landing_visits (visited_at);
+
+create view landing_visit_stats as
+select
+    (visited_at at time zone 'Europe/Moscow')::date as day,
+    count(*)                                        as visits,
+    count(distinct visitor_id)                      as unique_visitors
+from landing_visits
+group by 1;
+
+-- рекламные картинки (админка «Реклама»): файл лежит в advertising/, показываются только is_active
+create table ads (
+    id serial primary key,
+    title text not null,
+    image_path text unique not null,
+    is_active boolean not null default true,
+    created_at timestamptz default now()
+);
+
+insert into ads (title, image_path) values
+('Сплетницы', '/advertising/сплетницы.jpg'),
+('Счастливые часы', '/advertising/счастливыечасы.jpg');
 
 -- отслеживаем для каждой рекламной картинки то, сколько раз её просмотрели
 create table ad_views (
@@ -97,22 +125,17 @@ create table ad_views (
 );
 create index idx_ad_views_image_path on ad_views (image_path);
 
+-- статистика по пути картинки; title — из ads (null, если картинку удалили)
 create view ad_view_stats as
 select
-    image_path,
+    v.image_path,
+    a.title,
     count(*)                    as total_views,
-    count(distinct client_id)   as unique_viewers
-from ad_views
-group by image_path
+    count(distinct v.client_id) as unique_viewers
+from ad_views v
+left join ads a on a.image_path = v.image_path
+group by v.image_path, a.title
 order by total_views desc;
-
--- аналитика по переходам по ссылке в приложение
-create table qr_codes (
-    code int primary key,         -- числовой код из ?ref=N; 0 = невалидный/неизвестный
-    address_slug text not null,   -- slug адреса или 'invalid'
-    address_name text not null,   -- название на кириллице или 'Неизвестный код'
-    visit_count int not null default 0
-);
 
 -- таблица для глобальных настроек сервиса (одна строка)
 create table system_settings (
@@ -142,27 +165,15 @@ insert into order_statuses (name, slug) values
 ('Отменено','canceled'), ('Ожидает оплаты','waiting_payment');
 
 insert into services (name, slug, price_rub, is_active) values
-('Стирка', 'base', 1490, true),
-('Стирка одной вещи', 'piece', 390, true),
+('Стирка', 'base', 990, true),
+('Стирка одной вещи', 'piece', 190, true),
 ('Глажка', 'ironing', 190, true),
 ('Кондиционер для белья', 'conditioner', 100, true),
 ('Вакуумный пакет', 'vacuum_pack', 150, true),
 ('Пятновыводитель', 'stain_remover', 80, false),
 ('Отбеливатель', 'bleach', 80, false),
-('Салфетки против окрашивания', 'color_catcher_sheets', 100, true),
-('Мешок для стирки', 'wash_bag', 30, false);
+('Салфетки против окрашивания', 'color_catcher_sheets', 100, false),
+('Мешок для стирки', 'wash_bag', 30, false),
+-- цена глажки за пакет; ironing — за вещь (src/services/pricing.py, BAG_PRICE_SUFFIX)
+('Глажка пакета', 'ironing_bag', 990, true);
 
-insert into qr_codes (code, address_slug, address_name) values
-(142, 'rozhdestvenskaya-11',   'Рождественская, 11'),
-(287, 'rozhdestvenskaya-9',    'Рождественская, 9'),
-(391, 'rozhdestvenskaya-7',    'Рождественская, 7'),
-(516, 'rozhdestvenskaya-5',    'Рождественская, 5'),
-(634, 'rozhdestvenskaya-3',    'Рождественская, 3'),
-(78,  'rozhdestvenskaya-2',    'Рождественская, 2'),
-(203, 'novomytishchinskay-4a', 'Новомытищинский проспект, 4а'),
-(457, 'komarova-2k1',          'Комарова, 2к1'),
-(819, 'komarova-2k2',          'Комарова, 2к2'),
-(563, 'komarova-2k3',          'Комарова, 2к3'),
-(721, 'vorovskogo-10',         'Воровского, 10'),
-(345, 'sharapovskaya-vl2-st3', 'Шараповский проезд, вл2 ст3'),
-(0,   'invalid',               'Неизвестный код');

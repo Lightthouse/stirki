@@ -14,7 +14,7 @@ import { OfferModal } from '../components/ui/OfferModal'
 import { PrivacyModal } from '../components/ui/PrivacyModal'
 import type { AddressData } from '../components/swipe/AddressCard'
 import type { Tariff } from '../components/swipe/TariffCard'
-import { buildPriceMap } from '../components/swipe/ServicesCard'
+import { addonBagPrice, buildPriceMap } from '../components/swipe/ServicesCard'
 import type { AddonItem, CartItem, OrderLimits } from '../components/swipe/ServicesCard'
 import type { ClientInfo, Street, ServiceItem } from '../types'
 import { acceptHoursText } from '../types'
@@ -63,11 +63,11 @@ export function OrderPage() {
 
   const showMachines = tariff === 'free'
   const prices = buildPriceMap(services)
-  const minPaidPrice = Math.min(prices.piece ?? 390, prices.base ?? 1490)
+  const minPaidPrice = Math.min(prices.piece, prices.base)
   const adsRequired = Math.max(0, Math.min(adSettings.count, adImages.length))
   const addonItems: AddonItem[] = tariff === 'free' ? [] : services
     .filter((s) => addons.has(s.slug))
-    .map((s) => ({ slug: s.slug, name: s.name, price: s.price_rub }))
+    .map((s) => ({ slug: s.slug, name: s.name, price: s.price_rub, bagPrice: addonBagPrice(prices, s.slug) }))
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -136,6 +136,20 @@ export function OrderPage() {
       cards[index].scrollIntoView({ behavior: 'smooth' })
     }
   }
+
+  // Рекламные картинки грузим в фоне сразу, пока клиент выбирает адрес и тариф, —
+  // к просмотру они уже в кэше браузера и показ начинается без ожидания.
+  // Ссылки держим в ref, чтобы загруженные картинки не выбросил сборщик мусора.
+  // Бесплатный тариф выключен — рекламу не покажут, трафик клиента не тратим.
+  const adPreloadRef = useRef<HTMLImageElement[]>([])
+  useEffect(() => {
+    if (!freeTariffAvailable) return
+    adPreloadRef.current = adImages.map((src) => {
+      const img = new Image()
+      img.src = src
+      return img
+    })
+  }, [adImages, freeTariffAvailable])
 
   function handleWatchAd() {
     setShowAdViewer(true)
@@ -278,7 +292,7 @@ export function OrderPage() {
       {/* Header */}
       <div className="app-header">
         <div className="app-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-          стирка<span>он</span>
+          <img src="/logo.png" alt="стиркаON" />
         </div>
         <div className="header-actions">
           <div className="header-icon" onClick={() => setShowInfo(true)} title="О сервисе">

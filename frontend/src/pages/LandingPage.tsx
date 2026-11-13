@@ -29,10 +29,7 @@ export function LandingPage() {
   const hasActiveOrders = orders.some((o) => ACTIVE_STATUSES.has(o.status))
 
   useEffect(() => {
-    const ref = searchParams.get('ref')
-    if (ref && !authenticated) {
-      trackVisit(ref).catch(() => {})
-    }
+    if (!authenticated) trackVisit()
 
     getSystemSettings().then(setSettings).catch(() => {})
 
@@ -116,7 +113,7 @@ export function LandingPage() {
     <div className="start-screen">
       <div className="app-header">
         <div className="app-logo">
-          стирка<span>он</span>
+          <img src="/logo.png" alt="стиркаON" />
         </div>
         <div className="header-actions">
           <div className="header-icon" onClick={() => setShowInfo(true)} title="О сервисе">
@@ -189,7 +186,7 @@ export function LandingPage() {
                       onClick={() => handleOrderClick(order.id)}
                     >
                       <div className="order-card-header">
-                        <span className="order-card-id">Заказ #{order.id}</span>
+                        <span className="order-card-id">Заказ № ST-{order.id}</span>
                         <span className="order-card-date">{formatDate(order.created_at)}</span>
                       </div>
                       <div className="order-card-body">

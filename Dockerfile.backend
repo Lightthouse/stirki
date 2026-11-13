@@ -8,7 +8,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 COPY src/ src/
-COPY advertising/ advertising/
+# advertising/ не копируется: папка подключается томом (compose.yml), картинки грузят из админки.
 
 # --no-sync: не синхронизировать окружение при старте. Иначе `uv run` докачивает
 # dev-зависимости (ruff, pillow…) при каждом запуске контейнера.

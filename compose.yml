@@ -31,6 +31,9 @@ services:
     environment:
       DB_HOST: postgres
       APP_ENV: ${APP_ENV:-development}
+    # Рекламные картинки: загружаются через админку и должны переживать пересборку образа.
+    volumes:
+      - ./advertising:/app/advertising
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:

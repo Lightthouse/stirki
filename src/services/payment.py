@@ -4,6 +4,7 @@ from pathlib import Path
 
 import certifi
 import httpx
+from src.services.pricing import OrderLine
 from src.settings import TochkaSettings, AppSettings
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ class PaymentService:
         app_settings = AppSettings()
 
         self.customer_code = settings.TOCHKA_CUSTOMER_CODE_BUISNESS
+        self.tax_system_code = settings.TOCHKA_TAX_SYSTEM_CODE
         domain = app_settings.DOMAIN
         self._frontend_url = f"https://{domain}" if "localhost" not in domain else f"http://{domain}"
 
@@ -55,31 +57,63 @@ class PaymentService:
 
     def create_payment(
             self,
-            amount: int,
+            lines: list[OrderLine],
             payment_token: str,
+            payment_link_id: str,
+            order_number: str,
+            email: str,
+            client_name: str | None = None,
             purpose: str = "Оплата заказа на стирку",
     ) -> dict:
-        """Создание ссылки на оплату через Точка Банк."""
+        """Создание ссылки на оплату с кассовым чеком (54-ФЗ) через Точка Банк.
+
+        Чек уходит покупателю на `email`. Позиции чека — пакеты и вещи заказа,
+        сумма платежа равна сумме позиций. Суммы — в рублях. Работаем без НДС.
+        В название каждой позиции дописываем номер заказа: названия позиций печатаются
+        в чеке всегда (54-ФЗ), так чек однозначно связывается с заказом в админке.
+        """
+        order_suffix = f", заказ {order_number}"
         return_url = f"{self._frontend_url}/?payment_token={payment_token}"
-        payload = {
-            "Data": {
-                "customerCode": self.customer_code,
-                "amount": f"{amount}.00",
-                "purpose": purpose,
-                "redirectUrl": return_url,
-                "failRedirectUrl": return_url,
-                "paymentMode": [
-                    "sbp",
-                    "card"
-                ],
-                "saveCard": True,
-                "ttl": PAYMENT_LINK_TTL_MINUTES,
-                "paymentLinkId": payment_token,
-            }
+        client = {"email": email}
+        if client_name:
+            client["name"] = client_name
+        data = {
+            "customerCode": self.customer_code,
+            "amount": sum(line.total for line in lines),
+            "purpose": purpose,
+            "redirectUrl": return_url,
+            "failRedirectUrl": return_url,
+            # Доступные способы — в GET /acquiring/v1.0/retailers, поле paymentModes.
+            "paymentMode": [
+                "sbp",
+                "card",
+                "tinkoff",
+            ],
+            "saveCard": True,
+            "ttl": PAYMENT_LINK_TTL_MINUTES,
+            # Номер заказа, который покупатель видит на странице оплаты (уникален навсегда).
+            "paymentLinkId": payment_link_id,
+            "Client": client,
+            "Items": [
+                {
+                    # Лимит Точки — 256 символов; обрезаем описание, а не номер заказа.
+                    "name": line.name[:256 - len(order_suffix)] + order_suffix,
+                    "amount": line.unit_price,
+                    "quantity": line.quantity,
+                    "vatType": "none",
+                    "paymentMethod": "full_payment",
+                    "paymentObject": "service",
+                    "measure": "шт.",
+                }
+                for line in lines
+            ],
         }
-        # response = self.client.post("payments_with_receipt", json=payload)
-        # https://chat.deepseek.com/a/chat/s/8385ad91-b26e-4b1b-a1a3-43415a0052ea
-        response = self.client.post("payments", json=payload)
+        # Поле необязательное (swagger): не задано в .env — не передаём.
+        if self.tax_system_code:
+            data["taxSystemCode"] = self.tax_system_code
+        response = self.client.post("payments_with_receipt", json={"Data": data})
+        if response.is_error:
+            logger.error("Точка: ошибка создания платежа %s: %s", response.status_code, response.text)
         response.raise_for_status()
         data = response.json().get("Data", {})
         return {

@@ -48,7 +48,7 @@ async def sync_order_payment(session: AsyncSession, order: Order) -> str:
             order, OrderStatusName.COURIER_PICKUP, PaymentStatus.SUCCEEDED, changed_by="tochka",
         )
         if changed:
-            notify_new_order(order, order.client)
+            await notify_new_order(session, order, order.client)
         return "approved"
     if tochka_status in ("REJECTED", "EXPIRED"):
         await repo.resolve_payment(

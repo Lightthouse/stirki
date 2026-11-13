@@ -1,9 +1,10 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.addresses import QR_CODE_MAP
 from src.api.dependencies import get_db, get_current_client
 from src.models.client import Client
 
@@ -11,7 +12,7 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
 class TrackVisitIn(BaseModel):
-    ref: str
+    visitor_id: UUID
 
 
 class TrackAdViewIn(BaseModel):
@@ -33,18 +34,8 @@ async def track_ad_view(
 
 @router.post("/track-visit", status_code=204)
 async def track_visit(body: TrackVisitIn, db: AsyncSession = Depends(get_db)):
-    try:
-        code = int(body.ref)
-        ref_code = QR_CODE_MAP.get(code, "invalid")
-    except (ValueError, TypeError):
-        ref_code = "invalid"
-
     await db.execute(
-        text("INSERT INTO landing_visits (ref_code) VALUES (:ref)"),
-        {"ref": ref_code},
-    )
-    await db.execute(
-        text("UPDATE qr_codes SET visit_count = visit_count + 1 WHERE address_slug = :slug"),
-        {"slug": ref_code},
+        text("INSERT INTO landing_visits (visitor_id) VALUES (:visitor_id)"),
+        {"visitor_id": body.visitor_id},
     )
     await db.commit()

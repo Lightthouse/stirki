@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { getStatusName, STATUS_STEP_MAP, ACTIVE_STATUSES } from '../utils/orderStatuses'
 import type { OrderDetail } from '../types'
+import { addonBagPrice } from './swipe/ServicesCard'
 
 interface Props {
   order: OrderDetail
@@ -35,13 +36,17 @@ export function StatusScreen({ order, serviceNames, servicePrices, streetName, o
   const statusStep = STATUS_STEP_MAP[order.status] || 1
   const isFree = order.is_free
 
-  const basePrice = servicePrices['base'] ?? 1490
-  const piecePrice = servicePrices['piece'] ?? 390
-  const positions = order.bags_number + order.pieces_number
-  // Допуслуги считаются за каждую позицию (как и на бэкенде, src/services/pricing.py)
+  const basePrice = servicePrices['base'] ?? 990
+  const piecePrice = servicePrices['piece'] ?? 190
+  // Допуслуги считаются за каждую позицию, за пакет — по цене `<slug>_bag` (как src/services/pricing.py)
   const addonDetails = order.services
     .filter((s) => s !== 'base' && s !== 'piece')
-    .map((slug) => ({ slug, name: serviceNames[slug] || slug, price: (servicePrices[slug] ?? 0) * positions }))
+    .map((slug) => ({
+      slug,
+      name: serviceNames[slug] || slug,
+      price: (servicePrices[slug] ?? 0) * order.pieces_number
+        + addonBagPrice(servicePrices, slug) * order.bags_number,
+    }))
 
   const addressDisplay = `${streetName}, д. ${order.house}, кв. ${order.apartment}`
 
@@ -181,7 +186,7 @@ export function StatusScreen({ order, serviceNames, servicePrices, streetName, o
 
       {isActive && (
         <div className="status-note">
-          <i className="fas fa-info-circle" /> Вы можете закрыть сайт — мы пришлём уведомление, когда курьер будет рядом
+          <i className="fas fa-info-circle" /> Статус заказа можно отслеживать в приложении
         </div>
       )}
     </div>

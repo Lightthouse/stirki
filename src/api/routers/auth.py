@@ -39,6 +39,12 @@ async def request_code(
     body: RequestCodeIn,
     session: AsyncSession = Depends(get_db),
 ):
+    if not body.offer_accepted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Примите условия оферты и политики конфиденциальности",
+        )
+
     repo = ClientRepository(session)
     client = await repo.get_by_phone(body.phone)
 
@@ -106,6 +112,10 @@ async def verify_code(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Неверный или просроченный код",
         )
+
+    # Согласия и email фиксируем только после подтверждения номера — значит, их дал владелец телефона.
+    await repo.set_consents(client, body.offer_accepted, body.sms_marketing_consent)
+    await repo.update(client, email=body.email)
 
     is_new = not client.name or not client.street
     client_out = None if is_new else ClientOut.model_validate(client)

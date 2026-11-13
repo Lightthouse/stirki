@@ -37,6 +37,10 @@ class Client(Base):
     apartment: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     comment: Mapped[str | None] = mapped_column(Text)
 
+    offer_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # null — согласия на рекламные СМС нет
+    sms_marketing_consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     registered_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

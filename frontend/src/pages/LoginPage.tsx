@@ -33,10 +33,14 @@ function formatPhone(raw: string): string {
   return `+${d[0]} ${d.slice(1, 4)} ${d.slice(4, 7)}-${d.slice(7, 9)}-${d.slice(9)}`
 }
 
+// Простая проверка формата; совпадает с проверкой на бэкенде (src/schemas/auth.py)
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+
 export function LoginPage() {
   const navigate = useNavigate()
   const [phase, setPhase] = useState<Phase>('phone')
   const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
@@ -46,6 +50,10 @@ export function LoginPage() {
   const [showInfo, setShowInfo] = useState(false)
   const [showOffer, setShowOffer] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
+  // галочки под номером телефона: оферта обязательна, рассылка — по желанию
+  const [offerAccepted, setOfferAccepted] = useState(false)
+  const [smsMarketing, setSmsMarketing] = useState(false)
+  const [offerError, setOfferError] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -78,17 +86,23 @@ export function LoginPage() {
       setError('Введите номер телефона')
       return
     }
+    if (!EMAIL_RE.test(email.trim())) {
+      setError('Введите корректный email — на него придёт чек об оплате')
+      return
+    }
+    if (!offerAccepted) {
+      setError('')
+      setOfferError(true)
+      return
+    }
     setLoading(true)
     setError('')
     try {
-      console.log('[DEBUG] отправка кода на:', phone.trim())
-      const res = await requestCode(phone.trim())
-      console.log('[DEBUG] ответ сервера:', res)
+      const res = await requestCode(phone.trim(), offerAccepted)
       if (res.code) setSmsCode(res.code)
       setPhase('code')
       startTimer()
     } catch (e) {
-      console.error('[DEBUG] ошибка:', e)
       setError(e instanceof Error ? e.message : 'Ошибка отправки кода')
     } finally {
       setLoading(false)
@@ -103,7 +117,7 @@ export function LoginPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await verifyCode(phone.trim(), code.trim())
+      const res = await verifyCode(phone.trim(), code.trim(), email.trim(), { offerAccepted, smsMarketingConsent: smsMarketing })
       if (res.is_new_client) {
         setPhase('name')
       } else {
@@ -138,7 +152,7 @@ export function LoginPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await requestCode(phone.trim())
+      const res = await requestCode(phone.trim(), offerAccepted)
       if (res.code) setSmsCode(res.code)
       startTimer()
     } catch (e) {
@@ -152,7 +166,7 @@ export function LoginPage() {
     <div className="start-screen">
       <div className="app-header">
         <div className="app-logo">
-          стирка<span>он</span>
+          <img src="/logo.png" alt="стиркаON" />
         </div>
         <div className="header-actions">
           <div className="header-icon" onClick={() => setShowInfo(true)} title="О сервисе">
@@ -183,15 +197,44 @@ export function LoginPage() {
                 autoFocus
               />
             </div>
+            <div className="field-label-text">Email для чеков</div>
+            <div className="input-underline">
+              <input
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="mail@example.ru"
+                value={email}
+                onChange={(e) => setEmail(e.target.value.trim())}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendCode()}
+              />
+            </div>
+            <label className={`consent-check${offerError ? ' consent-check--error' : ''}`}>
+              <input
+                type="checkbox"
+                checked={offerAccepted}
+                onChange={(e) => { setOfferAccepted(e.target.checked); setOfferError(false) }}
+              />
+              <span>
+                Я принимаю условия{' '}
+                {/* preventDefault — клик по ссылке открывает документ, а не переключает галочку */}
+                <span className="link-text" onClick={(e) => { e.preventDefault(); setShowOffer(true) }}>Публичной оферты</span> и{' '}
+                <span className="link-text" onClick={(e) => { e.preventDefault(); setShowPrivacy(true) }}>Политики конфиденциальности</span>
+              </span>
+            </label>
+            <label className="consent-check">
+              <input
+                type="checkbox"
+                checked={smsMarketing}
+                onChange={(e) => setSmsMarketing(e.target.checked)}
+              />
+              <span>Я согласен(на) на получение рекламных и информационных СМС-рассылок</span>
+            </label>
+            {offerError && <p className="error-text">Чтобы продолжить, примите условия оферты и политики</p>}
             {error && <p className="error-text">{error}</p>}
             <button className="btn-pill btn-pill-accent" onClick={handleSendCode} disabled={loading}>
               {loading ? 'Отправка...' : 'Получить код'}
             </button>
-            <div className="login-agreement">
-              Нажимая «Получить код», вы соглашаетесь с{' '}
-              <span className="link-text" onClick={() => setShowOffer(true)}>публичной офертой</span> и{' '}
-              <span className="link-text" onClick={() => setShowPrivacy(true)}>политикой обработки данных</span>
-            </div>
           </>
         )}
 

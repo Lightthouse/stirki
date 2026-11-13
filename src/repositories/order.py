@@ -140,12 +140,15 @@ class OrderRepository:
         operation_id: str,
         payment_link: str | None = None,
         payment_token: str | None = None,
+        payment_link_id: str | None = None,
     ) -> Order:
         order.operation_id = operation_id
         if payment_link:
             order.payment_link = payment_link
         if payment_token:
             order.payment_token = payment_token
+        if payment_link_id:
+            order.payment_link_id = payment_link_id
         await self.session.commit()
         await self.session.refresh(order)
         return order

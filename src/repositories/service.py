@@ -20,9 +20,16 @@ class ServiceRepository:
         )
         return list(result.scalars().all())
 
+    async def get_names(self, slugs: list[str]) -> dict[str, str]:
+        """slug → название, включая выключенные услуги (они могут быть в старых заказах)."""
+        if not slugs:
+            return {}
+        result = await self.session.execute(select(Service).where(Service.slug.in_(slugs)))
+        return {s.slug: s.name for s in result.scalars()}
+
     async def get_base_price(self) -> int:
         result = await self.session.execute(
             select(Service).where(Service.slug == "base")
         )
         base = result.scalar_one_or_none()
-        return base.price_rub if base else 1490
+        return base.price_rub if base else 990

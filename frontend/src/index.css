@@ -375,15 +375,16 @@ body {
 }
 
 .app-logo {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text);
+  display: flex;
+  align-items: center;
   pointer-events: auto;
 }
 
-.app-logo span {
-  font-weight: 700;
-  color: var(--teal);
+/* Фирменный логотип: PNG с прозрачным фоном (исходник — docs/СтиркаON лого.pdf) */
+.app-logo img {
+  display: block;
+  height: 26px;
+  width: auto;
 }
 
 .header-actions {
@@ -511,12 +512,32 @@ body {
   line-height: 1.4;
 }
 
-.login-agreement {
-  font-size: 11px;
-  color: var(--text-faint);
-  text-align: center;
-  margin-top: 16px;
-  line-height: 1.5;
+/* галочки согласий под номером телефона */
+.consent-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.consent-check input {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--teal);
+  cursor: pointer;
+}
+
+.consent-check--error {
+  color: #E53935;
 }
 
 /* ========== VERTICAL DOTS ========== */

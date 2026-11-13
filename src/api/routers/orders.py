@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import secrets
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -28,6 +29,19 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _SLUG_TO_STREET = {slug: name for name, slug in STREETS_SLUG.items()}
+
+# Без похожих символов (0/O, 1/I/L), чтобы номер можно было продиктовать.
+_LINK_ID_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+
+
+def _new_payment_link_id(order: Order) -> str:
+    """paymentLinkId для Точки: номер заказа + случайный хвост, например ST-123-K7Q2.
+
+    Точка требует уникальности paymentLinkId навсегда, а orders.id повторяется: локальная
+    разработка ходит в ту же Точку, а БД пересоздаётся и нумерация начинается с 1.
+    """
+    tail = "".join(secrets.choice(_LINK_ID_ALPHABET) for _ in range(4))
+    return f"{order.number}-{tail}"
 
 
 def _is_address_in_zone(street_slug: str, house: str) -> bool:
@@ -134,12 +148,20 @@ async def create_order(
             is_free=True,
             payment_status=PaymentStatus.SUCCEEDED,
         )
-        notify_new_order(order, client)
+        await notify_new_order(session, order, client)
         return PaymentOut(order_id=order.id, total_price_rub=0, confirmation_url=None)
+
+    # Кассовый чек Точка отправляет только на email — без него платёж не создать.
+    if not client.email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Не указан email для чека. Выйдите из аккаунта и войдите снова, указав email",
+        )
 
     service_repo = ServiceRepository(session)
     pricing = PricingService(await service_repo.get_base_price(), await service_repo.get_all_active())
-    total_price = pricing.calculate_order_price(body.bags_number, body.pieces_number, body.services)
+    lines = pricing.order_lines(body.bags_number, body.pieces_number, body.services)
+    total_price = sum(line.total for line in lines)
 
     payment_token = str(uuid4())
     order = await order_service.create(
@@ -153,12 +175,17 @@ async def create_order(
         comment=body.comment,
         is_free=False,
     )
+    payment_link_id = _new_payment_link_id(order)
     try:
         payment_result = await asyncio.to_thread(
             PaymentService().create_payment,
-            amount=total_price,
+            lines=lines,
             payment_token=payment_token,
-            purpose=f"Стирка ON — заказ #{order.id}",
+            payment_link_id=payment_link_id,
+            order_number=order.number,
+            email=client.email,
+            client_name=client.name,
+            purpose=f"Стирка ON — заказ № {order.number}",
         )
         confirmation_url = payment_result.get("payment_link")
         if not confirmation_url:
@@ -168,6 +195,7 @@ async def create_order(
             operation_id=payment_result["operation_id"],
             payment_link=confirmation_url,
             payment_token=payment_token,
+            payment_link_id=payment_link_id,
         )
     except Exception:
         logger.exception("Failed to create payment for order %s", order.id)

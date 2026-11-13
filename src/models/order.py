@@ -100,6 +100,11 @@ class Order(Base):
     )
 
     @property
+    def number(self) -> str:
+        """Номер заказа для людей: на сайте, в письмах, в админке, в платеже Точки."""
+        return f"ST-{self.id}"
+
+    @property
     def service_slugs(self) -> list[str]:
         """Список активных slug-ов услуг из булевых флагов."""
         return [f for f in _SERVICE_FIELDS if getattr(self, f)]

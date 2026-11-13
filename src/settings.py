@@ -1,4 +1,4 @@
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -40,6 +40,20 @@ class AppSettings(BaseSettings):
         extra="ignore",
     )
 
+    @model_validator(mode="after")
+    def _check_production_secrets(self) -> "AppSettings":
+        if self.APP_ENV not in ("development", "production"):
+            raise ValueError(f"APP_ENV должен быть development или production, а не {self.APP_ENV!r}")
+        # В prod без своих секретов админка открылась бы с паролем по умолчанию — не запускаемся.
+        if self.APP_ENV == "production":
+            weak = [
+                name for name in ("SECRET_KEY", "ADMIN_PASSWORD")
+                if getattr(self, name) in ("", "change-me-in-production")
+            ]
+            if weak:
+                raise ValueError(f"В production задайте в .env: {', '.join(weak)} (openssl rand -hex 32)")
+        return self
+
 
 class SmsAeroSettings(BaseSettings):
     SMSAERO_EMAIL: str = ""
@@ -57,6 +71,9 @@ class TochkaSettings(BaseSettings):
     TOCHKA_TOKEN: str = ""
     TOCHKA_CUSTOMER_CODE_BUISNESS: str = ""
     TOCHKA_CUSTOMER_CODE_PERSONAL: str = ""
+    # Система налогообложения для чека: osn, usn_income, usn_income_outcome, esn, patent.
+    # Пусто — не передаём (поле необязательное).
+    TOCHKA_TAX_SYSTEM_CODE: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

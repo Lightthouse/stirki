@@ -98,6 +98,17 @@ class ClientRepository:
         await self.session.commit()
         return token
 
+    async def set_consents(self, client: Client, offer_accepted: bool, sms_marketing: bool) -> None:
+        """Галочки при входе. Снятая галочка рассылки отзывает прежнее согласие."""
+        now = datetime.now(timezone.utc)
+        if offer_accepted:
+            client.offer_accepted_at = now
+        if not sms_marketing:
+            client.sms_marketing_consent_at = None
+        elif client.sms_marketing_consent_at is None:
+            client.sms_marketing_consent_at = now
+        await self.session.commit()
+
     async def update(
         self,
         client: Client,

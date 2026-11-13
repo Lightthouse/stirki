@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { getServices, getSystemSettings } from '../../api'
 import type { ServiceItem, SystemSettings } from '../../types'
 import { acceptHoursText } from '../../types'
+import { isAddonSlug } from '../swipe/ServicesCard'
 
 interface Props {
   onClose: () => void
@@ -18,7 +19,8 @@ export function InfoModal({ onClose }: Props) {
 
   const base = services.find((s) => s.slug === 'base')
   const piece = services.find((s) => s.slug === 'piece')
-  const addons = services.filter((s) => s.slug !== 'base' && s.slug !== 'piece')
+  const addons = services.filter((s) => isAddonSlug(s.slug))
+  const bagPrice = (slug: string) => services.find((s) => s.slug === `${slug}_bag`)?.price_rub
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -50,7 +52,11 @@ export function InfoModal({ onClose }: Props) {
             {base && <li>Пакет одежды или белья (до 3 кг) — {base.price_rub} ₽</li>}
             {piece && <li>Одна вещь — {piece.price_rub} ₽</li>}
             {addons.map((a) => (
-              <li key={a.slug}>{a.name} — +{a.price_rub} ₽ за позицию</li>
+              <li key={a.slug}>
+                {a.name} — {bagPrice(a.slug) !== undefined && bagPrice(a.slug) !== a.price_rub
+                  ? `+${a.price_rub} ₽ за вещь / +${bagPrice(a.slug)} ₽ за пакет`
+                  : `+${a.price_rub} ₽ за позицию`}
+              </li>
             ))}
           </ul>
         </section>

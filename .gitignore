@@ -34,3 +34,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 /restyle/
+
+# документация API Точки — скачивается с их сайта (README, «Оплата»)
+docs/tochka/

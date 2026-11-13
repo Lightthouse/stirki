@@ -6,10 +6,12 @@ cd "$(dirname "$0")"
 usage() {
     echo "Использование: ./run.sh {local|dev|prod|stop}"
     echo ""
-    echo "  local — БД + adminer + baserow в docker, backend и frontend локально с hot-reload, без оплаты"
-    echo "  dev   — весь стек в docker (включая backend, frontend, caddy), без оплаты"
-    echo "  prod  — весь стек в docker (включая backend, frontend, caddy), с реальной оплатой"
+    echo "  local — БД + adminer + baserow в docker, backend и frontend локально с hot-reload; SMS не шлются, код на странице"
+    echo "  dev   — весь стек в docker (backend, frontend, caddy); SMS не шлются, код на странице — войти можно под любым номером"
+    echo "  prod  — весь стек в docker (backend, frontend, caddy); реальные SMS, нужны SECRET_KEY и ADMIN_PASSWORD в .env"
     echo "  stop  — остановить всё"
+    echo ""
+    echo "  Оплата через Точку настоящая во всех режимах."
     exit 1
 }
 
@@ -42,14 +44,14 @@ cmd_local() {
 cmd_dev() {
     echo "==> Сборка frontend без кеша..."
     docker compose --profile prod build --no-cache frontend
-    echo "==> Запуск в dev-режиме (без оплаты)..."
+    echo "==> Запуск в dev-режиме (SMS не отправляются, код показывается на странице; оплата настоящая)..."
     APP_ENV=development docker compose --profile prod up -d --build
 }
 
 cmd_prod() {
     echo "==> Сборка frontend без кеша..."
     docker compose --profile prod build --no-cache frontend
-    echo "==> Запуск в prod-режиме..."
+    echo "==> Запуск в prod-режиме (реальные SMS; без SECRET_KEY и ADMIN_PASSWORD в .env бэкенд не стартует)..."
     APP_ENV=production docker compose --profile prod up -d --build
 }
 
