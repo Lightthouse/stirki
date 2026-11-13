@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.client import Client
 from src.models.order import Order
 from src.repositories.order import OrderRepository
-from src.services.baserow import BaserowService
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +38,6 @@ class OrderService:
             is_free=is_free,
             payment_status=payment_status,
         )
-
-        await BaserowService().sync_order(order, client.phone)
-
         return order
 
     async def update_status(

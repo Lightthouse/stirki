@@ -9,7 +9,6 @@ from src.models.client import Client
 from src.repositories.client import ClientRepository, TooManyVerifyAttemptsError
 from src.schemas.auth import RequestCodeIn, VerifyCodeIn, AuthTokenOut, ClientOut, UpdateClientIn
 from src.services.auth import generate_verification_code
-from src.services.baserow import BaserowService
 from src.services.sms import SMSSendError, SMSService
 from src.settings import AppSettings, SmsAeroSettings
 
@@ -57,18 +56,11 @@ async def request_code(
                 detail=f"Повторно запросить код можно через {wait} сек",
             )
 
-    is_new = not client
-    if is_new:
+    if not client:
         client = await repo.create(body.phone)
 
     code = generate_verification_code()
     await repo.set_verification_code(client, code)
-
-    if is_new:
-        try:
-            await BaserowService().sync_client(client)
-        except Exception:
-            logger.exception("Не удалось синхронизировать клиента с Baserow")
 
     if _app_settings.APP_ENV == "development":
         logger.info("[DEV] Код подтверждения %s: %s", body.phone, code)

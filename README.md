@@ -115,10 +115,10 @@ src/models/        ORM-модели
 ```
 
 - `src/schemas/` — Pydantic-модели запросов/ответов, `src/enums.py` — статусы заказа и оплаты, `src/settings.py` — настройки из `.env` (по классу на подсистему).
-- Сервисы: `pricing.py` (цена), `payment.py` (Точка Банк), `payment_sync.py` (сверка оплат + фоновая задача), `notifications.py` (email операторам), `schedule.py` (часы приёма, МСК), `sms.py` (SmsAero), `baserow.py` (дублирование клиентов и заказов в Baserow), `auth.py` (генерация кода).
+- Сервисы: `pricing.py` (цена), `payment.py` (Точка Банк), `payment_sync.py` (сверка оплат + фоновая задача), `notifications.py` (email операторам), `schedule.py` (часы приёма, МСК), `sms.py` (SmsAero), `auth.py` (генерация кода).
 - Авторизация: Bearer-токен (UUID в `clients.auth_token`), зависимость `get_current_client` в `src/api/dependencies.py`.
 - Создание заказа сериализуется `pg_advisory_xact_lock(client_id)`, чтобы не получить два активных заказа.
-- Некритичные интеграции (Baserow, email) не роняют основной сценарий: ошибки только логируются.
+- Некритичная интеграция (email операторам) не роняет основной сценарий: ошибки только логируются.
 - Админка — `src/admin.py` (sqladmin), вход по `ADMIN_USERNAME` / `ADMIN_PASSWORD`.
 
 ### Фронтенд
@@ -135,7 +135,7 @@ src/models/        ORM-модели
 PostgreSQL 16. Схема и начальные данные (статусы, прайс, настройки) — `pg_init/01-schema.sql`,
 единственный источник правды. Файл выполняется **только при первом создании тома** Postgres. Миграций нет:
 реальных клиентов пока нет, поэтому после правки `01-schema.sql` БД пересоздаётся. Все данные (клиенты, заказы,
-правки в админке) при этом удаляются; Baserow не затрагивается.
+правки в админке) при этом удаляются.
 
 ```bash
 docker compose --profile prod down        # остановить контейнеры (тома остаются)
@@ -175,7 +175,6 @@ cp .env.example .env
 | `TOCHKA_TOKEN`, `TOCHKA_CUSTOMER_CODE_BUISNESS` | эквайринг Точка Банк |
 | `TOCHKA_TAX_SYSTEM_CODE` | необязательно: система налогообложения для чека (`usn_income`, `patent`, …); пусто — не передаётся |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `NOTIFY_EMAIL` | письма операторам о новых заказах (для mail.ru нужен «пароль для внешних приложений»); `NOTIFY_EMAIL` — один или несколько адресов через запятую. Названия допуслуг в письме — из таблицы `services`, у платного заказа есть «Платёж в Точке» (`payment_link_id`). Не настроено — письма не отправляются, в логе предупреждение |
-| `BASEROW_*` | необязательно: дублирование клиентов и заказов в Baserow |
 
 > ⚠️ `APP_ENV=development` нельзя оставлять на сервере, открытом для людей: кто угодно сможет
 > войти под любым номером телефона. Оплата в dev-режиме **не** отключается — платный заказ
@@ -185,13 +184,13 @@ cp .env.example .env
 
 | Команда | Что запускается |
 |---|---|
-| `./run.sh local` | Postgres, Adminer, Baserow в Docker; бэкенд (uvicorn `--reload`, :8001) и фронтенд (Vite, http://localhost:5173) на хосте. `APP_ENV=development` |
+| `./run.sh local` | Postgres и Adminer в Docker; бэкенд (uvicorn `--reload`, :8001) и фронтенд (Vite, http://localhost:5173) на хосте. `APP_ENV=development` |
 | `./run.sh dev` | весь стек в Docker (бэкенд, сборка фронтенда, Caddy), `APP_ENV=development` |
 | `./run.sh prod` | весь стек в Docker, `APP_ENV=production` |
 | `./run.sh stop` | остановить всё |
 
 Локально: код входа показывается прямо под полем ввода. Админка — http://localhost:5173/admin,
-Adminer — http://localhost:8081, Baserow — http://localhost:8082.
+Adminer — http://localhost:8081.
 
 ### Сервер
 
@@ -211,6 +210,10 @@ cd /opt/stirki && git pull && ./run.sh dev       # пока идут тесты;
 Без этого панель сама поднимает nginx обратно. Вернуть: `crontab /root/crontab.before-disable-ispmanager.bak`
 и `systemctl enable --now <служба>` — но тогда Caddy не сможет занять порты 80/443.
 
+> ⚠️ Так отключить панель не получилось (проверено 2026-11-13): процесс `core ispmgr` остался запущен,
+> заново дописал свои задачи в crontab и поднял службы обратно — из интернета снова открыты FTP, почта,
+> DNS и сама панель (:1500). Панель нужно отключить в личном кабинете FirstVDS (TODO, «Деплой»).
+
 **Первичная установка на чистый сервер:**
 
 ```bash
@@ -224,7 +227,7 @@ cp .env.example .env && chmod 600 .env && nano .env   # DOMAIN=stirkaon.com, п�
 > нужно пересоздать (`docker compose --profile prod up -d --force-recreate --no-deps caddy`),
 > иначе он остаётся без сети и не может получить сертификат.
 
-Caddy сам получит HTTPS-сертификат. Проверка: `curl https://stirkaon.com/api/health`.
+Caddy сам получит HTTPS-сертификаты (на домен и на `www.`, который редиректит на основной). Проверка: `curl https://stirkaon.com/api/health`.
 
 ```bash
 docker compose --profile prod ps                 # статус
@@ -233,13 +236,27 @@ git pull && ./run.sh prod                        # обновление
 docker exec -it stirki-db psql -U stirki -d stirki
 ```
 
-Postgres, Adminer и Baserow слушают только `127.0.0.1` сервера — из интернета они недоступны.
+Postgres и Adminer слушают только `127.0.0.1` сервера — из интернета они недоступны.
 Открыть их со своего компьютера — через SSH-туннель:
 
 ```bash
-ssh -L 8081:localhost:8081 -L 8082:localhost:8082 stirki
-# затем в браузере: http://localhost:8081 (Adminer), http://localhost:8082 (Baserow)
+ssh -L 8081:localhost:8081 stirki
+# затем в браузере: http://localhost:8081 (Adminer)
 ```
+
+**Резервные копии БД.** `./run.sh backup` пишет сжатый `pg_dump` в `/var/backups/stirki` (вне репозитория:
+он публичный) и оставляет 14 последних копий — сейчас это килобайты. На сервере запускается по cron в 04:00:
+
+```bash
+0 4 * * * cd /opt/stirki && ./run.sh backup >> /var/log/stirki-backup.log 2>&1
+```
+
+Восстановление: `gunzip -c /var/backups/stirki/<файл>.sql.gz | docker exec -i stirki-db psql -U stirki -d stirki`
+(в пустую БД). Копии лежат на том же сервере — от потери сервера не спасают. Рекламные картинки из
+`advertising/` в бэкап не входят (решение 2026-11-13): при потере их загружают в админке заново.
+
+**Логи Docker** ограничены в `/etc/docker/daemon.json` (`max-size: 10m`, `max-file: 3` на контейнер) —
+без этого json-логи контейнеров растут бесконечно. Действует на контейнеры, созданные после рестарта Docker.
 
 ---
 

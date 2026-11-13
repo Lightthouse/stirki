@@ -28,3 +28,8 @@
 		file_server
 	}
 }
+
+# www → основной домен (сертификат на www Caddy получит сам)
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}

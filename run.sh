@@ -4,19 +4,20 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 usage() {
-    echo "Использование: ./run.sh {local|dev|prod|stop}"
+    echo "Использование: ./run.sh {local|dev|prod|stop|backup}"
     echo ""
-    echo "  local — БД + adminer + baserow в docker, backend и frontend локально с hot-reload; SMS не шлются, код на странице"
+    echo "  local — БД + adminer в docker, backend и frontend локально с hot-reload; SMS не шлются, код на странице"
     echo "  dev   — весь стек в docker (backend, frontend, caddy); SMS не шлются, код на странице — войти можно под любым номером"
     echo "  prod  — весь стек в docker (backend, frontend, caddy); реальные SMS, нужны SECRET_KEY и ADMIN_PASSWORD в .env"
     echo "  stop  — остановить всё"
+    echo "  backup — дамп БД в \$BACKUP_DIR (по умолчанию /var/backups/stirki), хранятся 14 последних"
     echo ""
     echo "  Оплата через Точку настоящая во всех режимах."
     exit 1
 }
 
 cmd_local() {
-    echo "==> Запуск инфраструктуры (postgres, adminer, baserow)..."
+    echo "==> Запуск инфраструктуры (postgres, adminer)..."
     docker compose up -d
 
     echo "==> Ожидание готовности postgres..."
@@ -61,10 +62,23 @@ cmd_stop() {
     echo "==> Остановлено"
 }
 
+cmd_backup() {
+    # Каталог вне репозитория: репозиторий публичный, дампы с ПДн в git попасть не должны.
+    local dir="${BACKUP_DIR:-/var/backups/stirki}"
+    local file="$dir/stirki-$(date +%Y%m%d-%H%M%S).sql.gz"
+    mkdir -p "$dir" && chmod 700 "$dir"
+    # Пишем во временный файл: оборванный дамп не должен вытеснить ротацией целые копии.
+    docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d stirki' | gzip > "$file.tmp"
+    mv "$file.tmp" "$file"
+    ls -1t "$dir"/stirki-*.sql.gz | tail -n +15 | xargs -r rm --
+    echo "==> Дамп: $file"
+}
+
 case "${1:-}" in
     local) cmd_local ;;
     dev)   cmd_dev   ;;
     prod)  cmd_prod  ;;
     stop)  cmd_stop  ;;
+    backup) cmd_backup ;;
     *)     usage     ;;
 esac

@@ -1,4 +1,4 @@
-from pydantic import field_validator, model_validator
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -74,24 +74,6 @@ class TochkaSettings(BaseSettings):
     # Система налогообложения для чека: osn, usn_income, usn_income_outcome, esn, patent.
     # Пусто — не передаём (поле необязательное).
     TOCHKA_TAX_SYSTEM_CODE: str = ""
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
-
-
-class BaserowSettings(BaseSettings):
-    BASEROW_URL: str = ""
-    BASEROW_API_TOKEN: str = ""
-    BASEROW_CLIENTS_TABLE_ID: int = 0
-    BASEROW_ORDERS_TABLE_ID: int = 0
-
-    @field_validator("BASEROW_CLIENTS_TABLE_ID", "BASEROW_ORDERS_TABLE_ID", mode="before")
-    @classmethod
-    def empty_str_to_zero(cls, v: object) -> object:
-        return 0 if v == "" else v
 
     model_config = SettingsConfigDict(
         env_file=".env",

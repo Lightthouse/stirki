@@ -83,24 +83,8 @@ services:
     environment:
       ADMINER_DESIGN: pepa-linha-dark
 
-  baserow:
-    image: baserow/baserow:2.0.3
-    container_name: stirki-baserow
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:${BASEROW_PORT:-8082}:80"
-    volumes:
-      - baserow_data:/baserow/data
-    environment:
-      BASEROW_PUBLIC_URL: http://localhost:${BASEROW_PORT:-8082}
-      BASEROW_DISABLE_TELEMETRY: "true"
-    depends_on:
-      postgres:
-        condition: service_healthy
-
 volumes:
   pg_data:
-  baserow_data:
   caddy_data:
   caddy_config:
   frontend_dist:
