@@ -5,7 +5,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.enums import OrderStatusName, PaymentStatus
+from src.enums import Handover, OrderStatusName, PaymentStatus
 from src.models.client import Client
 from src.models.order import Order, OrderStatus, OrderStatusHistory
 
@@ -36,6 +36,8 @@ class OrderRepository:
         status_name: str,
         comment: str | None = None,
         is_free: bool = False,
+        next_day_delivery: bool = False,
+        handover: str = Handover.DOOR,
         payment_status: str = PaymentStatus.PENDING,
     ) -> Order:
         status = await self.get_status_by_slug(status_name)
@@ -44,6 +46,8 @@ class OrderRepository:
             client_id=client.id,
             status_id=status.id,
             is_free=is_free,
+            next_day_delivery=next_day_delivery,
+            handover=handover,
             total_price_rub=total_price_rub,
             payment_status=payment_status,
             comment=comment,
@@ -106,6 +110,14 @@ class OrderRepository:
         result = await self.session.execute(
             select(Order)
             .where(Order.client_id == client_id)
+            # Платный заказ, для которого Точка так и не выдала ссылку на оплату (ошибка при
+            # создании платежа), для клиента не состоялся: скрываем его из истории, чтобы он не
+            # выглядел как «отменённый нами». В БД и админке такие заказы остаются для разбора.
+            .where(~(
+                Order.is_free.is_(False)
+                & Order.operation_id.is_(None)
+                & Order.status.has(slug=OrderStatusName.CANCELED)
+            ))
             .options(selectinload(Order.status))
             .order_by(Order.created_at.desc())
         )

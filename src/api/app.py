@@ -83,9 +83,13 @@ async def get_system_settings(session: AsyncSession = Depends(get_db)):
         paid_piece_slots=settings.paid_piece_slots,
         order_accept_from_hour=settings.order_accept_from_hour,
         order_accept_to_hour=settings.order_accept_to_hour,
+        next_day_delivery_from_hour=settings.next_day_delivery_from_hour,
         free_orders_per_address_per_day=settings.free_orders_per_address_per_day,
         ad_count=settings.ad_count,
         ad_duration_sec=settings.ad_duration_sec,
+        support_phone=settings.support_phone,
+        support_telegram=settings.support_telegram,
+        support_email=settings.support_email,
         is_accepting_orders=is_accepting_orders(settings),
     )
 

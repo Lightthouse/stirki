@@ -12,11 +12,12 @@ import { InfoModal } from '../components/ui/InfoModal'
 import { AdViewer } from '../components/AdViewer'
 import { OfferModal } from '../components/ui/OfferModal'
 import { PrivacyModal } from '../components/ui/PrivacyModal'
+import { SupportContacts } from '../components/ui/SupportContacts'
 import type { AddressData } from '../components/swipe/AddressCard'
 import type { Tariff } from '../components/swipe/TariffCard'
 import { addonBagPrice, buildPriceMap } from '../components/swipe/ServicesCard'
 import type { AddonItem, CartItem, OrderLimits } from '../components/swipe/ServicesCard'
-import type { ClientInfo, Street, ServiceItem } from '../types'
+import type { ClientInfo, Street, ServiceItem, Handover } from '../types'
 import { acceptHoursText } from '../types'
 
 export function OrderPage() {
@@ -57,6 +58,12 @@ export function OrderPage() {
   const [closedHours, setClosedHours] = useState<string | null>(null)
   const [activeOrderError, setActiveOrderError] = useState(false)
   const [orderError, setOrderError] = useState<string | null>(null)
+  // Текст ошибки создания платежа (бэкенд: PAYMENT_FAILED_DETAIL в routers/orders.py).
+  // Показывается окном с контактами поддержки, а не исчезающей плашкой.
+  const [paymentError, setPaymentError] = useState<string | null>(null)
+  const [nextDayFromHour, setNextDayFromHour] = useState<number | null>(null)
+  const [handover, setHandover] = useState<Handover | null>(null)
+  const [handoverError, setHandoverError] = useState(false)
 
   // Hint states per card
   const [hints, setHints] = useState({ address: false, tariff: false, machines: false })
@@ -103,6 +110,7 @@ export function OrderPage() {
         paidPieceSlots: s.paid_piece_slots,
       })
       setAdSettings({ count: s.ad_count, durationSec: s.ad_duration_sec })
+      setNextDayFromHour(s.next_day_delivery_from_hour)
       if (!s.is_accepting_orders) setClosedHours(acceptHoursText(s))
     }).catch(() => {})
   }, [])
@@ -219,6 +227,11 @@ export function OrderPage() {
       setTimeout(() => setAddressError(false), 3000)
       return
     }
+    if (!handover) {
+      setHandoverError(true)
+      setTimeout(() => setHandoverError(false), 3000)
+      return
+    }
     const bagsInCart = cart.filter((i) => i.type === 'bag').length
     const piecesInCart = cart.filter((i) => i.type === 'piece').length
     setLoading(true)
@@ -234,6 +247,7 @@ export function OrderPage() {
         services: addonItems.map((a) => a.slug),
         comment: address.comment || undefined,
         is_free: tariff === 'free',
+        handover,
       })
 
       setLoading(false)
@@ -263,6 +277,8 @@ export function OrderPage() {
           setCart([])
           scrollToCard(0)
         }, 1000)
+      } else if (e instanceof Error && e.message.startsWith('Не удалось перейти к оплате')) {
+        setPaymentError(e.message)
       } else {
         console.error('Ошибка создания заказа:', e)
         // Бэкенд отдаёт понятные русские тексты (часы приёма, лимит бесплатных заказов, зона
@@ -271,7 +287,7 @@ export function OrderPage() {
           ? e.message
           : 'Не удалось создать заказ. Попробуйте ещё раз'
         setOrderError(msg)
-        setTimeout(() => setOrderError(null), 5000)
+        setTimeout(() => setOrderError((cur) => (cur === msg ? null : cur)), 8000)
       }
     }
   }
@@ -374,6 +390,10 @@ export function OrderPage() {
         loading={loading}
         onShowOffer={() => setShowOffer(true)}
         onShowPrivacy={() => setShowPrivacy(true)}
+        nextDayFromHour={nextDayFromHour}
+        handover={handover}
+        onHandoverChange={(h) => { setHandover(h); setHandoverError(false) }}
+        handoverError={handoverError}
       />
 
       {/* Info modal */}
@@ -382,6 +402,13 @@ export function OrderPage() {
       {/* Legal modals */}
       {showOffer && <OfferModal onClose={() => setShowOffer(false)} />}
       {showPrivacy && <PrivacyModal onClose={() => setShowPrivacy(false)} />}
+
+      {/* Не выбран способ передачи вещей */}
+      {handoverError && (
+        <div className="toast-error" role="alert">
+          <i className="fas fa-hand-pointer" /> <span>Выберите, как передать вещи</span>
+        </div>
+      )}
 
       {/* Address error toast */}
       {addressError && (
@@ -406,8 +433,23 @@ export function OrderPage() {
 
       {/* Generic order error toast */}
       {orderError && (
-        <div className="toast-error">
-          <i className="fas fa-exclamation-circle" /> {orderError}
+        <div className="toast-error" role="alert">
+          <i className="fas fa-exclamation-circle" /> <span>{orderError}</span>
+          <button className="toast-close" onClick={() => setOrderError(null)} aria-label="Закрыть">
+            <i className="fas fa-times" />
+          </button>
+        </div>
+      )}
+
+      {/* Не удалось создать платёж: заказ отменён на бэкенде, операторам ушло письмо */}
+      {paymentError && (
+        <div className="modal-overlay" onClick={() => setPaymentError(null)}>
+          <div className="modal-box" role="alertdialog" onClick={(e) => e.stopPropagation()}>
+            <h3><i className="fas fa-exclamation-circle" /> Оплата не прошла</h3>
+            <p>{paymentError} Мы уже получили сообщение о сбое. Попробуйте ещё раз через несколько минут или свяжитесь с нами:</p>
+            <SupportContacts />
+            <button className="status-btn" onClick={() => setPaymentError(null)}>Понятно</button>
+          </div>
         </div>
       )}
 

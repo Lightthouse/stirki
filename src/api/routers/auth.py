@@ -8,9 +8,10 @@ from src.api.dependencies import get_current_client, get_db
 from src.models.client import Client
 from src.repositories.client import ClientRepository, TooManyVerifyAttemptsError
 from src.schemas.auth import RequestCodeIn, VerifyCodeIn, AuthTokenOut, ClientOut, UpdateClientIn
-from src.services.auth import generate_verification_code
+from src.repositories.system_settings import get_system_settings
+from src.services.auth import generate_verification_code, is_debug_phone
 from src.services.sms import SMSSendError, SMSService
-from src.settings import AppSettings, SmsAeroSettings
+from src.settings import SmsAeroSettings
 
 logger = logging.getLogger(__name__)
 
@@ -22,14 +23,12 @@ router = APIRouter()
 # повторно» сразу после таймера не упирался в 429.
 RESEND_INTERVAL_SECONDS = 58
 
-_app_settings = AppSettings()
 _sms_settings = SmsAeroSettings()
 
 sms_service = SMSService(
     email=_sms_settings.SMSAERO_EMAIL,
     api_key=_sms_settings.SMSAERO_API_KEY,
     sign=_sms_settings.SMSAERO_SIGN,
-    test_mode=_app_settings.APP_ENV == "development",
 )
 
 
@@ -62,8 +61,9 @@ async def request_code(
     code = generate_verification_code()
     await repo.set_verification_code(client, code)
 
-    if _app_settings.APP_ENV == "development":
-        logger.info("[DEV] Код подтверждения %s: %s", body.phone, code)
+    # Вход по SMS выключен в админке или номер отладочный — SMS не шлём, код показывается на странице.
+    sys_settings = await get_system_settings(session)
+    if not sys_settings.sms_enabled or is_debug_phone(body.phone):
         return {"message": "Код отправлен", "code": code}
 
     try:

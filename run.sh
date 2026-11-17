@@ -4,15 +4,15 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 usage() {
-    echo "Использование: ./run.sh {local|dev|prod|stop|backup}"
+    echo "Использование: ./run.sh {local|server|stop|backup}"
     echo ""
-    echo "  local — БД + adminer в docker, backend и frontend локально с hot-reload; SMS не шлются, код на странице"
-    echo "  dev   — весь стек в docker (backend, frontend, caddy); SMS не шлются, код на странице — войти можно под любым номером"
-    echo "  prod  — весь стек в docker (backend, frontend, caddy); реальные SMS, нужны SECRET_KEY и ADMIN_PASSWORD в .env"
+    echo "  local  — БД + adminer в docker, backend и frontend локально с hot-reload (для разработки)"
+    echo "  server — весь стек в docker (backend, frontend, caddy) — так запускается сервер"
     echo "  stop  — остановить всё"
     echo "  backup — дамп БД в \$BACKUP_DIR (по умолчанию /var/backups/stirki), хранятся 14 последних"
     echo ""
-    echo "  Оплата через Точку настоящая во всех режимах."
+    echo "  Окружение одно: оплата через Точку настоящая везде, SMS включаются флагом в админке"
+    echo "  («Системные настройки» → «Вход по SMS»). В .env обязательны SECRET_KEY и ADMIN_PASSWORD."
     exit 1
 }
 
@@ -31,9 +31,7 @@ cmd_local() {
     echo "==> Освобождение порта 8001..."
     fuser -k 8001/tcp 2>/dev/null || true
 
-    export APP_ENV=development
-
-    echo "==> Запуск backend (uvicorn --reload) на :8001 (APP_ENV=development)..."
+    echo "==> Запуск backend (uvicorn --reload) на :8001..."
     uv run uvicorn src.api.app:app --host 0.0.0.0 --port 8001 --reload &
 
     echo "==> Запуск frontend (npm run dev) на :5173..."
@@ -42,18 +40,11 @@ cmd_local() {
     wait
 }
 
-cmd_dev() {
+cmd_server() {
     echo "==> Сборка frontend без кеша..."
     docker compose --profile prod build --no-cache frontend
-    echo "==> Запуск в dev-режиме (SMS не отправляются, код показывается на странице; оплата настоящая)..."
-    APP_ENV=development docker compose --profile prod up -d --build
-}
-
-cmd_prod() {
-    echo "==> Сборка frontend без кеша..."
-    docker compose --profile prod build --no-cache frontend
-    echo "==> Запуск в prod-режиме (реальные SMS; без SECRET_KEY и ADMIN_PASSWORD в .env бэкенд не стартует)..."
-    APP_ENV=production docker compose --profile prod up -d --build
+    echo "==> Запуск всего стека (без SECRET_KEY и ADMIN_PASSWORD в .env бэкенд не стартует)..."
+    docker compose --profile prod up -d --build
 }
 
 cmd_stop() {
@@ -76,8 +67,7 @@ cmd_backup() {
 
 case "${1:-}" in
     local) cmd_local ;;
-    dev)   cmd_dev   ;;
-    prod)  cmd_prod  ;;
+    server) cmd_server ;;
     stop)  cmd_stop  ;;
     backup) cmd_backup ;;
     *)     usage     ;;

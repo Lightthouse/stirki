@@ -20,5 +20,11 @@ def is_accepting_orders(settings: SystemSettings, now: datetime | None = None) -
     return settings.order_accept_from_hour <= now.hour < settings.order_accept_to_hour
 
 
+def is_next_day_delivery(settings: SystemSettings, now: datetime | None = None) -> bool:
+    """Заказ, оформленный в `now`, забирают сразу, а возвращают на следующий день."""
+    now = now or now_msk()
+    return now.hour >= settings.next_day_delivery_from_hour
+
+
 def accept_hours_text(settings: SystemSettings) -> str:
     return f"с {settings.order_accept_from_hour}:00 до {settings.order_accept_to_hour}:00"

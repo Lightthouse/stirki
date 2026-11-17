@@ -99,7 +99,7 @@ export function LoginPage() {
     setError('')
     try {
       const res = await requestCode(phone.trim(), offerAccepted)
-      if (res.code) setSmsCode(res.code)
+      setSmsCode(res.code ?? '')
       setPhase('code')
       startTimer()
     } catch (e) {
@@ -153,7 +153,7 @@ export function LoginPage() {
     setError('')
     try {
       const res = await requestCode(phone.trim(), offerAccepted)
-      if (res.code) setSmsCode(res.code)
+      setSmsCode(res.code ?? '')
       startTimer()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка отправки кода')

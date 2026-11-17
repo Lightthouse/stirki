@@ -18,7 +18,7 @@ export async function getMe() {
 }
 
 export async function requestCode(phone: string, offerAccepted: boolean) {
-  return api.post<{ message: string; code: string }>('/auth/request-code', { phone, offer_accepted: offerAccepted })
+  return api.post<{ message: string; code?: string }>('/auth/request-code', { phone, offer_accepted: offerAccepted })
 }
 
 export async function verifyCode(

@@ -15,3 +15,16 @@ class PaymentStatus(StrEnum):
     PENDING = "pending"
     SUCCEEDED = "succeeded"
     CANCELED = "canceled"
+
+
+class Handover(StrEnum):
+    """Как курьер забирает и возвращает вещи — клиент выбирает в корзине."""
+    DOOR = "door"  # забрать и оставить у двери
+    HAND = "hand"  # лично в руки
+
+    @property
+    def label(self) -> str:
+        return HANDOVER_LABELS[self]
+
+
+HANDOVER_LABELS = {Handover.DOOR: "Забрать и оставить у двери", Handover.HAND: "Лично в руки"}

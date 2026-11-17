@@ -3,6 +3,7 @@ import logging
 import secrets
 from uuid import uuid4
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,16 +18,21 @@ from src.repositories.service import ServiceRepository
 from src.repositories.system_settings import get_system_settings
 from src.schemas.order import CreateOrderIn, OrderOut, OrderListOut
 from src.schemas.payment import PaymentOut
-from src.services.notifications import notify_new_order
+from src.services.notifications import notify_new_order, notify_payment_failed
 from src.services.order import OrderService
 from src.services.payment import PaymentService
 from src.services.payment_sync import sync_order_payment
 from src.services.pricing import PricingService
-from src.services.schedule import accept_hours_text, is_accepting_orders, start_of_today_msk
+from src.services.schedule import (
+    accept_hours_text, is_accepting_orders, is_next_day_delivery, start_of_today_msk,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Заказ при этом отменяется и скрывается из истории клиента (OrderRepository.get_by_client_id).
+PAYMENT_FAILED_DETAIL = "Не удалось перейти к оплате. Деньги не списаны, заказ не оформлен."
 
 _SLUG_TO_STREET = {slug: name for name, slug in STREETS_SLUG.items()}
 
@@ -117,6 +123,9 @@ async def create_order(
                        "Следующий можно будет оформить завтра или выбрать платный тариф",
             )
 
+    # Время оформления фиксируем в заказе: после смены настройки в админке срок старых заказов не меняется.
+    next_day = is_next_day_delivery(sys_settings)
+
     if body.bags_number > 0 and body.pieces_number > 0:
         washing_type = 'mixed'
     elif body.pieces_number > 0:
@@ -146,6 +155,8 @@ async def create_order(
             status_name=OrderStatusName.COURIER_PICKUP,
             comment=body.comment,
             is_free=True,
+            next_day_delivery=next_day,
+            handover=body.handover,
             payment_status=PaymentStatus.SUCCEEDED,
         )
         await notify_new_order(session, order, client)
@@ -174,6 +185,8 @@ async def create_order(
         status_name=OrderStatusName.WAITING_PAYMENT,
         comment=body.comment,
         is_free=False,
+        next_day_delivery=next_day,
+        handover=body.handover,
     )
     payment_link_id = _new_payment_link_id(order)
     try:
@@ -197,7 +210,7 @@ async def create_order(
             payment_token=payment_token,
             payment_link_id=payment_link_id,
         )
-    except Exception:
+    except Exception as e:
         logger.exception("Failed to create payment for order %s", order.id)
         await order_service.update_status(
             order,
@@ -205,9 +218,16 @@ async def create_order(
             payment_status=PaymentStatus.CANCELED,
             changed_by="system",
         )
+        # Ответ Точки (код и текст ошибки) полезнее операторам, чем repr исключения.
+        if isinstance(e, httpx.HTTPStatusError):
+            error = f"{e.response.status_code}: {e.response.text}"
+        else:
+            error = repr(e)
+        notify_payment_failed(order, client, error)
+        # Текст сверяется на фронтенде (OrderPage.tsx) — там к нему добавляются контакты поддержки.
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Не удалось создать платёж. Попробуйте ещё раз.",
+            detail=PAYMENT_FAILED_DETAIL,
         )
 
     return PaymentOut(
@@ -277,6 +297,8 @@ async def get_order(
         total_price_rub=order.total_price_rub,
         payment_status=order.payment_status,
         is_free=order.is_free,
+        next_day_delivery=order.next_day_delivery,
+        handover=order.handover,
         comment=order.comment,
         payment_link=order.payment_link if waiting else None,
         created_at=order.created_at,

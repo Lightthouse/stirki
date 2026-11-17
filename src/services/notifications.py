@@ -1,4 +1,4 @@
-"""Email-уведомления операторам о новых заказах.
+"""Email-уведомления операторам: новые заказы и сбои при создании платежа.
 
 Отправка — best effort: выполняется в фоне (thread pool), ошибки только логируются
 и никогда не ломают создание/оплату заказа.
@@ -12,6 +12,7 @@ from email.message import EmailMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.addresses import STREETS_SLUG
+from src.enums import Handover
 from src.models.client import Client
 from src.models.order import Order
 from src.repositories.service import ServiceRepository
@@ -41,6 +42,8 @@ def _build_message(
         f"Клиент: {client.name or '—'}, {client.phone}",
         f"Адрес: {street}, д. {order.house}, подъезд {order.entrance}, этаж {order.floor}, кв. {order.apartment}",
         f"Комментарий: {order.comment or '—'}",
+        "Доставка: на следующий день (заказ оформлен вечером)" if order.next_day_delivery else "Доставка: сегодня",
+        f"Передача: {Handover(order.handover).label}",
         "",
         f"Пакетов: {order.bags_number}, вещей: {order.pieces_number}",
         f"Допуслуги: {services}",
@@ -83,3 +86,34 @@ async def notify_new_order(session: AsyncSession, order: Order, client: Client) 
         asyncio.get_running_loop().run_in_executor(None, _send, msg, settings)
     except Exception:
         logger.exception("Не удалось подготовить email-уведомление о заказе %s", order.id)
+
+
+def notify_payment_failed(order: Order, client: Client, error: str) -> None:
+    """Письмо операторам: клиент не смог перейти к оплате (Точка не выдала ссылку).
+
+    Клиенту в этот момент показывается ошибка, заказ отменён и скрыт из его истории —
+    без письма о сломанной оплате никто бы не узнал. Не бросает исключений.
+    """
+    settings = SmtpSettings()
+    if not (settings.SMTP_HOST and settings.SMTP_USER and _recipients(settings)):
+        logger.warning("SMTP не настроен — письмо о сбое оплаты заказа %s не отправлено", order.id)
+        return
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = f"Сбой оплаты: заказ {order.number} не оформлен"
+        msg["From"] = settings.SMTP_USER
+        msg["To"] = ", ".join(_recipients(settings))
+        msg.set_content("\n".join([
+            f"Клиент не смог перейти к оплате заказа № {order.number} на {order.total_price_rub} ₽:",
+            "не удалось создать ссылку на оплату в Точке. Заказ автоматически отменён,",
+            "деньги не списывались. Клиенту показана ошибка с контактами поддержки.",
+            "",
+            f"Клиент: {client.name or '—'}, {client.phone}",
+            "",
+            f"Ошибка: {error[:2000]}",
+            "",
+            "Подробности — в логах бэкенда: docker compose --profile prod logs backend",
+        ]))
+        asyncio.get_running_loop().run_in_executor(None, _send, msg, settings)
+    except Exception:
+        logger.exception("Не удалось подготовить письмо о сбое оплаты заказа %s", order.id)

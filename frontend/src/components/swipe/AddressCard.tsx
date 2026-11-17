@@ -163,7 +163,7 @@ export function AddressCard({ data, streets, onChange, onHintActivate, hintActiv
             <input
               className="address-field-input"
               type="text"
-              placeholder="Код домофона, ориентир..."
+              placeholder="Код домофона, удобное время доставки..."
               value={data.comment}
               onChange={(e) => update('comment', e.target.value)}
             />

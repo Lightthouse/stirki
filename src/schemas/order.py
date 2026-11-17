@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from src.enums import Handover
+
 
 class CreateOrderIn(BaseModel):
     street: str
@@ -14,6 +16,8 @@ class CreateOrderIn(BaseModel):
     services: list[str] = []
     comment: str | None = Field(default=None, max_length=500)
     is_free: bool = False
+    # Обязательный выбор в корзине — без значения по умолчанию.
+    handover: Handover
 
 
 class OrderOut(BaseModel):
@@ -31,6 +35,9 @@ class OrderOut(BaseModel):
     total_price_rub: int
     payment_status: str
     is_free: bool
+    # Вещи вернут на следующий день (заказ оформлен вечером, см. system_settings).
+    next_day_delivery: bool = False
+    handover: Handover
     comment: str | None
     # Ссылка на оплату — только пока заказ ждёт оплаты, чтобы клиент мог вернуться к ней.
     payment_link: str | None = None

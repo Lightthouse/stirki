@@ -1,5 +1,8 @@
+import { useEffect, useRef } from 'react'
 import { calcCartTotals } from './swipe/ServicesCard'
 import type { AddonItem, CartItem } from './swipe/ServicesCard'
+import { HANDOVER_LABELS, mskHour } from '../types'
+import type { Handover } from '../types'
 
 interface Props {
   cart: CartItem[]
@@ -13,9 +16,24 @@ interface Props {
   loading: boolean
   onShowOffer: () => void
   onShowPrivacy: () => void
+  // час (МСК), с которого заказ возвращают на следующий день; null — настройки не загружены
+  nextDayFromHour: number | null
+  // способ передачи вещей; null — клиент ещё не выбрал (выбор обязателен)
+  handover: Handover | null
+  onHandoverChange: (h: Handover) => void
+  // подсветить блок выбора: пытались оформить заказ без выбора
+  handoverError: boolean
 }
 
-export function CartExpanded({ cart, addons, isFree, show, onClose, onRemove, onClear, onCheckout, loading, onShowOffer, onShowPrivacy }: Props) {
+export function CartExpanded({ cart, addons, isFree, show, onClose, onRemove, onClear, onCheckout, loading, onShowOffer, onShowPrivacy, nextDayFromHour, handover, onHandoverChange, handoverError }: Props) {
+  // Считаем в момент показа: страница может быть открыта с 18:50, а заказ оформляют в 19:05.
+  const nextDay = nextDayFromHour !== null && mskHour() >= nextDayFromHour
+  const handoverRef = useRef<HTMLDivElement>(null)
+
+  // Нажали «Оформить» без выбора — показываем блок выбора, даже если он прокручен за край корзины.
+  useEffect(() => {
+    if (handoverError) handoverRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [handoverError])
   const { total, fullTotal } = calcCartTotals(cart, addons, isFree)
   const bags = cart.filter((i) => i.type === 'bag').length
   const pieces = cart.length - bags
@@ -88,6 +106,29 @@ export function CartExpanded({ cart, addons, isFree, show, onClose, onRemove, on
           <span className="cart-total-amount">{total} ₽</span>
         </div>
       </div>
+
+      {cart.length > 0 && (
+        <div ref={handoverRef} className={`handover-choice${handoverError ? ' handover-choice--error' : ''}`} role="radiogroup" aria-label="Как передать вещи">
+          <div className="handover-title">Как передать вещи</div>
+          {(Object.keys(HANDOVER_LABELS) as Handover[]).map((h) => (
+            <label key={h} className={`handover-option${handover === h ? ' selected' : ''}`}>
+              <input type="radio" name="handover" value={h} checked={handover === h} onChange={() => onHandoverChange(h)} />
+              <i className={`fas ${h === 'door' ? 'fa-door-closed' : 'fa-hand-holding'}`} />
+              <span>{HANDOVER_LABELS[h]}</span>
+            </label>
+          ))}
+        </div>
+      )}
+
+      {cart.length > 0 && nextDay && (
+        <div className="cart-note">
+          <i className="fas fa-moon" />
+          <span>
+            Заказы после {nextDayFromHour}:00 курьер заберёт сразу, а чистые вещи вернёт завтра.
+            Нужно к определённому времени — укажите его в комментарии к адресу.
+          </span>
+        </div>
+      )}
 
       {cart.length > 0 && (
         <div className="legal-text">

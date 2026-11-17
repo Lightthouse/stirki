@@ -2,6 +2,7 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.enums import Handover
 from src.models.client import Client
 from src.models.order import Order
 from src.repositories.order import OrderRepository
@@ -24,6 +25,8 @@ class OrderService:
         status_name: str,
         comment: str | None = None,
         is_free: bool = False,
+        next_day_delivery: bool = False,
+        handover: str = Handover.DOOR,
         payment_status: str = "pending",
     ) -> Order:
         order = await self._repo.create(
@@ -36,6 +39,8 @@ class OrderService:
             status_name=status_name,
             comment=comment,
             is_free=is_free,
+            next_day_delivery=next_day_delivery,
+            handover=handover,
             payment_status=payment_status,
         )
         return order

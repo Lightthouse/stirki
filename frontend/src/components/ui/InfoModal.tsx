@@ -3,6 +3,7 @@ import { getServices, getSystemSettings } from '../../api'
 import type { ServiceItem, SystemSettings } from '../../types'
 import { acceptHoursText } from '../../types'
 import { isAddonSlug } from '../swipe/ServicesCard'
+import { SupportContacts } from './SupportContacts'
 
 interface Props {
   onClose: () => void
@@ -65,9 +66,19 @@ export function InfoModal({ onClose }: Props) {
           <h4>Дополнительно</h4>
           <ul>
             <li>Локация — Мытищи</li>
-            <li>Связь —  <a href="mailto:prihodko_1989@mail.ru">prihodko_1989@mail.ru</a></li>
             {settings && <li>Приём заказов — ежедневно {acceptHoursText(settings)}</li>}
+            {settings && settings.next_day_delivery_from_hour < settings.order_accept_to_hour && (
+              <li>
+                Заказы после {settings.next_day_delivery_from_hour}:00 забираем сразу, а возвращаем на следующий день.
+                Нужно к определённому времени — укажите его в комментарии к заказу
+              </li>
+            )}
           </ul>
+        </section>
+
+        <section>
+          <h4>Поддержка</h4>
+          <SupportContacts />
         </section>
 
         <button className="btn-pill btn-pill-accent" onClick={onClose}>

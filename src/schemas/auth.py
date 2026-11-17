@@ -2,6 +2,8 @@ import re
 
 from pydantic import BaseModel, field_validator
 
+from src.services.auth import phone_digits
+
 # Простая проверка формата: точную проверку адреса делает Точка при отправке чека.
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -10,6 +12,15 @@ class RequestCodeIn(BaseModel):
     phone: str
     # галочка «Принимаю оферту и политику конфиденциальности» — без неё код не отправляем
     offer_accepted: bool = False
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        # Российский мобильный: 11 цифр с 7 (SmsAero не примет неполный номер, а каждая попытка — деньги).
+        # Сам номер храним как прислал фронтенд (+7 999 123-45-67), меняем только проверку.
+        if not re.fullmatch(r"79\d{9}|78{10}", phone_digits(v)):
+            raise ValueError("Введите номер мобильного телефона полностью")
+        return v.strip()
 
 
 class VerifyCodeIn(BaseModel):

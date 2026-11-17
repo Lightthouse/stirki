@@ -5,6 +5,7 @@ import { isAuthenticated } from '../api/client'
 import { Button } from '../components/ui/Button'
 import { STATUS_NAMES, ACTIVE_STATUSES } from '../utils/orderStatuses'
 import type { OrderListItem, OrderDetail } from '../types'
+import { HANDOVER_LABELS } from '../types'
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('ru-RU', {
@@ -123,6 +124,10 @@ export function OrdersPage() {
                         <div className="confirm-row">
                           <span>Оплата:</span>
                           <span>{selectedOrder.payment_status === 'succeeded' ? 'Оплачен' : 'Ожидание'}</span>
+                        </div>
+                        <div className="confirm-row">
+                          <span>Передача:</span>
+                          <span>{HANDOVER_LABELS[selectedOrder.handover]}</span>
                         </div>
                         {selectedOrder.comment && (
                           <div className="confirm-row">

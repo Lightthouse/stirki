@@ -33,6 +33,14 @@ export interface AuthTokenResponse {
   client: ClientInfo | null
 }
 
+// Как курьер передаёт вещи — обязательный выбор в корзине (src/enums.py, Handover).
+export type Handover = 'door' | 'hand'
+
+export const HANDOVER_LABELS: Record<Handover, string> = {
+  door: 'Забрать и оставить у двери',
+  hand: 'Лично в руки',
+}
+
 export interface CreateOrderRequest {
   street: string
   house: string
@@ -44,6 +52,7 @@ export interface CreateOrderRequest {
   services: string[]
   comment?: string
   is_free: boolean
+  handover: Handover
 }
 
 export interface PaymentResponse {
@@ -67,6 +76,9 @@ export interface OrderDetail {
   total_price_rub: number
   payment_status: string
   is_free: boolean
+  // вещи вернут на следующий день: заказ оформлен вечером
+  next_day_delivery: boolean
+  handover: Handover
   comment: string | null
   payment_link: string | null
   created_at: string
@@ -92,10 +104,21 @@ export interface SystemSettings {
   paid_piece_slots: number
   order_accept_from_hour: number
   order_accept_to_hour: number
+  // заказы с этого часа (МСК) забирают сразу, а возвращают на следующий день
+  next_day_delivery_from_hour: number
   free_orders_per_address_per_day: number
   ad_count: number
   ad_duration_sec: number
+  // контакты поддержки из админки; пустая строка — не показывать
+  support_phone: string
+  support_telegram: string
+  support_email: string
   is_accepting_orders: boolean
+}
+
+/** Текущий час по Москве (UTC+3 без перехода на летнее время), независимо от пояса устройства. */
+export function mskHour(): number {
+  return new Date(Date.now() + 3 * 3600_000).getUTCHours()
 }
 
 export function acceptHoursText(s: Pick<SystemSettings, 'order_accept_from_hour' | 'order_accept_to_hour'>): string {

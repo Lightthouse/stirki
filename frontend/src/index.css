@@ -928,18 +928,37 @@ body {
 .toast-error {
   position: fixed;
   bottom: 100px;
-  left: 50%;
-  transform: translateX(-50%);
+  /* Центрирование без transform: его перебивает анимация fadeIn */
+  left: 16px;
+  right: 16px;
+  margin: 0 auto;
   background: #E53935;
   color: #fff;
   padding: 12px 24px;
-  border-radius: var(--radius-pill);
+  border-radius: 20px;
   font-size: 14px;
   font-weight: 600;
   z-index: 1000;
-  white-space: nowrap;
+  /* Длинный текст переносится, а плашка не выходит за края узкого экрана */
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.35;
   animation: fadeIn 0.2s ease;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.toast-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 16px;
+  padding: 4px;
+  margin-right: -8px;
+  cursor: pointer;
+  opacity: 0.85;
 }
 
 .need-ads-hint {
@@ -2232,4 +2251,72 @@ body {
   .hero-features-list li {
     margin-bottom: 10px;
   }
+}
+
+/* Заметка в корзине: вечерний заказ вернут на следующий день */
+.cart-note {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(154, 174, 170, 0.12);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.cart-note i {
+  color: var(--teal);
+  margin-top: 2px;
+}
+
+/* Корзина: обязательный выбор способа передачи вещей */
+.handover-choice {
+  margin: 12px 0;
+  padding: 10px;
+  border: 1.5px solid transparent;
+  border-radius: 14px;
+  transition: border-color 0.2s;
+}
+
+.handover-choice--error {
+  border-color: #E53935;
+}
+
+.handover-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.handover-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-top: 6px;
+  border: 1.5px solid rgba(154, 174, 170, 0.35);
+  border-radius: 12px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.handover-option input {
+  accent-color: var(--teal);
+  margin: 0;
+}
+
+.handover-option i {
+  width: 18px;
+  text-align: center;
+  color: var(--teal);
+}
+
+.handover-option.selected {
+  border-color: var(--teal);
+  background: rgba(154, 174, 170, 0.12);
 }

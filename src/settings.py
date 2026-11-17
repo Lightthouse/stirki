@@ -28,7 +28,6 @@ class DBSettings(BaseSettings):
 class AppSettings(BaseSettings):
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000
-    APP_ENV: str = "development"
     DOMAIN: str = "localhost:5173"
     SECRET_KEY: str = "change-me-in-production"
     ADMIN_USERNAME: str = "admin"
@@ -41,24 +40,23 @@ class AppSettings(BaseSettings):
     )
 
     @model_validator(mode="after")
-    def _check_production_secrets(self) -> "AppSettings":
-        if self.APP_ENV not in ("development", "production"):
-            raise ValueError(f"APP_ENV должен быть development или production, а не {self.APP_ENV!r}")
-        # В prod без своих секретов админка открылась бы с паролем по умолчанию — не запускаемся.
-        if self.APP_ENV == "production":
-            weak = [
-                name for name in ("SECRET_KEY", "ADMIN_PASSWORD")
-                if getattr(self, name) in ("", "change-me-in-production")
-            ]
-            if weak:
-                raise ValueError(f"В production задайте в .env: {', '.join(weak)} (openssl rand -hex 32)")
+    def _check_secrets(self) -> "AppSettings":
+        # Окружение одно (локально и на сервере): без своих секретов админка открылась бы
+        # с паролем по умолчанию — не запускаемся нигде.
+        weak = [
+            name for name in ("SECRET_KEY", "ADMIN_PASSWORD")
+            if getattr(self, name) in ("", "change-me-in-production")
+        ]
+        if weak:
+            raise ValueError(f"Задайте в .env: {', '.join(weak)} (openssl rand -hex 32)")
         return self
 
 
 class SmsAeroSettings(BaseSettings):
     SMSAERO_EMAIL: str = ""
     SMSAERO_API_KEY: str = ""
-    SMSAERO_SIGN: str = "SMS"
+    # Имя отправителя, одобренное в кабинете SmsAero. Пусто — библиотечное «Sms Aero» (только для тестов).
+    SMSAERO_SIGN: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -71,6 +69,9 @@ class TochkaSettings(BaseSettings):
     TOCHKA_TOKEN: str = ""
     TOCHKA_CUSTOMER_CODE_BUISNESS: str = ""
     TOCHKA_CUSTOMER_CODE_PERSONAL: str = ""
+    # Торговая точка эквайринга (merchantId из GET /acquiring/v1.0/retailers). Обязательна,
+    # если у компании несколько точек — без неё Точка отвечает 400 «merchantId is required».
+    TOCHKA_MERCHANT_ID: str = ""
     # Система налогообложения для чека: osn, usn_income, usn_income_outcome, esn, patent.
     # Пусто — не передаём (поле необязательное).
     TOCHKA_TAX_SYSTEM_CODE: str = ""

@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { getStatusName, STATUS_STEP_MAP, ACTIVE_STATUSES } from '../utils/orderStatuses'
 import type { OrderDetail } from '../types'
+import { HANDOVER_LABELS } from '../types'
 import { addonBagPrice } from './swipe/ServicesCard'
+import { SupportContacts } from './ui/SupportContacts'
 
 interface Props {
   order: OrderDetail
@@ -31,6 +33,7 @@ export function StatusScreen({ order, serviceNames, servicePrices, streetName, o
   const [showSupport, setShowSupport] = useState(false)
 
   const isCanceled = order.status === 'canceled'
+  const pickupText = order.handover === 'hand' ? 'Заберёт вещи лично у вас' : 'Заберёт вещи у двери'
   const isWaitingPayment = order.status === 'waiting_payment'
   const isActive = ACTIVE_STATUSES.has(order.status)
   const statusStep = STATUS_STEP_MAP[order.status] || 1
@@ -117,6 +120,10 @@ export function StatusScreen({ order, serviceNames, servicePrices, streetName, o
             <div className="detail-label"><i className="fas fa-map-pin" /> Адрес</div>
             <div className="detail-value">{addressDisplay}</div>
           </div>
+          <div className="detail-row">
+            <div className="detail-label"><i className={`fas ${order.handover === 'hand' ? 'fa-hand-holding' : 'fa-door-closed'}`} /> Передача</div>
+            <div className="detail-value">{HANDOVER_LABELS[order.handover]}</div>
+          </div>
           {order.comment && (
             <div className="detail-row">
               <div className="detail-label"><i className="fas fa-comment" /> Комментарий</div>
@@ -129,7 +136,11 @@ export function StatusScreen({ order, serviceNames, servicePrices, streetName, o
       {isActive && (
         <div className="small-card">
           <p><i className="fas fa-truck-fast" /> Курьер приедет в течение 15 минут</p>
-          <p><i className="fas fa-door-open" /> Заберёт вещи у двери, вернёт чистыми через 3–5 часов</p>
+          {order.next_day_delivery ? (
+            <p><i className="fas fa-moon" /> {pickupText}, а чистыми вернёт завтра — к времени из комментария, если вы его указали</p>
+          ) : (
+            <p><i className="fas fa-door-open" /> {pickupText}, вернёт чистыми через 3–5 часов</p>
+          )}
         </div>
       )}
 
@@ -168,17 +179,7 @@ export function StatusScreen({ order, serviceNames, servicePrices, streetName, o
         <div className="modal-overlay" onClick={() => setShowSupport(false)}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <h3><i className="fas fa-headset" /> Поддержка</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, margin: '20px 0' }}>
-              <a href="tel:+79291234567" className="support-contact-link">
-                <i className="fas fa-phone" /> +7 929 123-45-67
-              </a>
-              <a href="https://t.me/VITALII_PRIHODKO" target="_blank" rel="noreferrer" className="support-contact-link">
-                <i className="fab fa-telegram" /> @VITALII_PRIHODKO
-              </a>
-              <a href="mailto:prihodko_1989@mail.ru" className="support-contact-link">
-                <i className="fas fa-envelope" /> prihodko_1989@mail.ru
-              </a>
-            </div>
+            <SupportContacts />
             <button className="status-btn" onClick={() => setShowSupport(false)}>Закрыть</button>
           </div>
         </div>

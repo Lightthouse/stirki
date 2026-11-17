@@ -66,6 +66,10 @@ create table orders (
     color_catcher_sheets boolean default false,
 
     is_free boolean not null default false,
+    -- заказ оформлен после system_settings.next_day_delivery_from_hour: вещи вернут на следующий день
+    next_day_delivery boolean not null default false,
+    -- как курьер передаёт вещи (выбор клиента в корзине): door — забрать и оставить у двери, hand — лично в руки
+    handover text not null default 'door' check (handover in ('door', 'hand')),
     total_price_rub int not null check (total_price_rub >= 0),
     payment_status text default 'pending' check (payment_status in ('pending', 'succeeded', 'canceled')),
     payment_token text unique,
@@ -147,17 +151,26 @@ create table system_settings (
     paid_piece_slots int not null default 1,
     -- приём заказов, часы по МСК: [order_accept_from_hour, order_accept_to_hour)
     order_accept_from_hour int not null default 9,
-    order_accept_to_hour int not null default 22,
+    order_accept_to_hour int not null default 21,
+    -- заказы, оформленные с этого часа (МСК), доставляются на следующий день (забор — сразу)
+    next_day_delivery_from_hour int not null default 19,
     -- сколько бесплатных заказов в сутки (МСК) допускается на один адрес (улица+дом+квартира)
     free_orders_per_address_per_day int not null default 1,
     -- реклама на бесплатном тарифе: сколько картинок показывать и сколько секунд каждую
     ad_count int not null default 1,
     ad_duration_sec int not null default 1,
+    -- вход по SMS: false — SMS не шлются, код показывается на странице входа (вход под любым номером)
+    sms_enabled bool not null default false,
+    -- контакты поддержки на сайте (окно «Поддержка», «О сервисе», ошибка оплаты); пусто — не показывается
+    support_phone text not null default '',
+    support_telegram text not null default '',
+    support_email text not null default '',
     constraint system_settings_singleton check (id = 1)
 );
 
-insert into system_settings (id, free_tariff_is_available, free_bag_slots, free_piece_slots, paid_bag_slots, paid_piece_slots)
-values (1, true, 1, 0, 5, 1);
+insert into system_settings (id, free_tariff_is_available, free_bag_slots, free_piece_slots, paid_bag_slots, paid_piece_slots,
+                             support_phone, support_telegram, support_email)
+values (1, true, 1, 0, 5, 1, '+7 912 384-19-67', 'VITALII_PRIHODKO', 'prihodko_1989@mail.ru');
 
 insert into order_statuses (name, slug) values
 ('В пути','courier_pickup'), ('Забрали','picked_up'),

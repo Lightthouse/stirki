@@ -75,6 +75,10 @@ class Order(Base):
     color_catcher_sheets: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     is_free: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # Оформлен после system_settings.next_day_delivery_from_hour: вещи вернут на следующий день.
+    next_day_delivery: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # Передача вещей: src.enums.Handover (door — у двери, hand — лично в руки).
+    handover: Mapped[str] = mapped_column(Text, nullable=False, default="door", server_default="door")
     total_price_rub: Mapped[int] = mapped_column(Integer, nullable=False)
     payment_status: Mapped[str] = mapped_column(
         Text, default="pending", server_default="pending"

@@ -35,6 +35,7 @@ class PaymentService:
 
         self.customer_code = settings.TOCHKA_CUSTOMER_CODE_BUISNESS
         self.tax_system_code = settings.TOCHKA_TAX_SYSTEM_CODE
+        self.merchant_id = settings.TOCHKA_MERCHANT_ID
         domain = app_settings.DOMAIN
         self._frontend_url = f"https://{domain}" if "localhost" not in domain else f"http://{domain}"
 
@@ -108,6 +109,9 @@ class PaymentService:
                 for line in lines
             ],
         }
+        # При одной торговой точке Точка подставляет её сама; при нескольких — поле обязательно.
+        if self.merchant_id:
+            data["merchantId"] = self.merchant_id
         # Поле необязательное (swagger): не задано в .env — не передаём.
         if self.tax_system_code:
             data["taxSystemCode"] = self.tax_system_code
