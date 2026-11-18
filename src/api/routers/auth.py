@@ -7,9 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.dependencies import get_current_client, get_db
 from src.models.client import Client
 from src.repositories.client import ClientRepository, TooManyVerifyAttemptsError
-from src.schemas.auth import RequestCodeIn, VerifyCodeIn, AuthTokenOut, ClientOut, UpdateClientIn
+from src.schemas.auth import RequestCodeIn, RequestCodeOut, VerifyCodeIn, AuthTokenOut, ClientOut, UpdateClientIn
 from src.repositories.system_settings import get_system_settings
-from src.services.auth import generate_verification_code, is_debug_phone
+from src.services.auth import generate_verification_code, is_debug_phone, is_mobile_phone
 from src.services.sms import SMSSendError, SMSService
 from src.settings import SmsAeroSettings
 
@@ -32,19 +32,28 @@ sms_service = SMSService(
 )
 
 
-@router.post("/request-code")
+@router.post("/request-code", response_model=RequestCodeOut)
 async def request_code(
     body: RequestCodeIn,
     session: AsyncSession = Depends(get_db),
 ):
-    if not body.offer_accepted:
+    sys_settings = await get_system_settings(session)
+    debug_phone = is_debug_phone(body.phone, sys_settings)
+    if not debug_phone and not is_mobile_phone(body.phone):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Примите условия оферты и политики конфиденциальности",
+            detail="Введите номер мобильного телефона полностью",
         )
 
     repo = ClientRepository(session)
     client = await repo.get_by_phone(body.phone)
+
+    # Новый номер: без согласия с офертой код не шлём (требование SMS-сервиса) и клиента не создаём —
+    # фронтенд покажет шаг регистрации и запросит код снова. Ответ выдаёт, зарегистрирован ли номер;
+    # это осознанно: иначе нельзя пускать зарегистрированных без галочек.
+    registered = client is not None and client.is_registered
+    if not registered and not body.offer_accepted:
+        return RequestCodeOut(message="Нужна регистрация", registration_required=True)
 
     if client is not None and client.verification_sent_at is not None:
         elapsed = (datetime.now(timezone.utc) - client.verification_sent_at).total_seconds()
@@ -62,9 +71,11 @@ async def request_code(
     await repo.set_verification_code(client, code)
 
     # Вход по SMS выключен в админке или номер отладочный — SMS не шлём, код показывается на странице.
-    sys_settings = await get_system_settings(session)
-    if not sys_settings.sms_enabled or is_debug_phone(body.phone):
-        return {"message": "Код отправлен", "code": code}
+    if debug_phone and sys_settings.sms_enabled:
+        # След в логе: вход без SMS при включённом входе по SMS должен быть виден.
+        logger.warning("Код для отладочного номера %s показан на странице", body.phone)
+    if not sys_settings.sms_enabled or debug_phone:
+        return RequestCodeOut(message="Код отправлен", code=code)
 
     try:
         await sms_service.send_verification_code(body.phone, code)
@@ -75,7 +86,7 @@ async def request_code(
             detail="Не удалось отправить SMS. Попробуйте позже.",
         )
 
-    return {"message": "Код отправлен"}
+    return RequestCodeOut(message="Код отправлен")
 
 
 @router.post("/verify", response_model=AuthTokenOut)
@@ -92,6 +103,16 @@ async def verify_code(
             detail="Клиент не найден",
         )
 
+    # Запоминаем до проверки кода: verify_code ставит is_verified, и новый клиент выглядел бы
+    # зарегистрированным раньше, чем сохранены его email и согласия.
+    registering = not client.is_registered
+    # Проверяем до кода, чтобы не сжечь код из-за незаполненной формы.
+    if registering and (not body.offer_accepted or body.email is None):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Укажите email и примите условия оферты",
+        )
+
     try:
         token = await repo.verify_code(client, body.code)
     except TooManyVerifyAttemptsError:
@@ -106,8 +127,10 @@ async def verify_code(
         )
 
     # Согласия и email фиксируем только после подтверждения номера — значит, их дал владелец телефона.
-    await repo.set_consents(client, body.offer_accepted, body.sms_marketing_consent)
-    await repo.update(client, email=body.email)
+    # При обычном входе их не трогаем: email и согласие на рассылку остаются как при регистрации.
+    if registering:
+        await repo.set_consents(client, body.offer_accepted, body.sms_marketing_consent)
+        await repo.update(client, email=body.email)
 
     is_new = not client.name or not client.street
     client_out = None if is_new else ClientOut.model_validate(client)

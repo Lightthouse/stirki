@@ -1,10 +1,7 @@
 import re
 import secrets
 
-# Отладочные номера: код для них всегда возвращается в ответе API и показывается на странице входа,
-# SMS не отправляется, даже когда вход по SMS включён. Вход под ними ничего не открывает, кроме
-# собственных заказов тестового клиента.
-DEBUG_PHONES = frozenset({"79999999999", "78888888888"})
+from src.models.system_settings import SystemSettings
 
 
 def generate_verification_code() -> str:
@@ -20,5 +17,17 @@ def phone_digits(phone: str) -> str:
     return digits
 
 
-def is_debug_phone(phone: str) -> bool:
-    return phone_digits(phone) in DEBUG_PHONES
+def parse_phone_list(text: str) -> list[str]:
+    """Список номеров из настройки: через запятую, точку с запятой или с новой строки → ['7XXXXXXXXXX', …]."""
+    return [phone_digits(p) for p in re.split(r"[,;\n]", text) if p.strip()]
+
+
+def is_mobile_phone(phone: str) -> bool:
+    """Российский мобильный (79XXXXXXXXX): другие номера SmsAero не примет, а каждая попытка — деньги."""
+    return re.fullmatch(r"79\d{9}", phone_digits(phone)) is not None
+
+
+def is_debug_phone(phone: str, settings: SystemSettings) -> bool:
+    """Отладочный номер: код показывается на странице входа, SMS не шлётся, даже когда вход по SMS включён.
+    Номера и флаг — в админке («Системные настройки»); при выключенном флаге список не действует."""
+    return settings.debug_phones_enabled and phone_digits(phone) in parse_phone_list(settings.debug_phones)

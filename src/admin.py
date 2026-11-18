@@ -10,7 +10,7 @@ from sqladmin.authentication import AuthenticationBackend
 from sqlalchemy import Select
 from starlette.requests import Request
 from wtforms import SelectField, StringField
-from wtforms.validators import NumberRange, Optional, Regexp
+from wtforms.validators import NumberRange, Optional, Regexp, ValidationError
 
 from src.addresses import STREETS_SLUG
 from src.enums import HANDOVER_LABELS
@@ -21,6 +21,7 @@ from src.models.order import Order, OrderStatus, OrderStatusHistory
 from src.models.service import Service
 from src.models.system_settings import SystemSettings
 from src.services.ads import ALLOWED_EXTENSIONS, AdUploadError, delete_ad_file, save_ad_file
+from src.services.auth import parse_phone_list, phone_digits
 from src.services.schedule import MSK
 from src.settings import AppSettings
 
@@ -269,6 +270,14 @@ class ServiceAdmin(ModelView, model=Service):
     form_columns = [Service.name, Service.price_rub, Service.is_active]
 
 
+def _validate_phone_list(form: Any, field: Any) -> None:
+    """Каждый номер в списке — 11 цифр с 7 (как на странице входа)."""
+    items = [p.strip() for p in re.split(r"[,;\n]", field.data or "") if p.strip()]
+    bad = [p for p in items if not re.fullmatch(r"7\d{10}", phone_digits(p))]
+    if bad:
+        raise ValidationError(f"Неверный номер: {', '.join(bad)}. Нужно 11 цифр, например +7 999 999-99-99")
+
+
 class SystemSettingsAdmin(ModelView, model=SystemSettings):
     name = "Настройки"
     name_plural = "Системные настройки"
@@ -277,6 +286,8 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
     column_list = [
         SystemSettings.free_tariff_is_available,
         SystemSettings.sms_enabled,
+        SystemSettings.debug_phones_enabled,
+        SystemSettings.debug_phones,
         SystemSettings.free_bag_slots,
         SystemSettings.free_piece_slots,
         SystemSettings.paid_bag_slots,
@@ -295,6 +306,8 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
         "id": "ID",
         "free_tariff_is_available": "Бесплатный тариф доступен",
         "sms_enabled": "Вход по SMS (отправлять коды)",
+        "debug_phones_enabled": "Отладочные номера включены",
+        "debug_phones": "Отладочные номера",
         "free_bag_slots": "Бесплатный: пакеты (макс.)",
         "free_piece_slots": "Бесплатный: вещи (макс.)",
         "paid_bag_slots": "Платный: пакеты (макс.)",
@@ -315,6 +328,8 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
     form_columns = [
         SystemSettings.free_tariff_is_available,
         SystemSettings.sms_enabled,
+        SystemSettings.debug_phones_enabled,
+        SystemSettings.debug_phones,
         SystemSettings.free_bag_slots,
         SystemSettings.free_piece_slots,
         SystemSettings.paid_bag_slots,
@@ -330,7 +345,7 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
         SystemSettings.support_email,
     ]
     # Контакты — однострочные поля, а не textarea, которую sqladmin делает для Text.
-    form_overrides = {f: StringField for f in ("support_phone", "support_telegram", "support_email")}
+    form_overrides = {f: StringField for f in ("debug_phones", "support_phone", "support_telegram", "support_email")}
     form_args = {
         "order_accept_from_hour": {"validators": [NumberRange(0, 23)]},
         "order_accept_to_hour": {"validators": [NumberRange(1, 24)]},
@@ -341,8 +356,16 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
         "ad_duration_sec": {"validators": [NumberRange(1, 60)]},
         "sms_enabled": {
             "description": "Выключено — SMS не отправляются, код показывается прямо на странице входа "
-                           "(войти можно под любым номером). Отладочные номера +7 999 999-99-99 и "
-                           "+7 888 888-88-88 получают код на странице всегда.",
+                           "(войти можно под любым номером).",
+        },
+        "debug_phones_enabled": {
+            "description": "Включено — номера из поля ниже получают код прямо на странице входа, без SMS, "
+                           "даже когда вход по SMS включён. Включайте только на время проверки сайта.",
+        },
+        "debug_phones": {
+            "validators": [_validate_phone_list],
+            "description": "Через запятую, например +7 999 999-99-99, +7 888 888-88-88. "
+                           "Не вписывайте номера настоящих клиентов: под таким номером войдёт любой, кто его знает.",
         },
         # Контакты видят клиенты на сайте; пустое поле — контакт не показывается.
         "support_phone": {
@@ -358,6 +381,11 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
     }
 
     async def on_model_change(self, data: dict, model: Any, is_created: bool, request: Request) -> None:
+        # Отладочные номера храним в одном виде: «+7 999 999-99-99, +7 888 888-88-88».
+        if "debug_phones" in data:
+            data["debug_phones"] = ", ".join(
+                f"+{d[0]} {d[1:4]} {d[4:7]}-{d[7:9]}-{d[9:]}" for d in parse_phone_list(data["debug_phones"] or "")
+            )
         # Пустые поля формы приходят как None, а колонки NOT NULL — храним пустую строку.
         for field in ("support_phone", "support_telegram", "support_email"):
             if field in data:

@@ -3,6 +3,7 @@ import type {
   AddressesResponse,
   ServiceItem,
   AuthTokenResponse,
+  RequestCodeResponse,
   ClientInfo,
   CreateOrderRequest,
   PaymentResponse,
@@ -18,21 +19,23 @@ export async function getMe() {
 }
 
 export async function requestCode(phone: string, offerAccepted: boolean) {
-  return api.post<{ message: string; code?: string }>('/auth/request-code', { phone, offer_accepted: offerAccepted })
+  return api.post<RequestCodeResponse>('/auth/request-code', { phone, offer_accepted: offerAccepted })
 }
 
+/** registration — только для нового номера; зарегистрированный клиент входит по одному коду. */
 export async function verifyCode(
   phone: string,
   code: string,
-  email: string,
-  consents: { offerAccepted: boolean; smsMarketingConsent: boolean },
+  registration?: { email: string; offerAccepted: boolean; smsMarketingConsent: boolean },
 ) {
   const result = await api.post<AuthTokenResponse>('/auth/verify', {
     phone,
     code,
-    email,
-    offer_accepted: consents.offerAccepted,
-    sms_marketing_consent: consents.smsMarketingConsent,
+    ...(registration && {
+      email: registration.email,
+      offer_accepted: registration.offerAccepted,
+      sms_marketing_consent: registration.smsMarketingConsent,
+    }),
   })
   setToken(result.token)
   savePhone(phone)

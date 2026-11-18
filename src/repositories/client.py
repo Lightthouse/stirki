@@ -99,7 +99,7 @@ class ClientRepository:
         return token
 
     async def set_consents(self, client: Client, offer_accepted: bool, sms_marketing: bool) -> None:
-        """Галочки при входе. Снятая галочка рассылки отзывает прежнее согласие."""
+        """Галочки при регистрации. Снятая галочка рассылки отзывает прежнее согласие."""
         now = datetime.now(timezone.utc)
         if offer_accepted:
             client.offer_accepted_at = now

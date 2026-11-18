@@ -3,6 +3,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from src.models.base import Base
 
+# Совпадает с дефолтом в pg_init/01-schema.sql.
+DEFAULT_DEBUG_PHONES = "+7 999 999-99-99, +7 888 888-88-88"
+
 
 class SystemSettings(Base):
     __tablename__ = "system_settings"
@@ -13,6 +16,12 @@ class SystemSettings(Base):
     )
     # Вход по SMS. Выключено — SMS не шлются, код возвращается в ответе API и показывается на странице.
     sms_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # Отладочные номера (src/services/auth.py, is_debug_phone): код на странице, без SMS.
+    # Действуют только при включённом флаге — по умолчанию выключен.
+    debug_phones_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    debug_phones: Mapped[str] = mapped_column(
+        Text, nullable=False, default=DEFAULT_DEBUG_PHONES, server_default=DEFAULT_DEBUG_PHONES
+    )
     free_bag_slots: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     free_piece_slots: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     paid_bag_slots: Mapped[int] = mapped_column(Integer, nullable=False, default=5, server_default="5")

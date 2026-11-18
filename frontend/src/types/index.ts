@@ -27,6 +27,15 @@ export interface ClientInfo {
   floor: number
 }
 
+// Ответ /auth/request-code (src/schemas/auth.py, RequestCodeOut)
+export interface RequestCodeResponse {
+  message: string
+  // номер не зарегистрирован, код не отправлен — показать шаг регистрации
+  registration_required: boolean
+  // код на странице: вход по SMS выключен или номер отладочный
+  code: string | null
+}
+
 export interface AuthTokenResponse {
   token: string
   is_new_client: boolean

@@ -7,7 +7,8 @@ import { OfferModal } from '../components/ui/OfferModal'
 import { PrivacyModal } from '../components/ui/PrivacyModal'
 
 
-type Phase = 'phone' | 'code' | 'name'
+// phone — только номер; register — email и галочки, только для нового номера; code — ввод кода; name — имя нового клиента
+type Phase = 'phone' | 'register' | 'code' | 'name'
 
 function formatName(raw: string): string {
   const cleaned = raw.replace(/[^а-яА-ЯёЁ ]/g, '')
@@ -50,7 +51,9 @@ export function LoginPage() {
   const [showInfo, setShowInfo] = useState(false)
   const [showOffer, setShowOffer] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
-  // галочки под номером телефона: оферта обязательна, рассылка — по желанию
+  // номер не зарегистрирован: при проверке кода отправляем email и согласия
+  const [registering, setRegistering] = useState(false)
+  // галочки на шаге регистрации: оферта обязательна, рассылка — по желанию
   const [offerAccepted, setOfferAccepted] = useState(false)
   const [smsMarketing, setSmsMarketing] = useState(false)
   const [offerError, setOfferError] = useState(false)
@@ -81,11 +84,39 @@ export function LoginPage() {
     }, 1000)
   }
 
-  async function handleSendCode() {
+  function showCodeStep(code: string | null) {
+    setSmsCode(code ?? '')
+    setCode('')
+    setPhase('code')
+    startTimer()
+  }
+
+  // Шаг 1: только номер. Зарегистрированному сервер сразу шлёт код, новому — просит регистрацию.
+  async function handleContinue() {
     if (!phone.trim()) {
       setError('Введите номер телефона')
       return
     }
+    setLoading(true)
+    setError('')
+    try {
+      const res = await requestCode(phone.trim(), false)
+      if (res.registration_required) {
+        setRegistering(true)
+        setPhase('register')
+      } else {
+        setRegistering(false)
+        showCodeStep(res.code)
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Ошибка отправки кода')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Шаг регистрации: email и согласия, затем код.
+  async function handleRegister() {
     if (!EMAIL_RE.test(email.trim())) {
       setError('Введите корректный email — на него придёт чек об оплате')
       return
@@ -98,15 +129,21 @@ export function LoginPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await requestCode(phone.trim(), offerAccepted)
-      setSmsCode(res.code ?? '')
-      setPhase('code')
-      startTimer()
+      const res = await requestCode(phone.trim(), true)
+      showCodeStep(res.code)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка отправки кода')
     } finally {
       setLoading(false)
     }
+  }
+
+  function changePhone() {
+    if (timerRef.current) clearInterval(timerRef.current)
+    setTimer(0)
+    setError('')
+    setOfferError(false)
+    setPhase('phone')
   }
 
   async function handleVerifyCode() {
@@ -117,7 +154,10 @@ export function LoginPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await verifyCode(phone.trim(), code.trim(), email.trim(), { offerAccepted, smsMarketingConsent: smsMarketing })
+      const registration = registering
+        ? { email: email.trim(), offerAccepted, smsMarketingConsent: smsMarketing }
+        : undefined
+      const res = await verifyCode(phone.trim(), code.trim(), registration)
       if (res.is_new_client) {
         setPhase('name')
       } else {
@@ -152,7 +192,7 @@ export function LoginPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await requestCode(phone.trim(), offerAccepted)
+      const res = await requestCode(phone.trim(), registering && offerAccepted)
       setSmsCode(res.code ?? '')
       startTimer()
     } catch (e) {
@@ -193,9 +233,24 @@ export function LoginPage() {
                 placeholder="+7 999 887-76-65"
                 value={phone}
                 onChange={(e) => setPhone(formatPhone(e.target.value))}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendCode()}
+                onKeyDown={(e) => e.key === 'Enter' && handleContinue()}
                 autoFocus
               />
+            </div>
+            {error && <p className="error-text">{error}</p>}
+            <button className="btn-pill btn-pill-accent" onClick={handleContinue} disabled={loading}>
+              {loading ? 'Проверка...' : 'Продолжить'}
+            </button>
+          </>
+        )}
+
+        {phase === 'register' && (
+          <>
+            <div className="login-title">Регистрация</div>
+            <div className="login-subtitle">
+              Номер <span>{phone}</span> ещё не зарегистрирован.
+              <br />
+              <span className="link-text" onClick={changePhone}>Изменить номер</span>
             </div>
             <div className="field-label-text">Email для чеков</div>
             <div className="input-underline">
@@ -203,10 +258,11 @@ export function LoginPage() {
                 type="email"
                 inputMode="email"
                 autoComplete="email"
+                autoFocus
                 placeholder="mail@example.ru"
                 value={email}
                 onChange={(e) => setEmail(e.target.value.trim())}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendCode()}
+                onKeyDown={(e) => e.key === 'Enter' && handleRegister()}
               />
             </div>
             <label className={`consent-check${offerError ? ' consent-check--error' : ''}`}>
@@ -232,7 +288,7 @@ export function LoginPage() {
             </label>
             {offerError && <p className="error-text">Чтобы продолжить, примите условия оферты и политики</p>}
             {error && <p className="error-text">{error}</p>}
-            <button className="btn-pill btn-pill-accent" onClick={handleSendCode} disabled={loading}>
+            <button className="btn-pill btn-pill-accent" onClick={handleRegister} disabled={loading}>
               {loading ? 'Отправка...' : 'Получить код'}
             </button>
           </>
@@ -245,6 +301,8 @@ export function LoginPage() {
               Введите код, отправленный на номер
               <br/>
               <span>{phone}</span>
+              <br />
+              <span className="link-text" onClick={changePhone}>Изменить номер</span>
             </div>
             {smsCode && (
               <p style={{ fontSize: 13, color: '#9AAEAA', marginBottom: 8 }}>

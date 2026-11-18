@@ -161,6 +161,9 @@ create table system_settings (
     ad_duration_sec int not null default 1,
     -- вход по SMS: false — SMS не шлются, код показывается на странице входа (вход под любым номером)
     sms_enabled bool not null default false,
+    -- отладочные номера: код на странице входа без SMS; список действует, только когда включён флаг
+    debug_phones_enabled bool not null default false,
+    debug_phones text not null default '+7 999 999-99-99, +7 888 888-88-88',
     -- контакты поддержки на сайте (окно «Поддержка», «О сервисе», ошибка оплаты); пусто — не показывается
     support_phone text not null default '',
     support_telegram text not null default '',

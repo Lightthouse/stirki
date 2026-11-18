@@ -1,12 +1,14 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.system_settings import SystemSettings
+from src.models.system_settings import DEFAULT_DEBUG_PHONES, SystemSettings
 
 # Значения на случай, если строка в system_settings отсутствует (совпадают с дефолтами схемы).
 _DEFAULTS = dict(
     free_tariff_is_available=True,
     sms_enabled=False,
+    debug_phones_enabled=False,
+    debug_phones=DEFAULT_DEBUG_PHONES,
     free_bag_slots=1,
     free_piece_slots=0,
     paid_bag_slots=5,

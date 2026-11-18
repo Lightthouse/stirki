@@ -74,6 +74,11 @@ async function request<T>(
     if (err instanceof DOMException && err.name === 'AbortError') {
       throw new Error('Сервер не отвечает. Проверьте подключение.')
     }
+    // Сетевая ошибка fetch: текст у браузеров свой и английский
+    // (Safari — «Load failed», Chrome — «Failed to fetch»), клиенту он ничего не говорит.
+    if (err instanceof TypeError) {
+      throw new Error('Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.')
+    }
     throw err
   } finally {
     clearTimeout(timeoutId)

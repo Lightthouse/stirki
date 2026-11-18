@@ -10,31 +10,44 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 class RequestCodeIn(BaseModel):
     phone: str
-    # галочка «Принимаю оферту и политику конфиденциальности» — без неё код не отправляем
+    # Галочка «Принимаю оферту и политику конфиденциальности». Нужна только при регистрации:
+    # без неё новому номеру код не отправляем, зарегистрированный клиент её уже принял.
     offer_accepted: bool = False
 
     @field_validator("phone")
     @classmethod
     def validate_phone(cls, v: str) -> str:
-        # Российский мобильный: 11 цифр с 7 (SmsAero не примет неполный номер, а каждая попытка — деньги).
+        # 11 цифр с 7. Что номер мобильный (или отладочный из настроек), проверяет роутер.
         # Сам номер храним как прислал фронтенд (+7 999 123-45-67), меняем только проверку.
-        if not re.fullmatch(r"79\d{9}|78{10}", phone_digits(v)):
+        if not re.fullmatch(r"7\d{10}", phone_digits(v)):
             raise ValueError("Введите номер мобильного телефона полностью")
         return v.strip()
+
+
+class RequestCodeOut(BaseModel):
+    message: str
+    # True — номер не зарегистрирован, код не отправлен: нужно показать шаг регистрации
+    # (email, оферта, рассылка) и запросить код снова с offer_accepted.
+    registration_required: bool = False
+    # код на странице: вход по SMS выключен в админке или номер отладочный
+    code: str | None = None
 
 
 class VerifyCodeIn(BaseModel):
     phone: str
     code: str
+    # Поля ниже — только при регистрации; при входе зарегистрированного клиента игнорируются.
     offer_accepted: bool = False
     # необязательная галочка «Согласен на рекламные и информационные СМС»
     sms_marketing_consent: bool = False
     # email для кассовых чеков (Точка отправляет чек об оплате на почту)
-    email: str
+    email: str | None = None
 
     @field_validator("email")
     @classmethod
-    def validate_email(cls, v: str) -> str:
+    def validate_email(cls, v: str | None) -> str | None:
+        if v is None or not v.strip():
+            return None
         v = v.strip().lower()
         if len(v) > 254 or not EMAIL_RE.match(v):
             raise ValueError("Некорректный email")

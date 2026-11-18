@@ -47,3 +47,9 @@ class Client(Base):
     total_orders: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
     orders: Mapped[list["Order"]] = relationship(back_populates="client")  # noqa: F821
+
+    @property
+    def is_registered(self) -> bool:
+        """Регистрация пройдена: номер подтверждён, email и согласие с офертой есть.
+        Такой клиент входит по одному коду, без email и галочек."""
+        return self.is_verified and self.email is not None and self.offer_accepted_at is not None

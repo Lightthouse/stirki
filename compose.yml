@@ -57,6 +57,9 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      # HTTP/3 (QUIC) идёт по UDP. Caddy объявляет его браузерам (Alt-Svc), и без этого порта
+      # Safari периодически не получает ответ и показывает «Load failed».
+      - "443:443/udp"
     environment:
       DOMAIN: ${DOMAIN:-localhost}
     volumes:
