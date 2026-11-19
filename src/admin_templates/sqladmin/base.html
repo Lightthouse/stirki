@@ -1,0 +1,121 @@
+{# Перевод интерфейса sqladmin на русский. Шаблоны sqladmin без i18n, поэтому оригинальный base.html
+   (подключён в src/admin.py под префиксом «original/») дополняется скриптом, который заменяет английские надписи.
+   Сверено с sqladmin 0.24 — после обновления sqladmin проверить, не появились ли новые английские надписи. #}
+{% extends "original/sqladmin/base.html" %}
+{% block tail %}
+<script>
+(function () {
+  document.documentElement.lang = 'ru';
+
+  // Надписи целиком (текст узла без пробелов по краям).
+  var TEXT = {
+    'Logout': 'Выйти',
+    'Username': 'Логин',
+    'Password': 'Пароль',
+    'Login': 'Войти',
+    'Invalid credentials.': 'Неверный логин или пароль',
+    'Export': 'Экспорт',
+    'Actions': 'Действия',
+    'Delete selected items': 'Удалить выбранные',
+    'Search': 'Найти',
+    'Filters': 'Фильтры',
+    'Current:': 'Сейчас:',
+    '[Clear]': '[сбросить]',
+    'Select operation...': 'Выберите условие…',
+    'Apply Filter': 'Применить',
+    'Showing': 'Показаны',
+    'to': '–',
+    'of': 'из',
+    'items': '',
+    'prev': 'назад',
+    'next': 'вперёд',
+    'Show': 'Показывать',
+    'Column': 'Поле',
+    'Value': 'Значение',
+    'Go Back': 'Назад',
+    'Edit': 'Изменить',
+    'Delete': 'Удалить',
+    'Cancel': 'Отмена',
+    'Please confirm': 'Подтвердите действие',
+    'Yes': 'Да'
+  };
+  // Надписи с подставленным значением.
+  var PATTERNS = [
+    [/^Login to (.+)$/, 'Вход: $1'],
+    [/^\+ New (.+)$/, '+ Добавить: $1'],
+    [/^New (.+)$/, 'Добавление: $1'],
+    [/^Edit (.+)$/, 'Изменение: $1'],
+    [/^(\d+) \/ Page$/, 'по $1'],
+    [/^Id: (.+)$/, 'Запись № $1']
+  ];
+  var ATTRS = {
+    'View': 'Просмотр',
+    'Edit': 'Изменить',
+    'Delete': 'Удалить',
+    'Clear filter': 'Сбросить фильтр',
+    'This is a required field': 'Обязательное поле',
+    'Enter username': 'Логин',
+    'Password': 'Пароль',
+    'Enter value': 'Значение',
+    'Save': 'Сохранить',
+    'Save and continue editing': 'Сохранить и продолжить',
+    'Save and add another': 'Сохранить и добавить ещё',
+    'Save as new': 'Сохранить как новый'
+  };
+
+  function translate(text) {
+    var key = text.trim();
+    if (!key) return null;
+    if (Object.prototype.hasOwnProperty.call(TEXT, key)) return text.replace(key, TEXT[key]);
+    for (var i = 0; i < PATTERNS.length; i++) {
+      if (PATTERNS[i][0].test(key)) return text.replace(key, key.replace(PATTERNS[i][0], PATTERNS[i][1]));
+    }
+    return null;
+  }
+
+  // Данные в ячейках таблиц (имена, комментарии, адреса) не трогаем — только интерфейс.
+  function isData(node) {
+    var el = node.parentElement;
+    return !!(el && el.closest('tbody td') && !el.closest('a.btn, button, .btn'));
+  }
+
+  var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode: function (n) {
+      var p = n.parentElement;
+      if (!p || p.closest('script, style, textarea')) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+  var nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(function (n) {
+    if (isData(n)) return;
+    var t = translate(n.nodeValue);
+    if (t !== null) n.nodeValue = t;
+  });
+
+  document.querySelectorAll('[title], [placeholder], input[type="submit"], [data-bs-original-title]').forEach(function (el) {
+    ['title', 'data-bs-original-title', 'placeholder'].forEach(function (attr) {
+      var v = el.getAttribute(attr);
+      if (v === null) return;
+      if (ATTRS[v]) el.setAttribute(attr, ATTRS[v]);
+      else if (attr === 'placeholder' && v.indexOf('Search: ') === 0) el.setAttribute(attr, 'Поиск: ' + v.slice(8));
+    });
+    if (el.type === 'submit' && ATTRS[el.value]) el.value = ATTRS[el.value];
+  });
+
+  // Текст окна удаления sqladmin пишет сам при открытии (statics/js/main.js) — перезаписываем после него.
+  if (window.jQuery) {
+    jQuery(document).on('shown.bs.modal', '#modal-delete', function (event) {
+      var el = jQuery(event.relatedTarget);
+      var name = el.data('name') || 'запись';
+      var pk = el.data('pk');
+      jQuery('#modal-delete-text').text(
+        pk ? 'Удалить «' + name + '» № ' + pk + '? Это действие нельзя отменить.'
+           : 'Удалить выбранные записи? Это действие нельзя отменить.'
+      );
+    });
+  }
+})();
+</script>
+{% endblock %}

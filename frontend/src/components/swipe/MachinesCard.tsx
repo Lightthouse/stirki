@@ -37,7 +37,7 @@ function generateMachines(): MachineState[] {
       id,
       name: `№${id}`,
       status: (idx < freeCount ? 'free' : 'busy') as 'free' | 'busy',
-      timer: idx < freeCount ? 'готова' : BUSY_TIMERS[randomInt(0, BUSY_TIMERS.length - 1)],
+      timer: idx < freeCount ? '' : BUSY_TIMERS[randomInt(0, BUSY_TIMERS.length - 1)],
     }))
     .sort((a, b) => a.id - b.id)
 }
@@ -114,7 +114,11 @@ export function MachinesCard({ onHintActivate, hintActive, onMachineSelect, free
               <div className="machine-status">
                 {freeTariffAvailable && m.status === 'free' ? 'свободна' : 'занята'}
               </div>
-              <div className="machine-timer">{freeTariffAvailable ? m.timer : '—'}</div>
+              {/* У свободной машины строка пустая, но занимает место — кнопки во всех карточках на одной высоте.
+                  Статус проверяется здесь, а не только в generateMachines: в localStorage может лежать старое «готова» */}
+              <div className="machine-timer">
+                {!freeTariffAvailable ? '—' : m.status === 'busy' ? m.timer : '\u00A0'}
+              </div>
               <button
                 className={getBtnClass(m)}
                 disabled={isUnavailable(m) && selectedId !== m.id}

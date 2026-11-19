@@ -18,7 +18,7 @@ import type { Tariff } from '../components/swipe/TariffCard'
 import { addonBagPrice, buildPriceMap } from '../components/swipe/ServicesCard'
 import type { AddonItem, CartItem, OrderLimits } from '../components/swipe/ServicesCard'
 import type { ClientInfo, Street, ServiceItem, Handover } from '../types'
-import { acceptHoursText } from '../types'
+import { acceptHoursText, EMAIL_RE } from '../types'
 
 export function OrderPage() {
   const navigate = useNavigate()
@@ -64,6 +64,11 @@ export function OrderPage() {
   const [nextDayFromHour, setNextDayFromHour] = useState<number | null>(null)
   const [handover, setHandover] = useState<Handover | null>(null)
   const [handoverError, setHandoverError] = useState(false)
+  // Email для чека платного заказа: подставляется сохранённый с прошлого заказа, сохраняется при оформлении.
+  const [email, setEmail] = useState('')
+  const [emailError, setEmailError] = useState(false)
+  // Перед каждым оформлением показываем, что не стираем: клиент мог пропустить это в «О сервисе».
+  const [showNotWashed, setShowNotWashed] = useState(false)
 
   // Hint states per card
   const [hints, setHints] = useState({ address: false, tariff: false, machines: false })
@@ -84,6 +89,7 @@ export function OrderPage() {
     getMe()
       .then((c) => {
         setClient(c)
+        if (c.email) setEmail(c.email)
         if (c.street) {
           setHasPreviousAddress(true)
           setAddress({
@@ -220,7 +226,7 @@ export function OrderPage() {
     setOverlayVisible(false)
   }
 
-  async function handleCheckout() {
+  function handleCheckout() {
     if (cart.length === 0) return
     if (!address.street || !address.house) {
       setAddressError(true)
@@ -232,6 +238,20 @@ export function OrderPage() {
       setTimeout(() => setHandoverError(false), 3000)
       return
     }
+    const isFree = tariff === 'free'
+    if (!isFree && !EMAIL_RE.test(email)) {
+      setEmailError(true)
+      setTimeout(() => setEmailError(false), 3000)
+      return
+    }
+    setShowNotWashed(true)
+  }
+
+  // «Хорошо» в окне «Мы не стираем» — создаём заказ.
+  async function submitOrder() {
+    setShowNotWashed(false)
+    const isFree = tariff === 'free'
+    if (!handover) return
     const bagsInCart = cart.filter((i) => i.type === 'bag').length
     const piecesInCart = cart.filter((i) => i.type === 'piece').length
     setLoading(true)
@@ -246,8 +266,9 @@ export function OrderPage() {
         pieces_number: piecesInCart,
         services: addonItems.map((a) => a.slug),
         comment: address.comment || undefined,
-        is_free: tariff === 'free',
+        is_free: isFree,
         handover,
+        ...(!isFree && { email }),
       })
 
       setLoading(false)
@@ -331,7 +352,6 @@ export function OrderPage() {
           hasPreviousAddress={hasPreviousAddress}
         />
         <TariffCard
-          limits={orderLimits}
           minPaidPrice={minPaidPrice}
           adsRequired={adsRequired}
           selected={tariff}
@@ -394,6 +414,9 @@ export function OrderPage() {
         handover={handover}
         onHandoverChange={(h) => { setHandover(h); setHandoverError(false) }}
         handoverError={handoverError}
+        email={email}
+        onEmailChange={(v) => { setEmail(v); setEmailError(false) }}
+        emailError={emailError}
       />
 
       {/* Info modal */}
@@ -407,6 +430,13 @@ export function OrderPage() {
       {handoverError && (
         <div className="toast-error" role="alert">
           <i className="fas fa-hand-pointer" /> <span>Выберите, как передать вещи</span>
+        </div>
+      )}
+
+      {/* Не указан или неверный email для чека */}
+      {emailError && (
+        <div className="toast-error" role="alert">
+          <i className="fas fa-envelope" /> <span>{email ? 'Проверьте email — на него придёт чек' : 'Укажите email для чека'}</span>
         </div>
       )}
 
@@ -438,6 +468,22 @@ export function OrderPage() {
           <button className="toast-close" onClick={() => setOrderError(null)} aria-label="Закрыть">
             <i className="fas fa-times" />
           </button>
+        </div>
+      )}
+
+      {/* Перед оформлением: что не стираем. Клик мимо окна — отмена, заказ не создаётся. */}
+      {showNotWashed && (
+        <div className="modal-overlay" onClick={() => setShowNotWashed(false)}>
+          <div className="modal-box" role="alertdialog" aria-labelledby="not-washed-title" onClick={(e) => e.stopPropagation()}>
+            <h3 id="not-washed-title"><i className="fas fa-ban" /> Мы не стираем</h3>
+            <ul className="not-washed-list">
+              <li>обувь</li>
+              <li>любую верхнюю одежду</li>
+              <li>домашний текстиль</li>
+              <li>ковры</li>
+            </ul>
+            <button className="status-btn" onClick={submitOrder} autoFocus>Хорошо</button>
+          </div>
         </div>
       )}
 

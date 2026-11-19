@@ -50,6 +50,6 @@ class Client(Base):
 
     @property
     def is_registered(self) -> bool:
-        """Регистрация пройдена: номер подтверждён, email и согласие с офертой есть.
-        Такой клиент входит по одному коду, без email и галочек."""
-        return self.is_verified and self.email is not None and self.offer_accepted_at is not None
+        """Регистрация пройдена: номер подтверждён и согласие с офертой есть.
+        Такой клиент входит по одному коду, без галочек. Email сюда не входит: его спрашивают в корзине платного заказа."""
+        return self.is_verified and self.offer_accepted_at is not None

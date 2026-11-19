@@ -1,28 +1,30 @@
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from markupsafe import Markup, escape
 from sqladmin import Admin, BaseView, ModelView, expose
 from sqladmin.fields import FileField
 from sqladmin.authentication import AuthenticationBackend
-from sqlalchemy import Select
+from sqlalchemy import ColumnElement, Select, case
 from starlette.requests import Request
-from wtforms import SelectField, StringField
+from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
+from wtforms import Form, SelectField, StringField
 from wtforms.validators import NumberRange, Optional, Regexp, ValidationError
 
 from src.addresses import STREETS_SLUG
-from src.enums import HANDOVER_LABELS
+from src.enums import HANDOVER_LABELS, OrderStatusName, PaymentStatus
 from src.database import async_session, engine
-from src.models.analytics import Ad, AdViewStats, LandingVisitStats
+from src.models.analytics import Ad, AdViewStats, LandingVisitStats, SmsSend
 from src.models.client import Client
 from src.models.order import Order, OrderStatus, OrderStatusHistory
 from src.models.service import Service
 from src.models.system_settings import SystemSettings
 from src.services.ads import ALLOWED_EXTENSIONS, AdUploadError, delete_ad_file, save_ad_file
 from src.services.auth import parse_phone_list, phone_digits
-from src.services.schedule import MSK
+from src.services.notifications import parse_email_list
+from src.services.schedule import MSK, now_msk
 from src.settings import AppSettings
 
 _SLUG_TO_STREET = {slug: name for name, slug in STREETS_SLUG.items()}
@@ -37,6 +39,98 @@ def _msk(value: datetime | None) -> str:
 
 def _msk_formatters(*fields: str) -> dict:
     return {f: (lambda m, a, f=f: _msk(getattr(m, f))) for f in fields}
+
+
+class RussianForm(Form):
+    """Формы админки со встроенными русскими сообщениями WTForms («Обязательное поле» и т.п.)."""
+
+    class Meta:
+        locales = ["ru_RU", "ru"]
+
+
+class BaseAdmin(ModelView):
+    """Общее для всех разделов: 50 строк на странице, шаблон списка с кнопкой «Столбцы», русские формы."""
+
+    page_size = 50
+    page_size_options = [25, 50, 100, 200]
+    list_template = "list.html"
+    form_base_class = RussianForm
+
+
+class ChoiceFilter:
+    """Фильтр-список для боковой панели sqladmin: подписи по-русски, условие задаётся функцией.
+
+    Встроенные фильтры sqladmin пишут «All / Yes / No» и умеют только «поле = значение».
+    """
+
+    has_operator = False
+
+    def __init__(self, parameter_name: str, title: str, choices: list[tuple[str, str]],
+                 where: Callable[[str], ColumnElement[bool]]):
+        self.parameter_name = parameter_name
+        self.title = title
+        self.choices = choices
+        self.where = where
+
+    async def lookups(self, request: Request, model: Any, run_query: Any) -> list[tuple[str, str]]:
+        return [("", "Все"), *self.choices]
+
+    async def get_filtered_query(self, query: Select, value: Any, model: Any) -> Select:
+        if value not in dict(self.choices):
+            return query
+        return query.filter(self.where(value))
+
+
+def _period_bounds(period: str) -> tuple[datetime, datetime | None]:
+    """Начало и конец периода по МСК: сутки считаются по московскому времени, как и всё в сервисе."""
+    today = now_msk().replace(hour=0, minute=0, second=0, microsecond=0)
+    if period == "today":
+        return today, None
+    if period == "yesterday":
+        return today - timedelta(days=1), today
+    if period == "week":
+        return today - timedelta(days=6), None
+    if period == "month":
+        return today - timedelta(days=29), None
+    return today.replace(day=1), None  # this_month
+
+
+def date_filter(column: Any, title: str) -> ChoiceFilter:
+    def where(period: str) -> ColumnElement[bool]:
+        start, end = _period_bounds(period)
+        return (column >= start) & (column < end) if end else column >= start
+
+    return ChoiceFilter(
+        parameter_name=column.key,
+        title=title,
+        choices=[("today", "Сегодня"), ("yesterday", "Вчера"), ("week", "7 дней"),
+                 ("month", "30 дней"), ("this_month", "Этот месяц")],
+        where=where,
+    )
+
+
+def bool_filter(column: Any, title: str, yes: str = "Да", no: str = "Нет") -> ChoiceFilter:
+    return ChoiceFilter(column.key, title, [("1", yes), ("0", no)], lambda v: column.is_(v == "1"))
+
+
+# Статусы в порядке жизни заказа — для фильтра и для сортировки по статусу.
+_STATUS_ORDER = [
+    (OrderStatusName.WAITING_PAYMENT, "Ожидает оплаты"),
+    (OrderStatusName.COURIER_PICKUP, "В пути"),
+    (OrderStatusName.PICKED_UP, "Забрали"),
+    (OrderStatusName.WASHING, "Чистим"),
+    (OrderStatusName.COURIER_DELIVERY, "Идём отдавать"),
+    (OrderStatusName.DELIVERED, "Доставлено"),
+    (OrderStatusName.CANCELED, "Отменено"),
+]
+
+_PAYMENT_LABELS = {
+    PaymentStatus.PENDING: "Ожидает оплаты",
+    PaymentStatus.SUCCEEDED: "Оплачен",
+    PaymentStatus.CANCELED: "Отменён",
+}
+_WASHING_TYPE_LABELS = {"bag": "Пакет", "piece": "Вещь", "mixed": "Пакеты и вещи"}
+_CHANGED_BY_LABELS = {"system": "Система", "admin": "Администратор", "tochka": "Точка (оплата)"}
 
 
 class HelpView(BaseView):
@@ -69,7 +163,7 @@ class AdminAuth(AuthenticationBackend):
         return request.session.get("admin") == "ok"
 
 
-class OrderAdmin(ModelView, model=Order):
+class OrderAdmin(BaseAdmin, model=Order):
     name = "Заказ"
     name_plural = "Заказы"
     icon = "fa-solid fa-basket-shopping"
@@ -103,12 +197,38 @@ class OrderAdmin(ModelView, model=Order):
 
     def search_placeholder(self) -> str:
         return "№ заказа (ST-123), № платежа, улица, дом"
-    column_sortable_list = [Order.id, Order.created_at, Order.total_price_rub]
+    column_sortable_list = [
+        Order.id, Order.created_at, "status", Order.street, Order.total_price_rub,
+        Order.payment_status, Order.next_day_delivery, Order.handover,
+    ]
     column_default_sort = [(Order.created_at, True)]
+
+    column_filters = [
+        ChoiceFilter("status", "Статус", [(slug.value, name) for slug, name in _STATUS_ORDER],
+                     lambda v: Order.status.has(OrderStatus.slug == v)),
+        date_filter(Order.created_at, "Создан"),
+        ChoiceFilter("is_free", "Тариф", [("1", "Бесплатный"), ("0", "Платный")],
+                     lambda v: Order.is_free.is_(v == "1")),
+        ChoiceFilter("payment_status", "Оплата", [(k.value, v) for k, v in _PAYMENT_LABELS.items()],
+                     lambda v: Order.payment_status == v),
+        ChoiceFilter("handover", "Передача", [(k.value, v) for k, v in HANDOVER_LABELS.items()],
+                     lambda v: Order.handover == v),
+        bool_filter(Order.next_day_delivery, "Доставка завтра"),
+    ]
+
+    def sort_query(self, stmt: Select, request: Request) -> Select:
+        """По статусу — в порядке жизни заказа (а не по алфавиту или id), внутри статуса — новые сверху."""
+        if request.query_params.get("sortBy") != "status":
+            return super().sort_query(stmt, request)
+        rank = case({slug.value: i for i, (slug, _) in enumerate(_STATUS_ORDER)}, value=OrderStatus.slug)
+        rank = rank.desc() if request.query_params.get("sort") == "desc" else rank.asc()
+        return stmt.join(Order.status).order_by(rank, Order.created_at.desc())
 
     column_labels = {
         "id": "№",
         "client_id": "Клиент ID",
+        "is_free": "Бесплатный тариф",
+        "payment_token": "Токен возврата после оплаты",
         "client": "Клиент",
         "history": "История",
         "street": "Улица",
@@ -146,6 +266,8 @@ class OrderAdmin(ModelView, model=Order):
         "status": lambda m, a: str(m.status) if m.status else "—",
         "client": lambda m, a: f"{m.client.name or '—'}, {m.client.phone}" if m.client else "—",
         "handover": lambda m, a: HANDOVER_LABELS.get(m.handover, m.handover),
+        "payment_status": lambda m, a: _PAYMENT_LABELS.get(m.payment_status, m.payment_status),
+        "washing_type": lambda m, a: _WASHING_TYPE_LABELS.get(m.washing_type, m.washing_type),
         **_msk_formatters("created_at", "updated_at"),
     }
     column_formatters_detail = column_formatters
@@ -157,9 +279,12 @@ class OrderAdmin(ModelView, model=Order):
         Order.handover,
         Order.payment_status,
     ]
-    # Передачу можно поменять, если клиент попросил по телефону; список вместо textarea для Text.
-    form_overrides = {"handover": SelectField}
-    form_args = {"handover": {"choices": [(k.value, v) for k, v in HANDOVER_LABELS.items()]}}
+    # Передачу можно поменять, если клиент попросил по телефону. Списки вместо textarea, которую sqladmin делает для Text.
+    form_overrides = {"handover": SelectField, "payment_status": SelectField}
+    form_args = {
+        "handover": {"choices": [(k.value, v) for k, v in HANDOVER_LABELS.items()]},
+        "payment_status": {"choices": [(k.value, v) for k, v in _PAYMENT_LABELS.items()]},
+    }
     async def on_model_change(self, data: dict, model: Any, is_created: bool, request: Request) -> None:
         request.state.prev_status_id = None if is_created else model.status_id
 
@@ -179,7 +304,7 @@ class OrderAdmin(ModelView, model=Order):
                 await session.commit()
 
 
-class OrderStatusAdmin(ModelView, model=OrderStatus):
+class OrderStatusAdmin(BaseAdmin, model=OrderStatus):
     name = "Статус"
     name_plural = "Статусы заказов"
     icon = "fa-solid fa-list-check"
@@ -196,7 +321,7 @@ class OrderStatusAdmin(ModelView, model=OrderStatus):
     can_delete = False
 
 
-class ClientAdmin(ModelView, model=Client):
+class ClientAdmin(BaseAdmin, model=Client):
     name = "Клиент"
     name_plural = "Клиенты"
     icon = "fa-solid fa-users"
@@ -219,14 +344,24 @@ class ClientAdmin(ModelView, model=Client):
     ]
     column_formatters = {
         "street": lambda m, a: _SLUG_TO_STREET.get(m.street, m.street),
-        **_msk_formatters("registered_at", "offer_accepted_at", "sms_marketing_consent_at"),
+        **_msk_formatters(
+            "registered_at", "offer_accepted_at", "sms_marketing_consent_at",
+            "auth_token_expires_at", "verification_expires_at", "verification_sent_at",
+        ),
     }
     column_formatters_detail = column_formatters
 
     # email — чтобы найти клиента по кассовому чеку
     column_searchable_list = [Client.phone, Client.name, Client.email]
-    column_sortable_list = [Client.id, Client.registered_at, Client.total_orders]
+    column_sortable_list = [Client.id, Client.name, Client.street, Client.registered_at, Client.total_orders]
     column_default_sort = [(Client.registered_at, True)]
+    column_filters = [
+        date_filter(Client.registered_at, "Зарегистрирован"),
+        ChoiceFilter("sms_marketing_consent_at", "Согласие на рассылку", [("1", "Есть"), ("0", "Нет")],
+                     lambda v: Client.sms_marketing_consent_at.isnot(None) if v == "1"
+                     else Client.sms_marketing_consent_at.is_(None)),
+        bool_filter(Client.is_verified, "Верифицирован"),
+    ]
 
     column_labels = {
         "id": "ID",
@@ -244,6 +379,11 @@ class ClientAdmin(ModelView, model=Client):
         "registered_at": "Зарегистрирован",
         "offer_accepted_at": "Принял оферту",
         "sms_marketing_consent_at": "Согласие на рассылку",
+        "auth_token_expires_at": "Вход действует до",
+        "verification_expires_at": "Код входа действует до",
+        "verification_attempts": "Неверных вводов кода",
+        "verification_sent_at": "Код отправлен",
+        "orders": "Заказы",
     }
 
     can_create = False
@@ -251,7 +391,7 @@ class ClientAdmin(ModelView, model=Client):
     form_columns = [Client.name, Client.email, Client.comment]
 
 
-class ServiceAdmin(ModelView, model=Service):
+class ServiceAdmin(BaseAdmin, model=Service):
     name = "Услуга"
     name_plural = "Услуги"
     icon = "fa-solid fa-tags"
@@ -278,7 +418,14 @@ def _validate_phone_list(form: Any, field: Any) -> None:
         raise ValidationError(f"Неверный номер: {', '.join(bad)}. Нужно 11 цифр, например +7 999 999-99-99")
 
 
-class SystemSettingsAdmin(ModelView, model=SystemSettings):
+def _validate_email_list(form: Any, field: Any) -> None:
+    """Каждый адрес в списке похож на email."""
+    bad = [a for a in parse_email_list(field.data or "") if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", a)]
+    if bad:
+        raise ValidationError(f"Неверный email: {', '.join(bad)}")
+
+
+class SystemSettingsAdmin(BaseAdmin, model=SystemSettings):
     name = "Настройки"
     name_plural = "Системные настройки"
     icon = "fa-solid fa-sliders"
@@ -288,6 +435,9 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
         SystemSettings.sms_enabled,
         SystemSettings.debug_phones_enabled,
         SystemSettings.debug_phones,
+        SystemSettings.sms_ip_limit_10min,
+        SystemSettings.sms_ip_limit_day,
+        SystemSettings.sms_ip_limit_week,
         SystemSettings.free_bag_slots,
         SystemSettings.free_piece_slots,
         SystemSettings.paid_bag_slots,
@@ -301,6 +451,7 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
         SystemSettings.support_phone,
         SystemSettings.support_telegram,
         SystemSettings.support_email,
+        SystemSettings.notify_emails,
     ]
     column_labels = {
         "id": "ID",
@@ -308,6 +459,9 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
         "sms_enabled": "Вход по SMS (отправлять коды)",
         "debug_phones_enabled": "Отладочные номера включены",
         "debug_phones": "Отладочные номера",
+        "sms_ip_limit_10min": "SMS с одного IP: за 10 минут",
+        "sms_ip_limit_day": "SMS с одного IP: за сутки",
+        "sms_ip_limit_week": "SMS с одного IP: за неделю",
         "free_bag_slots": "Бесплатный: пакеты (макс.)",
         "free_piece_slots": "Бесплатный: вещи (макс.)",
         "paid_bag_slots": "Платный: пакеты (макс.)",
@@ -321,6 +475,7 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
         "support_phone": "Поддержка: телефон",
         "support_telegram": "Поддержка: Telegram",
         "support_email": "Поддержка: email",
+        "notify_emails": "Уведомления о заказах: email",
     }
 
     can_create = False
@@ -330,6 +485,9 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
         SystemSettings.sms_enabled,
         SystemSettings.debug_phones_enabled,
         SystemSettings.debug_phones,
+        SystemSettings.sms_ip_limit_10min,
+        SystemSettings.sms_ip_limit_day,
+        SystemSettings.sms_ip_limit_week,
         SystemSettings.free_bag_slots,
         SystemSettings.free_piece_slots,
         SystemSettings.paid_bag_slots,
@@ -343,9 +501,12 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
         SystemSettings.support_phone,
         SystemSettings.support_telegram,
         SystemSettings.support_email,
+        SystemSettings.notify_emails,
     ]
     # Контакты — однострочные поля, а не textarea, которую sqladmin делает для Text.
-    form_overrides = {f: StringField for f in ("debug_phones", "support_phone", "support_telegram", "support_email")}
+    form_overrides = {
+        f: StringField for f in ("debug_phones", "support_phone", "support_telegram", "support_email", "notify_emails")
+    }
     form_args = {
         "order_accept_from_hour": {"validators": [NumberRange(0, 23)]},
         "order_accept_to_hour": {"validators": [NumberRange(1, 24)]},
@@ -354,6 +515,13 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
         "free_orders_per_address_per_day": {"validators": [NumberRange(0, 100)]},
         "ad_count": {"validators": [NumberRange(0, 10)]},
         "ad_duration_sec": {"validators": [NumberRange(1, 60)]},
+        "sms_ip_limit_10min": {
+            "validators": [NumberRange(1, 1000)],
+            "description": "Защита от перебора номеров: сколько кодов можно отправить на запросы с одного IP-адреса. "
+                           "Если бюджет SMS тратится подозрительно быстро — уменьшите. Действует сразу.",
+        },
+        "sms_ip_limit_day": {"validators": [NumberRange(1, 1000)]},
+        "sms_ip_limit_week": {"validators": [NumberRange(1, 1000)]},
         "sms_enabled": {
             "description": "Выключено — SMS не отправляются, код показывается прямо на странице входа "
                            "(войти можно под любым номером).",
@@ -378,6 +546,11 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
         "support_email": {
             "validators": [Optional(), Regexp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", message="Неверный email")],
         },
+        "notify_emails": {
+            "validators": [_validate_email_list],
+            "description": "Куда приходят письма о новых заказах и сбоях оплаты. Несколько адресов — через запятую, "
+                           "например oper1@mail.ru, oper2@yandex.ru. Пусто — письма не отправляются.",
+        },
     }
 
     async def on_model_change(self, data: dict, model: Any, is_created: bool, request: Request) -> None:
@@ -386,6 +559,9 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
             data["debug_phones"] = ", ".join(
                 f"+{d[0]} {d[1:4]} {d[4:7]}-{d[7:9]}-{d[9:]}" for d in parse_phone_list(data["debug_phones"] or "")
             )
+        # Адреса для уведомлений храним в одном виде: «a@mail.ru, b@yandex.ru».
+        if "notify_emails" in data:
+            data["notify_emails"] = ", ".join(parse_email_list(data["notify_emails"] or ""))
         # Пустые поля формы приходят как None, а колонки NOT NULL — храним пустую строку.
         for field in ("support_phone", "support_telegram", "support_email"):
             if field in data:
@@ -397,7 +573,31 @@ class SystemSettingsAdmin(ModelView, model=SystemSettings):
             ).strip("/")
 
 
-class OrderStatusHistoryAdmin(ModelView, model=OrderStatusHistory):
+class SmsSendAdmin(BaseAdmin, model=SmsSend):
+    """Отправленные SMS-коды за 30 дней: видно, если с одного IP перебирают номера."""
+
+    name = "SMS-код"
+    name_plural = "Отправленные SMS"
+    icon = "fa-solid fa-comment-sms"
+
+    column_list = [SmsSend.sent_at, SmsSend.ip, SmsSend.phone]
+    column_labels = {"id": "ID", "sent_at": "Отправлено", "ip": "IP-адрес", "phone": "Номер"}
+    column_formatters = _msk_formatters("sent_at")
+    column_formatters_detail = column_formatters
+    column_searchable_list = [SmsSend.ip, SmsSend.phone]
+    column_sortable_list = [SmsSend.sent_at, SmsSend.ip]
+    column_default_sort = [(SmsSend.sent_at, True)]
+    column_filters = [date_filter(SmsSend.sent_at, "Отправлено")]
+
+    def search_placeholder(self) -> str:
+        return "IP-адрес или номер"
+
+    can_create = False
+    can_edit = False
+    can_delete = False
+
+
+class OrderStatusHistoryAdmin(BaseAdmin, model=OrderStatusHistory):
     name = "История статуса"
     name_plural = "История статусов"
     icon = "fa-solid fa-clock-rotate-left"
@@ -417,10 +617,12 @@ class OrderStatusHistoryAdmin(ModelView, model=OrderStatusHistory):
         "status_id": "Статус ID",
         "changed_at": "Изменён",
         "changed_by": "Кем",
+        "order": "Заказ",
     }
     column_formatters = {
         "order_id": lambda m, a: f"ST-{m.order_id}",
         "status": lambda m, a: str(m.status) if m.status else "—",
+        "changed_by": lambda m, a: _CHANGED_BY_LABELS.get(m.changed_by, m.changed_by),
         **_msk_formatters("changed_at"),
     }
     column_formatters_detail = column_formatters
@@ -437,7 +639,7 @@ def _ad_preview(image_path: str | None, height: int) -> Markup:
     return Markup(f'<a href="{src}" target="_blank"><img src="{src}" style="height:{height}px"></a>')
 
 
-class AdAdmin(ModelView, model=Ad):
+class AdAdmin(BaseAdmin, model=Ad):
     """Модерация рекламы: загрузка, включение/выключение, удаление картинок."""
     name = "Картинка"
     name_plural = "Реклама"
@@ -500,7 +702,7 @@ class AdAdmin(ModelView, model=Ad):
         delete_ad_file(model.image_path)
 
 
-class AdViewStatsAdmin(ModelView, model=AdViewStats):
+class AdViewStatsAdmin(BaseAdmin, model=AdViewStats):
     name = "Реклама"
     name_plural = "Статистика рекламы"
     icon = "fa-solid fa-chart-bar"
@@ -525,7 +727,7 @@ class AdViewStatsAdmin(ModelView, model=AdViewStats):
     can_delete = False
 
 
-class LandingVisitStatsAdmin(ModelView, model=LandingVisitStats):
+class LandingVisitStatsAdmin(BaseAdmin, model=LandingVisitStats):
     name = "Посещения"
     name_plural = "Посещения сайта"
     icon = "fa-solid fa-chart-line"
@@ -562,6 +764,11 @@ def create_admin(app) -> Admin:
         authentication_backend=auth_backend,
         templates_dir=str(_TEMPLATES_DIR),
     )
+    # Свой sqladmin/base.html (перевод интерфейса) наследуется от оригинала — он доступен по префиксу «original/».
+    admin.templates.env.loader = ChoiceLoader([
+        admin.templates.env.loader,
+        PrefixLoader({"original": PackageLoader("sqladmin", "templates")}),
+    ])
     admin.add_base_view(HelpView)
     admin.add_view(OrderAdmin)
     admin.add_view(OrderStatusAdmin)
@@ -572,4 +779,5 @@ def create_admin(app) -> Admin:
     admin.add_view(AdAdmin)
     admin.add_view(AdViewStatsAdmin)
     admin.add_view(LandingVisitStatsAdmin)
+    admin.add_view(SmsSendAdmin)
     return admin

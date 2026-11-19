@@ -9,6 +9,9 @@ _DEFAULTS = dict(
     sms_enabled=False,
     debug_phones_enabled=False,
     debug_phones=DEFAULT_DEBUG_PHONES,
+    sms_ip_limit_10min=5,
+    sms_ip_limit_day=15,
+    sms_ip_limit_week=50,
     free_bag_slots=1,
     free_piece_slots=0,
     paid_bag_slots=5,
@@ -22,6 +25,7 @@ _DEFAULTS = dict(
     support_phone="",
     support_telegram="",
     support_email="",
+    notify_emails="",
 )
 
 

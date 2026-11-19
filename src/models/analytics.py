@@ -62,3 +62,15 @@ class LandingVisitStats(Base):
     day: Mapped[date] = mapped_column(Date, primary_key=True)
     visits: Mapped[int] = mapped_column(Integer)
     unique_visitors: Mapped[int] = mapped_column(Integer)
+
+
+class SmsSend(Base):
+    """Отправленный SMS-код: по этим записям считаются лимиты по IP (src/services/sms_limits.py)."""
+    __tablename__ = "sms_sends"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    ip: Mapped[str] = mapped_column(Text, nullable=False)
+    phone: Mapped[str] = mapped_column(Text, nullable=False)
+    sent_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

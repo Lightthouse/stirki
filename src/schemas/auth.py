@@ -8,6 +8,16 @@ from src.services.auth import phone_digits
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
+def normalize_email(v: str | None) -> str | None:
+    """Пусто — None; иначе email в нижнем регистре или ValueError. Email нужен только для кассового чека."""
+    if v is None or not v.strip():
+        return None
+    v = v.strip().lower()
+    if len(v) > 254 or not EMAIL_RE.match(v):
+        raise ValueError("Некорректный email")
+    return v
+
+
 class RequestCodeIn(BaseModel):
     phone: str
     # Галочка «Принимаю оферту и политику конфиденциальности». Нужна только при регистрации:
@@ -27,7 +37,7 @@ class RequestCodeIn(BaseModel):
 class RequestCodeOut(BaseModel):
     message: str
     # True — номер не зарегистрирован, код не отправлен: нужно показать шаг регистрации
-    # (email, оферта, рассылка) и запросить код снова с offer_accepted.
+    # (оферта, рассылка) и запросить код снова с offer_accepted.
     registration_required: bool = False
     # код на странице: вход по SMS выключен в админке или номер отладочный
     code: str | None = None
@@ -40,18 +50,6 @@ class VerifyCodeIn(BaseModel):
     offer_accepted: bool = False
     # необязательная галочка «Согласен на рекламные и информационные СМС»
     sms_marketing_consent: bool = False
-    # email для кассовых чеков (Точка отправляет чек об оплате на почту)
-    email: str | None = None
-
-    @field_validator("email")
-    @classmethod
-    def validate_email(cls, v: str | None) -> str | None:
-        if v is None or not v.strip():
-            return None
-        v = v.strip().lower()
-        if len(v) > 254 or not EMAIL_RE.match(v):
-            raise ValueError("Некорректный email")
-        return v
 
 
 class AuthTokenOut(BaseModel):

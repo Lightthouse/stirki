@@ -203,7 +203,7 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
 
         {DOPS.length > 0 && (
           <div className="price-label" style={{ marginTop: 12 }}>
-            допуслуги — на весь заказ, цена за каждую позицию
+            допы действуют на всю корзину
           </div>
         )}
         {DOPS.map((dop) => (

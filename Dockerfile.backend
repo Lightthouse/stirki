@@ -12,4 +12,6 @@ COPY src/ src/
 
 # --no-sync: не синхронизировать окружение при старте. Иначе `uv run` докачивает
 # dev-зависимости (ruff, pillow…) при каждом запуске контейнера.
-CMD ["uv", "run", "--no-sync", "uvicorn", "src.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Бэкенд доступен только через Caddy (порт открыт на 127.0.0.1), поэтому X-Forwarded-For от него можно доверять:
+# без этого все клиенты для бэкенда — один IP контейнера Caddy, и лимиты SMS по IP (src/services/sms_limits.py) общие на всех.
+CMD ["uv", "run", "--no-sync", "uvicorn", "src.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]

@@ -85,10 +85,10 @@ class PaymentService:
             "redirectUrl": return_url,
             "failRedirectUrl": return_url,
             # Доступные способы — в GET /acquiring/v1.0/retailers, поле paymentModes.
+            # T-Pay ("tinkoff") убран 2026-11-20 — решение владельца.
             "paymentMode": [
                 "sbp",
                 "card",
-                "tinkoff",
             ],
             "saveCard": True,
             "ttl": PAYMENT_LINK_TTL_MINUTES,

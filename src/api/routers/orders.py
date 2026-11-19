@@ -162,12 +162,16 @@ async def create_order(
         await notify_new_order(session, order, client)
         return PaymentOut(order_id=order.id, total_price_rub=0, confirmation_url=None)
 
-    # Кассовый чек Точка отправляет только на email — без него платёж не создать.
-    if not client.email:
+    # Кассовый чек Точка отправляет только на email — без него платёж не создать. Клиент вводит его в корзине
+    # (там подставлен прошлый); старый фронтенд из кэша браузера email не присылает — тогда берём сохранённый.
+    email = body.email or client.email
+    if not email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Не указан email для чека. Выйдите из аккаунта и войдите снова, указав email",
+            detail="Укажите email для чека",
         )
+    # Сохраняется вместе с заказом и подставится в корзину в следующий раз.
+    client.email = email
 
     service_repo = ServiceRepository(session)
     pricing = PricingService(await service_repo.get_base_price(), await service_repo.get_all_active())
@@ -223,7 +227,7 @@ async def create_order(
             error = f"{e.response.status_code}: {e.response.text}"
         else:
             error = repr(e)
-        notify_payment_failed(order, client, error)
+        await notify_payment_failed(session, order, client, error)
         # Текст сверяется на фронтенде (OrderPage.tsx) — там к нему добавляются контакты поддержки.
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

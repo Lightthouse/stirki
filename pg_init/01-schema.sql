@@ -99,6 +99,17 @@ create table landing_visits (
 
 create index idx_landing_visits_visited_at on landing_visits (visited_at);
 
+-- Каждая настоящая отправка SMS-кода (не отладочный номер, вход по SMS включён) — для лимитов по IP
+-- (src/services/sms_limits.py) и чтобы в админке было видно, кто и сколько запрашивает. Хранится 30 дней.
+create table sms_sends (
+    id bigserial primary key,
+    ip text not null,
+    phone text not null,
+    sent_at timestamptz not null default now()
+);
+
+create index idx_sms_sends_ip_sent_at on sms_sends (ip, sent_at);
+
 create view landing_visit_stats as
 select
     (visited_at at time zone 'Europe/Moscow')::date as day,
@@ -164,10 +175,16 @@ create table system_settings (
     -- отладочные номера: код на странице входа без SMS; список действует, только когда включён флаг
     debug_phones_enabled bool not null default false,
     debug_phones text not null default '+7 999 999-99-99, +7 888 888-88-88',
+    -- сколько SMS-кодов можно отправить на запросы с одного IP: за 10 минут, за сутки, за неделю
+    sms_ip_limit_10min int not null default 5,
+    sms_ip_limit_day int not null default 15,
+    sms_ip_limit_week int not null default 50,
     -- контакты поддержки на сайте (окно «Поддержка», «О сервисе», ошибка оплаты); пусто — не показывается
     support_phone text not null default '',
     support_telegram text not null default '',
     support_email text not null default '',
+    -- получатели писем о новых заказах и сбоях оплаты, через запятую; пусто — письма не отправляются
+    notify_emails text not null default '',
     constraint system_settings_singleton check (id = 1)
 );
 

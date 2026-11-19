@@ -26,8 +26,6 @@ export function InfoModal({ onClose }: Props) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-        <h3><i className="fas fa-star" /> о стиркаОН</h3>
-
         <section>
           <h4>Как работаем</h4>
           <ul>

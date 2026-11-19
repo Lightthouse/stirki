@@ -1,0 +1,86 @@
+{# Список любого раздела админки (BaseAdmin.list_template): стандартный список sqladmin + кнопка «Столбцы».
+   Скрытые столбцы запоминаются в браузере сотрудника (localStorage) отдельно для каждого раздела. #}
+{% extends "sqladmin/list.html" %}
+{% block content %}
+{{ super() }}
+<script>
+(function () {
+  var table = document.querySelector('.table-responsive table');
+  var header = document.querySelector('.card-header .ms-auto');
+  if (!table || !table.tHead || !header) return;
+
+  var FIXED = 2; // столбцы с галочкой выбора и иконками действий не скрываются
+  var storageKey = 'admin-hidden-columns:' + location.pathname;
+  var names = Array.prototype.slice.call(table.tHead.rows[0].cells, FIXED)
+    .map(function (th) { return th.textContent.trim(); });
+
+  var hidden = [];
+  try { hidden = JSON.parse(localStorage.getItem(storageKey) || '[]'); } catch (e) { hidden = []; }
+  if (!Array.isArray(hidden)) hidden = [];
+
+  function save() {
+    try { localStorage.setItem(storageKey, JSON.stringify(hidden)); } catch (e) { /* приватный режим — просто не запомним */ }
+  }
+
+  var wrap = document.createElement('div');
+  wrap.className = 'ms-3 d-inline-block dropdown';
+  wrap.innerHTML =
+    '<button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown"' +
+    ' data-bs-auto-close="outside" aria-expanded="false"><i class="fa-solid fa-table-columns me-1"></i>' +
+    '<span></span></button>' +
+    '<div class="dropdown-menu dropdown-menu-end p-2" style="min-width: 240px; max-height: 70vh; overflow-y: auto"></div>';
+  header.insertBefore(wrap, header.firstChild);
+  var button = wrap.querySelector('button');
+  var buttonLabel = button.querySelector('span');
+  var menu = wrap.querySelector('.dropdown-menu');
+
+  function apply() {
+    names.forEach(function (name, i) {
+      var off = hidden.indexOf(name) !== -1;
+      Array.prototype.forEach.call(table.rows, function (row) {
+        var cell = row.cells[i + FIXED];
+        if (cell) cell.classList.toggle('d-none', off);
+      });
+    });
+    var count = names.filter(function (n) { return hidden.indexOf(n) !== -1; }).length;
+    // Видно, что часть столбцов скрыта, — чтобы не решить, что данные пропали.
+    buttonLabel.textContent = count ? 'Столбцы (скрыто: ' + count + ')' : 'Столбцы';
+    button.classList.toggle('btn-warning', count > 0);
+    button.classList.toggle('btn-secondary', count === 0);
+  }
+
+  names.forEach(function (name) {
+    var label = document.createElement('label');
+    label.className = 'dropdown-item d-flex align-items-center gap-2';
+    var box = document.createElement('input');
+    box.type = 'checkbox';
+    box.className = 'form-check-input m-0';
+    box.checked = hidden.indexOf(name) === -1;
+    box.addEventListener('change', function () {
+      hidden = hidden.filter(function (n) { return n !== name; });
+      if (!box.checked) hidden.push(name);
+      save();
+      apply();
+    });
+    label.appendChild(box);
+    label.appendChild(document.createTextNode(name));
+    menu.appendChild(label);
+  });
+
+  var showAll = document.createElement('button');
+  showAll.type = 'button';
+  showAll.className = 'btn btn-sm btn-link w-100 mt-1';
+  showAll.textContent = 'Показать все';
+  showAll.addEventListener('click', function () {
+    hidden = [];
+    save();
+    menu.querySelectorAll('input').forEach(function (b) { b.checked = true; });
+    apply();
+  });
+  menu.appendChild(document.createElement('hr')).className = 'dropdown-divider';
+  menu.appendChild(showAll);
+
+  apply();
+})();
+</script>
+{% endblock %}

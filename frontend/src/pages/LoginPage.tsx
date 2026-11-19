@@ -7,7 +7,7 @@ import { OfferModal } from '../components/ui/OfferModal'
 import { PrivacyModal } from '../components/ui/PrivacyModal'
 
 
-// phone — только номер; register — email и галочки, только для нового номера; code — ввод кода; name — имя нового клиента
+// phone — только номер; register — галочки согласий, только для нового номера; code — ввод кода; name — имя нового клиента
 type Phase = 'phone' | 'register' | 'code' | 'name'
 
 function formatName(raw: string): string {
@@ -34,14 +34,10 @@ function formatPhone(raw: string): string {
   return `+${d[0]} ${d.slice(1, 4)} ${d.slice(4, 7)}-${d.slice(7, 9)}-${d.slice(9)}`
 }
 
-// Простая проверка формата; совпадает с проверкой на бэкенде (src/schemas/auth.py)
-const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
-
 export function LoginPage() {
   const navigate = useNavigate()
   const [phase, setPhase] = useState<Phase>('phone')
   const [phone, setPhone] = useState('')
-  const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
@@ -51,7 +47,7 @@ export function LoginPage() {
   const [showInfo, setShowInfo] = useState(false)
   const [showOffer, setShowOffer] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
-  // номер не зарегистрирован: при проверке кода отправляем email и согласия
+  // номер не зарегистрирован: при проверке кода отправляем согласия
   const [registering, setRegistering] = useState(false)
   // галочки на шаге регистрации: оферта обязательна, рассылка — по желанию
   const [offerAccepted, setOfferAccepted] = useState(false)
@@ -115,12 +111,8 @@ export function LoginPage() {
     }
   }
 
-  // Шаг регистрации: email и согласия, затем код.
+  // Шаг регистрации: согласия, затем код. Email для чеков спрашивается в корзине платного заказа.
   async function handleRegister() {
-    if (!EMAIL_RE.test(email.trim())) {
-      setError('Введите корректный email — на него придёт чек об оплате')
-      return
-    }
     if (!offerAccepted) {
       setError('')
       setOfferError(true)
@@ -155,7 +147,7 @@ export function LoginPage() {
     setError('')
     try {
       const registration = registering
-        ? { email: email.trim(), offerAccepted, smsMarketingConsent: smsMarketing }
+        ? { offerAccepted, smsMarketingConsent: smsMarketing }
         : undefined
       const res = await verifyCode(phone.trim(), code.trim(), registration)
       if (res.is_new_client) {
@@ -251,19 +243,6 @@ export function LoginPage() {
               Номер <span>{phone}</span> ещё не зарегистрирован.
               <br />
               <span className="link-text" onClick={changePhone}>Изменить номер</span>
-            </div>
-            <div className="field-label-text">Email для чеков</div>
-            <div className="input-underline">
-              <input
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                autoFocus
-                placeholder="mail@example.ru"
-                value={email}
-                onChange={(e) => setEmail(e.target.value.trim())}
-                onKeyDown={(e) => e.key === 'Enter' && handleRegister()}
-              />
             </div>
             <label className={`consent-check${offerError ? ' consent-check--error' : ''}`}>
               <input

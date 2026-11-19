@@ -26,13 +26,12 @@ export async function requestCode(phone: string, offerAccepted: boolean) {
 export async function verifyCode(
   phone: string,
   code: string,
-  registration?: { email: string; offerAccepted: boolean; smsMarketingConsent: boolean },
+  registration?: { offerAccepted: boolean; smsMarketingConsent: boolean },
 ) {
   const result = await api.post<AuthTokenResponse>('/auth/verify', {
     phone,
     code,
     ...(registration && {
-      email: registration.email,
       offer_accepted: registration.offerAccepted,
       sms_marketing_consent: registration.smsMarketingConsent,
     }),

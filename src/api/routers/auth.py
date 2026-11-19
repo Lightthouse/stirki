@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_current_client, get_db
@@ -11,6 +11,7 @@ from src.schemas.auth import RequestCodeIn, RequestCodeOut, VerifyCodeIn, AuthTo
 from src.repositories.system_settings import get_system_settings
 from src.services.auth import generate_verification_code, is_debug_phone, is_mobile_phone
 from src.services.sms import SMSSendError, SMSService
+from src.services.sms_limits import record_send, seconds_until_allowed, wait_text
 from src.settings import SmsAeroSettings
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,7 @@ sms_service = SMSService(
 @router.post("/request-code", response_model=RequestCodeOut)
 async def request_code(
     body: RequestCodeIn,
+    request: Request,
     session: AsyncSession = Depends(get_db),
 ):
     sys_settings = await get_system_settings(session)
@@ -64,6 +66,18 @@ async def request_code(
                 detail=f"Повторно запросить код можно через {wait} сек",
             )
 
+    # Лимиты по IP — только когда уйдёт настоящая (платная) SMS.
+    sends_sms = sys_settings.sms_enabled and not debug_phone
+    ip = request.client.host if request.client else "unknown"
+    if sends_sms:
+        wait = await seconds_until_allowed(session, ip, sys_settings)
+        if wait:
+            logger.warning("Лимит SMS-кодов для IP %s: отказ на номер %s, ждать %s с", ip, body.phone, wait)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Слишком много запросов кода с вашего устройства. Попробуйте через {wait_text(wait)}",
+            )
+
     if not client:
         client = await repo.create(body.phone)
 
@@ -74,9 +88,11 @@ async def request_code(
     if debug_phone and sys_settings.sms_enabled:
         # След в логе: вход без SMS при включённом входе по SMS должен быть виден.
         logger.warning("Код для отладочного номера %s показан на странице", body.phone)
-    if not sys_settings.sms_enabled or debug_phone:
+    if not sends_sms:
         return RequestCodeOut(message="Код отправлен", code=code)
 
+    # Записываем до отправки: неудачные попытки тоже считаются, иначе сбой SmsAero не ограничивал бы перебор.
+    await record_send(session, ip, body.phone)
     try:
         await sms_service.send_verification_code(body.phone, code)
     except SMSSendError as e:
@@ -104,13 +120,13 @@ async def verify_code(
         )
 
     # Запоминаем до проверки кода: verify_code ставит is_verified, и новый клиент выглядел бы
-    # зарегистрированным раньше, чем сохранены его email и согласия.
+    # зарегистрированным раньше, чем сохранены его согласия.
     registering = not client.is_registered
     # Проверяем до кода, чтобы не сжечь код из-за незаполненной формы.
-    if registering and (not body.offer_accepted or body.email is None):
+    if registering and not body.offer_accepted:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Укажите email и примите условия оферты",
+            detail="Примите условия оферты",
         )
 
     try:
@@ -126,11 +142,10 @@ async def verify_code(
             detail="Неверный или просроченный код",
         )
 
-    # Согласия и email фиксируем только после подтверждения номера — значит, их дал владелец телефона.
-    # При обычном входе их не трогаем: email и согласие на рассылку остаются как при регистрации.
+    # Согласия фиксируем только после подтверждения номера — значит, их дал владелец телефона.
+    # При обычном входе их не трогаем: согласие на рассылку остаётся как при регистрации.
     if registering:
         await repo.set_consents(client, body.offer_accepted, body.sms_marketing_consent)
-        await repo.update(client, email=body.email)
 
     is_new = not client.name or not client.street
     client_out = None if is_new else ClientOut.model_validate(client)

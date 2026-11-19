@@ -1,8 +1,9 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.enums import Handover
+from src.schemas.auth import normalize_email
 
 
 class CreateOrderIn(BaseModel):
@@ -18,6 +19,13 @@ class CreateOrderIn(BaseModel):
     is_free: bool = False
     # Обязательный выбор в корзине — без значения по умолчанию.
     handover: Handover
+    # Email для кассового чека — вводится в корзине платного заказа и сохраняется в профиль клиента.
+    email: str | None = None
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str | None) -> str | None:
+        return normalize_email(v)
 
 
 class OrderOut(BaseModel):

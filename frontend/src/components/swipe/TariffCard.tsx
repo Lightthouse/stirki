@@ -1,9 +1,6 @@
-import type { OrderLimits } from './ServicesCard'
-
 export type Tariff = 'free' | 'paid'
 
 interface Props {
-  limits: OrderLimits
   minPaidPrice: number
   adsRequired: number
   selected: Tariff | null
@@ -12,7 +9,7 @@ interface Props {
   hintActive: boolean
 }
 
-export function TariffCard({ limits, minPaidPrice, adsRequired, selected, onSelect, onHintActivate, hintActive }: Props) {
+export function TariffCard({ minPaidPrice, adsRequired, selected, onSelect, onHintActivate, hintActive }: Props) {
   function choose(t: Tariff, e: React.MouseEvent) {
     e.stopPropagation()
     onSelect(t)
@@ -57,12 +54,8 @@ export function TariffCard({ limits, minPaidPrice, adsRequired, selected, onSele
             </div>
             <ul className="tariff-features">
               <li>вещь или пакет</li>
-              <li>любые допуслуги</li>
-              <li>
-                {limits.paidPieceSlots > 0
-                  ? `до ${limits.paidBagSlots} пак. и ${limits.paidPieceSlots} вещ. в заказе`
-                  : `до ${limits.paidBagSlots} пак. в заказе`}
-              </li>
+              <li>допы</li>
+              <li>без рекламы</li>
             </ul>
             <div className="tariff-tag">приоритетная стирка</div>
             <button

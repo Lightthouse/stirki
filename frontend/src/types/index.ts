@@ -62,6 +62,8 @@ export interface CreateOrderRequest {
   comment?: string
   is_free: boolean
   handover: Handover
+  // email для кассового чека — только у платного заказа
+  email?: string
 }
 
 export interface PaymentResponse {
@@ -126,6 +128,9 @@ export interface SystemSettings {
 }
 
 /** Текущий час по Москве (UTC+3 без перехода на летнее время), независимо от пояса устройства. */
+// Простая проверка формата email; совпадает с проверкой на бэкенде (src/schemas/auth.py)
+export const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+
 export function mskHour(): number {
   return new Date(Date.now() + 3 * 3600_000).getUTCHours()
 }

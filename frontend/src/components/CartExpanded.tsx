@@ -23,17 +23,26 @@ interface Props {
   onHandoverChange: (h: Handover) => void
   // подсветить блок выбора: пытались оформить заказ без выбора
   handoverError: boolean
+  // email для кассового чека (только платный тариф); подставлен из прошлого заказа
+  email: string
+  onEmailChange: (email: string) => void
+  // подсветить поле: пытались оформить заказ без корректного email
+  emailError: boolean
 }
 
-export function CartExpanded({ cart, addons, isFree, show, onClose, onRemove, onClear, onCheckout, loading, onShowOffer, onShowPrivacy, nextDayFromHour, handover, onHandoverChange, handoverError }: Props) {
+export function CartExpanded({ cart, addons, isFree, show, onClose, onRemove, onClear, onCheckout, loading, onShowOffer, onShowPrivacy, nextDayFromHour, handover, onHandoverChange, handoverError, email, onEmailChange, emailError }: Props) {
   // Считаем в момент показа: страница может быть открыта с 18:50, а заказ оформляют в 19:05.
   const nextDay = nextDayFromHour !== null && mskHour() >= nextDayFromHour
   const handoverRef = useRef<HTMLDivElement>(null)
+  const emailRef = useRef<HTMLDivElement>(null)
 
   // Нажали «Оформить» без выбора — показываем блок выбора, даже если он прокручен за край корзины.
   useEffect(() => {
     if (handoverError) handoverRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }, [handoverError])
+  useEffect(() => {
+    if (emailError) emailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [emailError])
   const { total, fullTotal } = calcCartTotals(cart, addons, isFree)
   const bags = cart.filter((i) => i.type === 'bag').length
   const pieces = cart.length - bags
@@ -117,6 +126,23 @@ export function CartExpanded({ cart, addons, isFree, show, onClose, onRemove, on
               <span>{HANDOVER_LABELS[h]}</span>
             </label>
           ))}
+        </div>
+      )}
+
+      {cart.length > 0 && !isFree && (
+        <div ref={emailRef} className={`handover-choice${emailError ? ' handover-choice--error' : ''}`}>
+          <label className="handover-title" htmlFor="receipt-email">Email для чеков</label>
+          <input
+            id="receipt-email"
+            className="cart-email-input"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="mail@example.ru"
+            value={email}
+            onChange={(e) => onEmailChange(e.target.value.trim())}
+          />
+          <div className="cart-email-hint">Сюда придёт кассовый чек об оплате</div>
         </div>
       )}
 

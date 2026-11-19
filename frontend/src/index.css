@@ -1262,6 +1262,24 @@ body {
   align-items: center;
 }
 
+.cart-mini--shake {
+  animation: cartShake 0.5s ease-in-out;
+}
+
+@keyframes cartShake {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  20% { transform: translateX(-4px) rotate(-1deg); }
+  40% { transform: translateX(4px) rotate(1deg); }
+  60% { transform: translateX(-3px) rotate(-0.5deg); }
+  80% { transform: translateX(2px) rotate(0.5deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cart-mini--shake {
+    animation: none;
+  }
+}
+
 .cart-mini-left {
   display: flex;
   align-items: center;
@@ -1293,13 +1311,14 @@ body {
   line-height: 1.1;
 }
 
-.cart-mini-count {
+.cart-mini-badge {
   background: var(--gradient);
   color: white;
   padding: 4px 12px;
   border-radius: 30px;
   font-weight: 700;
   font-size: 14px;
+  white-space: nowrap;
 }
 
 /* ========== OVERLAY ========== */
@@ -1583,6 +1602,8 @@ body {
   width: 100%;
   margin-bottom: 12px;
   overflow: hidden;
+  /* в прокручиваемой колонке .status-screen карточка иначе сжимается и обрезает последние строки */
+  flex-shrink: 0;
 }
 
 .details-card .card-content {
@@ -1754,18 +1775,6 @@ body {
   transform: scale(0.97);
 }
 
-.status-note {
-  font-size: 11px;
-  color: var(--text-faint);
-  text-align: center;
-  margin-top: 20px;
-  line-height: 1.4;
-  background: #F9FCFB;
-  padding: 10px 14px;
-  border-radius: 24px;
-  width: 100%;
-}
-
 /* ========== MODAL ========== */
 .modal-overlay {
   position: absolute;
@@ -1844,6 +1853,12 @@ body {
 
 .modal-box a {
   color: var(--teal);
+}
+
+/* «Мы не стираем» перед оформлением заказа — крупнее обычного списка в окнах, чтобы не пропустили */
+.modal-box .not-washed-list li {
+  font-size: 15px;
+  color: var(--text);
 }
 
 .support-contact-link {
@@ -2319,4 +2334,30 @@ body {
 .handover-option.selected {
   border-color: var(--teal);
   background: rgba(154, 174, 170, 0.12);
+}
+
+/* Корзина: email для кассового чека (платный тариф) — в том же стиле, что и выбор передачи */
+.cart-email-input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 12px 14px;
+  border: 1.5px solid rgba(154, 174, 170, 0.35);
+  border-radius: 12px;
+  font: inherit;
+  /* 16px: при меньшем шрифте iPhone увеличивает страницу при фокусе на поле */
+  font-size: 16px;
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+}
+
+.cart-email-input:focus {
+  border-color: var(--teal);
+}
+
+.cart-email-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
 }

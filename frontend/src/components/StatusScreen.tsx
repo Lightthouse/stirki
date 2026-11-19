@@ -13,14 +13,6 @@ interface Props {
   onClose: () => void
 }
 
-function getTimeWindow(): string {
-  const now = new Date()
-  const start = new Date(now.getTime() + 15 * 60000)
-  const end = new Date(now.getTime() + 5 * 60 * 60000)
-  const fmt = (d: Date) => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
-  return `Сегодня, ${fmt(start)}–${fmt(end)}`
-}
-
 const timelineSteps = [
   { icon: 'fa-person-walking', label: 'В пути' },
   { icon: 'fa-box', label: 'Забрали' },
@@ -33,7 +25,7 @@ export function StatusScreen({ order, serviceNames, servicePrices, streetName, o
   const [showSupport, setShowSupport] = useState(false)
 
   const isCanceled = order.status === 'canceled'
-  const pickupText = order.handover === 'hand' ? 'Заберёт вещи лично у вас' : 'Заберёт вещи у двери'
+  const pickupPlace = order.handover === 'hand' ? 'из рук' : 'у двери'
   const isWaitingPayment = order.status === 'waiting_payment'
   const isActive = ACTIVE_STATUSES.has(order.status)
   const statusStep = STATUS_STEP_MAP[order.status] || 1
@@ -41,15 +33,23 @@ export function StatusScreen({ order, serviceNames, servicePrices, streetName, o
 
   const basePrice = servicePrices['base'] ?? 990
   const piecePrice = servicePrices['piece'] ?? 190
-  // Допуслуги считаются за каждую позицию, за пакет — по цене `<slug>_bag` (как src/services/pricing.py)
-  const addonDetails = order.services
-    .filter((s) => s !== 'base' && s !== 'piece')
-    .map((slug) => ({
-      slug,
-      name: serviceNames[slug] || slug,
-      price: (servicePrices[slug] ?? 0) * order.pieces_number
-        + addonBagPrice(servicePrices, slug) * order.bags_number,
-    }))
+  const itemsCount = order.bags_number + order.pieces_number
+  // Допуслуга применяется к каждой позиции, за пакет — по цене `<slug>_bag` (как src/services/pricing.py),
+  // поэтому строка допуслуги показывает число всех позиций и их общую стоимость
+  const lines = [
+    { key: 'bag', icon: 'fa-box-open', name: 'Пакет', count: order.bags_number, price: basePrice * order.bags_number },
+    { key: 'piece', icon: 'fa-tshirt', name: 'Вещь', count: order.pieces_number, price: piecePrice * order.pieces_number },
+    ...order.services
+      .filter((s) => s !== 'base' && s !== 'piece')
+      .map((slug) => ({
+        key: slug,
+        icon: 'fa-plus-circle',
+        name: serviceNames[slug] || slug,
+        count: itemsCount,
+        price: (servicePrices[slug] ?? 0) * order.pieces_number
+          + addonBagPrice(servicePrices, slug) * order.bags_number,
+      })),
+  ].filter((line) => line.count > 0)
 
   const addressDisplay = `${streetName}, д. ${order.house}, кв. ${order.apartment}`
 
@@ -92,30 +92,14 @@ export function StatusScreen({ order, serviceNames, servicePrices, streetName, o
 
       <div className="details-card">
         <div className="card-content">
-          {Array.from({ length: order.bags_number }, (_, i) => (
-            <div key={`bag-${i}`} className="detail-row">
-              <div className="detail-label"><i className="fas fa-box-open" /> Пакет</div>
-              <div className="detail-value">{isFree ? <><s>{basePrice} ₽</s> 0 ₽</> : `${basePrice} ₽`}</div>
+          {lines.map((line) => (
+            <div key={line.key} className="detail-row">
+              <div className="detail-label">
+                <i className={`fas ${line.icon}`} /> {line.name}{line.count > 1 && ` ×${line.count}`}
+              </div>
+              <div className="detail-value">{isFree ? <><s>{line.price} ₽</s> 0 ₽</> : `${line.price} ₽`}</div>
             </div>
           ))}
-          {Array.from({ length: order.pieces_number }, (_, i) => (
-            <div key={`piece-${i}`} className="detail-row">
-              <div className="detail-label"><i className="fas fa-tshirt" /> Вещь</div>
-              <div className="detail-value">{isFree ? <><s>{piecePrice} ₽</s> 0 ₽</> : `${piecePrice} ₽`}</div>
-            </div>
-          ))}
-          {addonDetails.map((addon) => (
-            <div key={addon.slug} className="detail-row">
-              <div className="detail-label"><i className="fas fa-plus-circle" /> {addon.name}</div>
-              <div className="detail-value">{isFree ? <><s>{addon.price} ₽</s> 0 ₽</> : `+${addon.price} ₽`}</div>
-            </div>
-          ))}
-          {isActive && (
-            <div className="detail-row">
-              <div className="detail-label"><i className="fas fa-calendar-alt" /> Время</div>
-              <div className="detail-value">{getTimeWindow()}</div>
-            </div>
-          )}
           <div className="detail-row">
             <div className="detail-label"><i className="fas fa-map-pin" /> Адрес</div>
             <div className="detail-value">{addressDisplay}</div>
@@ -135,11 +119,11 @@ export function StatusScreen({ order, serviceNames, servicePrices, streetName, o
 
       {isActive && (
         <div className="small-card">
-          <p><i className="fas fa-truck-fast" /> Курьер приедет в течение 15 минут</p>
+          <p><i className="fas fa-truck-fast" /> Курьер спешит забрать ваш заказ {pickupPlace} за 15 минут</p>
           {order.next_day_delivery ? (
-            <p><i className="fas fa-moon" /> {pickupText}, а чистыми вернёт завтра — к времени из комментария, если вы его указали</p>
+            <p><i className="fas fa-moon" /> Чистые вещи вернём завтра ко времени из комментария, если вы его указали</p>
           ) : (
-            <p><i className="fas fa-door-open" /> {pickupText}, вернёт чистыми через 3–5 часов</p>
+            <p><i className="fas fa-soap" /> Постираем за 4 часа</p>
           )}
         </div>
       )}
@@ -182,12 +166,6 @@ export function StatusScreen({ order, serviceNames, servicePrices, streetName, o
             <SupportContacts />
             <button className="status-btn" onClick={() => setShowSupport(false)}>Закрыть</button>
           </div>
-        </div>
-      )}
-
-      {isActive && (
-        <div className="status-note">
-          <i className="fas fa-info-circle" /> Статус заказа можно отслеживать в приложении
         </div>
       )}
     </div>
