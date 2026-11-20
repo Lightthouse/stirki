@@ -90,6 +90,10 @@ cmd_server() {
     free_web_ports
     echo "==> Запуск всего стека (без SECRET_KEY и ADMIN_PASSWORD в .env бэкенд не стартует)..."
     docker compose --profile prod up -d --build
+    # Caddyfile подключён в контейнер отдельным файлом: git pull заменяет файл, а контейнер видит старый,
+    # пока его не пересоздать. Пересоздаём всегда — пара секунд, зато правки Caddyfile не теряются.
+    echo "==> Пересоздание Caddy (новый Caddyfile)..."
+    docker compose --profile prod up -d --force-recreate --no-deps caddy
     sleep 3
     ensure_caddy
 }
