@@ -49,6 +49,11 @@ export async function getServices() {
   return api.get<ServiceItem[]>('/services')
 }
 
+/** Текст окна сайта из админки «Тексты сайта»: offer, about, privacy. */
+export async function getSiteText(slug: 'offer' | 'about' | 'privacy') {
+  return api.get<{ title: string; body: string }>(`/texts/${slug}`)
+}
+
 export async function createOrder(data: CreateOrderRequest) {
   return api.post<PaymentResponse>('/orders', data)
 }

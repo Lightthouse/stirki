@@ -28,6 +28,8 @@ class OrderService:
         next_day_delivery: bool = False,
         handover: str = Handover.DOOR,
         payment_status: str = "pending",
+        bag_price_rub: int | None = None,
+        piece_price_rub: int | None = None,
     ) -> Order:
         order = await self._repo.create(
             client=client,
@@ -42,6 +44,8 @@ class OrderService:
             next_day_delivery=next_day_delivery,
             handover=handover,
             payment_status=payment_status,
+            bag_price_rub=bag_price_rub,
+            piece_price_rub=piece_price_rub,
         )
         return order
 

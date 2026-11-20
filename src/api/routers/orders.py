@@ -22,7 +22,7 @@ from src.services.notifications import notify_new_order, notify_payment_failed
 from src.services.order import OrderService
 from src.services.payment import PaymentService
 from src.services.payment_sync import sync_order_payment
-from src.services.pricing import PricingService
+from src.services.pricing import EXCLUSIVE_ADDONS, PricingService
 from src.services.schedule import (
     accept_hours_text, is_accepting_orders, is_next_day_delivery, start_of_today_msk,
 )
@@ -174,8 +174,17 @@ async def create_order(
     client.email = email
 
     service_repo = ServiceRepository(session)
-    pricing = PricingService(await service_repo.get_base_price(), await service_repo.get_all_active())
-    lines = pricing.order_lines(body.bags_number, body.pieces_number, body.services)
+    pricing = PricingService(await service_repo.get_all_active(), sys_settings)
+    # Только допы, которые сейчас предлагаются: выключенный в админке доп не попадёт в заказ бесплатно.
+    addon_slugs = pricing.selected_addons(body.services)
+    for pair in EXCLUSIVE_ADDONS:
+        if all(slug in addon_slugs for slug in pair):
+            names = " и ".join(f"«{pricing.name(slug)}»" for slug in pair)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Нельзя выбрать вместе {names}",
+            )
+    lines = pricing.order_lines(body.bags_number, body.pieces_number, addon_slugs)
     total_price = sum(line.total for line in lines)
 
     payment_token = str(uuid4())
@@ -184,13 +193,15 @@ async def create_order(
         washing_type=washing_type,
         bags_number=body.bags_number,
         pieces_number=body.pieces_number,
-        services=Order.flags_from_slugs(body.services),
+        services=Order.flags_from_slugs(addon_slugs),
         total_price_rub=total_price,
         status_name=OrderStatusName.WAITING_PAYMENT,
         comment=body.comment,
         is_free=False,
         next_day_delivery=next_day,
         handover=body.handover,
+        bag_price_rub=pricing.base_price,
+        piece_price_rub=pricing.piece_price,
     )
     payment_link_id = _new_payment_link_id(order)
     try:
@@ -299,6 +310,8 @@ async def get_order(
         pieces_number=order.pieces_number,
         services=order.service_slugs,
         total_price_rub=order.total_price_rub,
+        bag_price_rub=order.bag_price_rub,
+        piece_price_rub=order.piece_price_rub,
         payment_status=order.payment_status,
         is_free=order.is_free,
         next_day_delivery=order.next_day_delivery,

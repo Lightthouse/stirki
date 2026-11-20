@@ -39,6 +39,8 @@ class OrderRepository:
         next_day_delivery: bool = False,
         handover: str = Handover.DOOR,
         payment_status: str = PaymentStatus.PENDING,
+        bag_price_rub: int | None = None,
+        piece_price_rub: int | None = None,
     ) -> Order:
         status = await self.get_status_by_slug(status_name)
 
@@ -49,6 +51,8 @@ class OrderRepository:
             next_day_delivery=next_day_delivery,
             handover=handover,
             total_price_rub=total_price_rub,
+            bag_price_rub=bag_price_rub,
+            piece_price_rub=piece_price_rub,
             payment_status=payment_status,
             comment=comment,
             street=client.street,

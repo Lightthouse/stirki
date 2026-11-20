@@ -11,7 +11,10 @@ export interface AddressesResponse {
 export interface ServiceItem {
   slug: string
   name: string
+  // действующая цена (по акции, если она идёт)
   price_rub: number
+  // обычная цена, если сейчас акция: сайт её зачёркивает; иначе null
+  regular_price_rub?: number | null
   is_active: boolean
 }
 
@@ -85,6 +88,9 @@ export interface OrderDetail {
   pieces_number: number
   services: string[]
   total_price_rub: number
+  // цена пакета и вещи без допов на момент оформления (с учётом акции); null — старый или бесплатный заказ
+  bag_price_rub?: number | null
+  piece_price_rub?: number | null
   payment_status: string
   is_free: boolean
   // вещи вернут на следующий день: заказ оформлен вечером
@@ -113,8 +119,9 @@ export interface SystemSettings {
   free_piece_slots: number
   paid_bag_slots: number
   paid_piece_slots: number
-  order_accept_from_hour: number
-  order_accept_to_hour: number
+  // «ЧЧ:ММ» по МСК
+  order_accept_from: string
+  order_accept_to: string
   // заказы с этого часа (МСК) забирают сразу, а возвращают на следующий день
   next_day_delivery_from_hour: number
   free_orders_per_address_per_day: number
@@ -124,6 +131,9 @@ export interface SystemSettings {
   support_phone: string
   support_telegram: string
   support_email: string
+  promo_enabled: boolean
+  // надпись акции рядом с зачёркнутой ценой, например «акция 7 дней»
+  promo_label: string
   is_accepting_orders: boolean
 }
 
@@ -135,8 +145,11 @@ export function mskHour(): number {
   return new Date(Date.now() + 3 * 3600_000).getUTCHours()
 }
 
-export function acceptHoursText(s: Pick<SystemSettings, 'order_accept_from_hour' | 'order_accept_to_hour'>): string {
-  return `с ${s.order_accept_from_hour}:00 до ${s.order_accept_to_hour}:00`
+// «07:30» → «7:30» (как accept_hours_text на бэкенде)
+const formatTime = (t: string) => t.replace(/^0(\d)/, '$1')
+
+export function acceptHoursText(s: Pick<SystemSettings, 'order_accept_from' | 'order_accept_to'>): string {
+  return `с ${formatTime(s.order_accept_from)} до ${formatTime(s.order_accept_to)}`
 }
 
 export type Step =

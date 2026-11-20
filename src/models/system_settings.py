@@ -26,22 +26,29 @@ class SystemSettings(Base):
     sms_ip_limit_10min: Mapped[int] = mapped_column(Integer, nullable=False, default=5, server_default="5")
     sms_ip_limit_day: Mapped[int] = mapped_column(Integer, nullable=False, default=15, server_default="15")
     sms_ip_limit_week: Mapped[int] = mapped_column(Integer, nullable=False, default=50, server_default="50")
+    # Акция: пакет и вещь по этим ценам, обычные (services base/piece) на сайте зачёркнуты (src/services/pricing.py).
+    promo_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    promo_bag_price: Mapped[int] = mapped_column(Integer, nullable=False, default=990, server_default="990")
+    promo_piece_price: Mapped[int] = mapped_column(Integer, nullable=False, default=190, server_default="190")
+    promo_label: Mapped[str] = mapped_column(
+        Text, nullable=False, default="акция 7 дней", server_default="акция 7 дней"
+    )
     free_bag_slots: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     free_piece_slots: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     paid_bag_slots: Mapped[int] = mapped_column(Integer, nullable=False, default=5, server_default="5")
     paid_piece_slots: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
-    # Приём заказов по МСК: с from (включительно) до to (не включительно), целые часы.
-    order_accept_from_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=9, server_default="9")
-    order_accept_to_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=21, server_default="21")
+    # Приём заказов по МСК, «ЧЧ:ММ»: с from (включительно) до to (не включительно); 24:00 — до конца суток.
+    order_accept_from: Mapped[str] = mapped_column(Text, nullable=False, default="07:30", server_default="07:30")
+    order_accept_to: Mapped[str] = mapped_column(Text, nullable=False, default="21:00", server_default="21:00")
     # С этого часа (МСК) заказ забирают сразу, а возвращают на следующий день.
     next_day_delivery_from_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=19, server_default="19")
     free_orders_per_address_per_day: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1, server_default="1"
     )
 
-    ad_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
-    ad_duration_sec: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    ad_count: Mapped[int] = mapped_column(Integer, nullable=False, default=2, server_default="2")
+    ad_duration_sec: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
 
     # Контакты поддержки на сайте. Пустая строка — контакт не показывается.
     support_phone: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")

@@ -1,78 +1,22 @@
-import { useEffect, useState } from 'react'
-import { getServices, getSystemSettings } from '../../api'
-import type { ServiceItem, SystemSettings } from '../../types'
-import { acceptHoursText } from '../../types'
-import { isAddonSlug } from '../swipe/ServicesCard'
+import { SiteTextBody, useSiteText } from './RichText'
 import { SupportContacts } from './SupportContacts'
 
 interface Props {
   onClose: () => void
 }
 
+/**
+ * «Подробнее о сервисе» — текст в админке «Тексты сайта» (about). Цены и часы приёма в нём пишутся вручную
+ * (решение 2026-11-20): при смене цен в «Услугах» или акции текст нужно поправить отдельно.
+ * Контакты поддержки — из «Системных настроек».
+ */
 export function InfoModal({ onClose }: Props) {
-  const [services, setServices] = useState<ServiceItem[]>([])
-  const [settings, setSettings] = useState<SystemSettings | null>(null)
-
-  useEffect(() => {
-    getServices().then(setServices).catch(() => {})
-    getSystemSettings().then(setSettings).catch(() => {})
-  }, [])
-
-  const base = services.find((s) => s.slug === 'base')
-  const piece = services.find((s) => s.slug === 'piece')
-  const addons = services.filter((s) => isAddonSlug(s.slug))
-  const bagPrice = (slug: string) => services.find((s) => s.slug === `${slug}_bag`)?.price_rub
-
+  const text = useSiteText('about')
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-        <section>
-          <h4>Как работаем</h4>
-          <ul>
-            <li>Забираем у двери в любом стандартном продуктовом пакете (25×40 см)</li>
-            <li>Стираем, сушим и гладим</li>
-            <li>Возвращаем упакованные вещи к двери или в руки</li>
-          </ul>
-        </section>
-
-        <section>
-          <h4>Важно</h4>
-          <ul>
-            <li>Каждый этап виден в приложении</li>
-            <li>Индивидуально — в барабане только ваши вещи</li>
-            <li>Бережная стирка — до 30°C, отжим до 800 об/мин</li>
-            <li>По цветам не делим — один пакет = один цвет</li>
-          </ul>
-        </section>
-
-        <section>
-          <h4>Тарифы</h4>
-          <ul>
-            {base && <li>Пакет одежды или белья (до 3 кг) — {base.price_rub} ₽</li>}
-            {piece && <li>Одна вещь — {piece.price_rub} ₽</li>}
-            {addons.map((a) => (
-              <li key={a.slug}>
-                {a.name} — {bagPrice(a.slug) !== undefined && bagPrice(a.slug) !== a.price_rub
-                  ? `+${a.price_rub} ₽ за вещь / +${bagPrice(a.slug)} ₽ за пакет`
-                  : `+${a.price_rub} ₽ за позицию`}
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section>
-          <h4>Дополнительно</h4>
-          <ul>
-            <li>Локация — Мытищи</li>
-            {settings && <li>Приём заказов — ежедневно {acceptHoursText(settings)}</li>}
-            {settings && settings.next_day_delivery_from_hour < settings.order_accept_to_hour && (
-              <li>
-                Заказы после {settings.next_day_delivery_from_hour}:00 забираем сразу, а возвращаем на следующий день.
-                Нужно к определённому времени — укажите его в комментарии к заказу
-              </li>
-            )}
-          </ul>
-        </section>
+        {text && text.title && <h3><i className="fas fa-info-circle" /> {text.title}</h3>}
+        <SiteTextBody text={text} />
 
         <section>
           <h4>Поддержка</h4>

@@ -31,9 +31,12 @@ _SERVICE_FIELDS = [
     "conditioner",
     "vacuum_pack",
     "stain_remover",
-    "wash_bag",
+    "laundry_net",
     "bleach",
     "color_catcher_sheets",
+    "steaming",
+    "hypoallergenic_conditioner",
+    "no_conditioner",
 ]
 
 
@@ -70,9 +73,15 @@ class Order(Base):
     conditioner: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     vacuum_pack: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     stain_remover: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
-    wash_bag: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    laundry_net: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     bleach: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     color_catcher_sheets: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    steaming: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    hypoallergenic_conditioner: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    no_conditioner: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # Цена пакета и вещи без допов на момент оформления (с учётом акции).
+    bag_price_rub: Mapped[int | None] = mapped_column(Integer)
+    piece_price_rub: Mapped[int | None] = mapped_column(Integer)
 
     is_free: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     # Оформлен после system_settings.next_day_delivery_from_hour: вещи вернут на следующий день.

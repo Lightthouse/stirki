@@ -1,59 +1,17 @@
+import { SiteTextBody, useSiteText } from './RichText'
+
 interface Props {
   onClose: () => void
 }
 
+/** Политика обработки ПДн — текст в админке «Тексты сайта» (privacy). */
 export function PrivacyModal({ onClose }: Props) {
+  const text = useSiteText('privacy')
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-        <h3><i className="fas fa-shield-alt" /> Персональные данные</h3>
-
-        <section>
-          <h4>1. Оператор</h4>
-          <ul>
-            <li>Оператором персональных данных является сервис «СтиркиОН», г. Мытищи</li>
-            <li>Обработка данных осуществляется в соответствии с ФЗ № 152-ФЗ «О персональных данных»</li>
-          </ul>
-        </section>
-
-        <section>
-          <h4>2. Состав данных</h4>
-          <ul>
-            <li>Номер телефона — для идентификации и связи</li>
-            <li>Имя — для персонализации обращения</li>
-            <li>Адрес доставки — для исполнения заказа</li>
-            <li>История заказов — для улучшения качества сервиса</li>
-          </ul>
-        </section>
-
-        <section>
-          <h4>3. Цели обработки</h4>
-          <ul>
-            <li>Выполнение заказов и организация доставки</li>
-            <li>Информирование о статусе заказа</li>
-            <li>Улучшение качества предоставляемых услуг</li>
-            <li>Соблюдение требований законодательства РФ</li>
-          </ul>
-        </section>
-
-        <section>
-          <h4>4. Хранение и передача</h4>
-          <ul>
-            <li>Данные хранятся на защищённых серверах на территории РФ</li>
-            <li>Передача третьим лицам не осуществляется, за исключением платёжных сервисов для проведения оплаты</li>
-            <li>Срок хранения — 3 года с момента последнего заказа</li>
-          </ul>
-        </section>
-
-        <section>
-          <h4>5. Ваши права</h4>
-          <ul>
-            <li>Вы вправе запросить доступ к своим данным, их изменение или удаление</li>
-            <li>Для отзыва согласия или удаления данных — <a href="mailto:prihodko_1989@mail.ru">prihodko_1989@mail.ru</a></li>
-            <li>Отзыв согласия не влияет на законность ранее произведённой обработки</li>
-          </ul>
-        </section>
-
+        {text && text.title && <h3><i className="fas fa-shield-alt" /> {text.title}</h3>}
+        <SiteTextBody text={text} />
         <button className="btn-pill btn-pill-accent" onClick={onClose}>
           Понятно
         </button>

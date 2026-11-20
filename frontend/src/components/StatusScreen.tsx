@@ -31,8 +31,9 @@ export function StatusScreen({ order, serviceNames, servicePrices, streetName, o
   const statusStep = STATUS_STEP_MAP[order.status] || 1
   const isFree = order.is_free
 
-  const basePrice = servicePrices['base'] ?? 990
-  const piecePrice = servicePrices['piece'] ?? 190
+  // Цены на момент оформления (с учётом акции); у бесплатных и старых заказов их нет — берём текущий прайс.
+  const basePrice = order.bag_price_rub ?? servicePrices['base'] ?? 990
+  const piecePrice = order.piece_price_rub ?? servicePrices['piece'] ?? 190
   const itemsCount = order.bags_number + order.pieces_number
   // Допуслуга применяется к каждой позиции, за пакет — по цене `<slug>_bag` (как src/services/pricing.py),
   // поэтому строка допуслуги показывает число всех позиций и их общую стоимость

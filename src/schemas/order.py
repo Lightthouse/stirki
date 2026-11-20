@@ -41,6 +41,9 @@ class OrderOut(BaseModel):
     pieces_number: int
     services: list[str]
     total_price_rub: int
+    # цена пакета и вещи без допов на момент оформления (с учётом акции); у старых заказов — null
+    bag_price_rub: int | None = None
+    piece_price_rub: int | None = None
     payment_status: str
     is_free: bool
     # Вещи вернут на следующий день (заказ оформлен вечером, см. system_settings).

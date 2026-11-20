@@ -10,7 +10,7 @@ from sqladmin.authentication import AuthenticationBackend
 from sqlalchemy import ColumnElement, Select, case
 from starlette.requests import Request
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
-from wtforms import Form, SelectField, StringField
+from wtforms import Form, SelectField, StringField, TextAreaField
 from wtforms.validators import NumberRange, Optional, Regexp, ValidationError
 
 from src.addresses import STREETS_SLUG
@@ -20,11 +20,12 @@ from src.models.analytics import Ad, AdViewStats, LandingVisitStats, SmsSend
 from src.models.client import Client
 from src.models.order import Order, OrderStatus, OrderStatusHistory
 from src.models.service import Service
+from src.models.site_text import SITE_TEXT_NAMES, SiteText
 from src.models.system_settings import SystemSettings
 from src.services.ads import ALLOWED_EXTENSIONS, AdUploadError, delete_ad_file, save_ad_file
 from src.services.auth import parse_phone_list, phone_digits
 from src.services.notifications import parse_email_list
-from src.services.schedule import MSK, now_msk
+from src.services.schedule import MSK, now_msk, time_to_minutes
 from src.settings import AppSettings
 
 _SLUG_TO_STREET = {slug: name for name, slug in STREETS_SLUG.items()}
@@ -248,9 +249,14 @@ class OrderAdmin(BaseAdmin, model=Order):
         "conditioner": "Кондиционер",
         "vacuum_pack": "Вакуум",
         "stain_remover": "Пятновыводитель",
-        "wash_bag": "Мешок",
+        "laundry_net": "Стирка в мешке",
         "bleach": "Отбеливатель",
-        "color_catcher_sheets": "Цветоуловитель",
+        "color_catcher_sheets": "Салфетки (ловушки цвета)",
+        "bag_price_rub": "Цена пакета (на момент заказа)",
+        "piece_price_rub": "Цена вещи (на момент заказа)",
+        "steaming": "Отпаривание",
+        "hypoallergenic_conditioner": "Кондиционер гипоаллергенный",
+        "no_conditioner": "Не добавлять кондиционер",
         "total_price_rub": "Цена (₽)",
         "payment_status": "Оплата",
         "payment_link": "Ссылка оплаты",
@@ -432,6 +438,10 @@ class SystemSettingsAdmin(BaseAdmin, model=SystemSettings):
 
     column_list = [
         SystemSettings.free_tariff_is_available,
+        SystemSettings.promo_enabled,
+        SystemSettings.promo_bag_price,
+        SystemSettings.promo_piece_price,
+        SystemSettings.promo_label,
         SystemSettings.sms_enabled,
         SystemSettings.debug_phones_enabled,
         SystemSettings.debug_phones,
@@ -442,8 +452,8 @@ class SystemSettingsAdmin(BaseAdmin, model=SystemSettings):
         SystemSettings.free_piece_slots,
         SystemSettings.paid_bag_slots,
         SystemSettings.paid_piece_slots,
-        SystemSettings.order_accept_from_hour,
-        SystemSettings.order_accept_to_hour,
+        SystemSettings.order_accept_from,
+        SystemSettings.order_accept_to,
         SystemSettings.next_day_delivery_from_hour,
         SystemSettings.free_orders_per_address_per_day,
         SystemSettings.ad_count,
@@ -456,6 +466,10 @@ class SystemSettingsAdmin(BaseAdmin, model=SystemSettings):
     column_labels = {
         "id": "ID",
         "free_tariff_is_available": "Бесплатный тариф доступен",
+        "promo_enabled": "Акция включена",
+        "promo_bag_price": "Акция: цена пакета (₽)",
+        "promo_piece_price": "Акция: цена вещи (₽)",
+        "promo_label": "Акция: надпись на сайте",
         "sms_enabled": "Вход по SMS (отправлять коды)",
         "debug_phones_enabled": "Отладочные номера включены",
         "debug_phones": "Отладочные номера",
@@ -466,8 +480,8 @@ class SystemSettingsAdmin(BaseAdmin, model=SystemSettings):
         "free_piece_slots": "Бесплатный: вещи (макс.)",
         "paid_bag_slots": "Платный: пакеты (макс.)",
         "paid_piece_slots": "Платный: вещи (макс.)",
-        "order_accept_from_hour": "Приём заказов с (час, МСК)",
-        "order_accept_to_hour": "Приём заказов до (час, МСК)",
+        "order_accept_from": "Приём заказов с (ЧЧ:ММ, МСК)",
+        "order_accept_to": "Приём заказов до (ЧЧ:ММ, МСК)",
         "next_day_delivery_from_hour": "Доставка на след. день для заказов с (час, МСК)",
         "free_orders_per_address_per_day": "Бесплатных заказов на адрес в сутки",
         "ad_count": "Реклама: картинок за просмотр",
@@ -482,6 +496,10 @@ class SystemSettingsAdmin(BaseAdmin, model=SystemSettings):
     can_delete = False
     form_columns = [
         SystemSettings.free_tariff_is_available,
+        SystemSettings.promo_enabled,
+        SystemSettings.promo_bag_price,
+        SystemSettings.promo_piece_price,
+        SystemSettings.promo_label,
         SystemSettings.sms_enabled,
         SystemSettings.debug_phones_enabled,
         SystemSettings.debug_phones,
@@ -492,8 +510,8 @@ class SystemSettingsAdmin(BaseAdmin, model=SystemSettings):
         SystemSettings.free_piece_slots,
         SystemSettings.paid_bag_slots,
         SystemSettings.paid_piece_slots,
-        SystemSettings.order_accept_from_hour,
-        SystemSettings.order_accept_to_hour,
+        SystemSettings.order_accept_from,
+        SystemSettings.order_accept_to,
         SystemSettings.next_day_delivery_from_hour,
         SystemSettings.free_orders_per_address_per_day,
         SystemSettings.ad_count,
@@ -505,11 +523,21 @@ class SystemSettingsAdmin(BaseAdmin, model=SystemSettings):
     ]
     # Контакты — однострочные поля, а не textarea, которую sqladmin делает для Text.
     form_overrides = {
-        f: StringField for f in ("debug_phones", "support_phone", "support_telegram", "support_email", "notify_emails")
+        f: StringField
+        for f in (
+            "debug_phones", "support_phone", "support_telegram", "support_email", "notify_emails", "promo_label",
+            "order_accept_from", "order_accept_to",
+        )
     }
     form_args = {
-        "order_accept_from_hour": {"validators": [NumberRange(0, 23)]},
-        "order_accept_to_hour": {"validators": [NumberRange(1, 24)]},
+        "order_accept_from": {
+            "validators": [Regexp(r"^\s*([01]?\d|2[0-3]):[0-5]\d\s*$", message="Время в виде 7:30 или 09:00")],
+            "description": "Например 7:30. Заказы принимаются с этого времени включительно.",
+        },
+        "order_accept_to": {
+            "validators": [Regexp(r"^\s*(([01]?\d|2[0-3]):[0-5]\d|24:00)\s*$", message="Время в виде 21:00 (24:00 — до конца суток)")],
+            "description": "Например 21:00 — последний заказ в 20:59. 24:00 — до конца суток.",
+        },
         # 24 — доставка на следующий день не применяется никогда.
         "next_day_delivery_from_hour": {"validators": [NumberRange(0, 24)]},
         "free_orders_per_address_per_day": {"validators": [NumberRange(0, 100)]},
@@ -521,6 +549,13 @@ class SystemSettingsAdmin(BaseAdmin, model=SystemSettings):
                            "Если бюджет SMS тратится подозрительно быстро — уменьшите. Действует сразу.",
         },
         "sms_ip_limit_day": {"validators": [NumberRange(1, 1000)]},
+        "promo_enabled": {
+            "description": "Включено — пакет и вещь стоят по ценам акции ниже, а обычные цены из «Услуг» на сайте "
+                           "зачёркнуты. Выключено — действуют обычные цены. Допы акция не меняет.",
+        },
+        "promo_bag_price": {"validators": [NumberRange(0, 100000)]},
+        "promo_piece_price": {"validators": [NumberRange(0, 100000)]},
+        "promo_label": {"description": "Показывается рядом с ценой, например «акция 7 дней»."},
         "sms_ip_limit_week": {"validators": [NumberRange(1, 1000)]},
         "sms_enabled": {
             "description": "Выключено — SMS не отправляются, код показывается прямо на странице входа "
@@ -559,11 +594,16 @@ class SystemSettingsAdmin(BaseAdmin, model=SystemSettings):
             data["debug_phones"] = ", ".join(
                 f"+{d[0]} {d[1:4]} {d[4:7]}-{d[7:9]}-{d[9:]}" for d in parse_phone_list(data["debug_phones"] or "")
             )
+        # Часы приёма храним в одном виде: «07:30».
+        for field in ("order_accept_from", "order_accept_to"):
+            if data.get(field):
+                minutes = time_to_minutes(data[field])
+                data[field] = f"{minutes // 60:02d}:{minutes % 60:02d}"
         # Адреса для уведомлений храним в одном виде: «a@mail.ru, b@yandex.ru».
         if "notify_emails" in data:
             data["notify_emails"] = ", ".join(parse_email_list(data["notify_emails"] or ""))
         # Пустые поля формы приходят как None, а колонки NOT NULL — храним пустую строку.
-        for field in ("support_phone", "support_telegram", "support_email"):
+        for field in ("support_phone", "support_telegram", "support_email", "promo_label"):
             if field in data:
                 data[field] = (data[field] or "").strip()
         # Telegram храним как голое имя пользователя: сайт сам строит ссылку https://t.me/<имя>.
@@ -571,6 +611,43 @@ class SystemSettingsAdmin(BaseAdmin, model=SystemSettings):
             data["support_telegram"] = re.sub(
                 r"^(https?://)?(t\.me/|telegram\.me/)?@?", "", data["support_telegram"]
             ).strip("/")
+
+
+class SiteTextAdmin(BaseAdmin, model=SiteText):
+    """Тексты окон сайта: оферта, «Подробнее о сервисе», политика ПДн. Правка видна на сайте сразу."""
+
+    name = "Текст сайта"
+    name_plural = "Тексты сайта"
+    icon = "fa-solid fa-file-lines"
+
+    column_list = ["name", SiteText.title, SiteText.updated_at]
+    column_labels = {"name": "Окно на сайте", "title": "Заголовок", "body": "Текст", "updated_at": "Изменён", "slug": "Код"}
+    column_formatters = {
+        "name": lambda m, a: SITE_TEXT_NAMES.get(m.slug, m.slug),
+        **_msk_formatters("updated_at"),
+    }
+    column_details_list = ["name", SiteText.title, SiteText.body, SiteText.updated_at]
+    column_formatters_detail = column_formatters
+
+    can_create = False
+    can_delete = False
+    form_columns = [SiteText.title, SiteText.body]
+    form_overrides = {"title": StringField, "body": TextAreaField}
+    form_args = {
+        "title": {"description": "Заголовок окна. Можно оставить пустым."},
+        "body": {
+            "render_kw": {"rows": 30, "style": "font-family: monospace; font-size: 13px"},
+            "description": Markup(
+                "Разметка: строка с <code>## </code> в начале — заголовок раздела, с <code>- </code> — пункт списка, "
+                "<code>**слово**</code> — жирный, остальные строки — абзацы. Адреса сайтов и email становятся ссылками."
+            ),
+        },
+    }
+
+    async def on_model_change(self, data: dict, model: Any, is_created: bool, request: Request) -> None:
+        data["title"] = (data.get("title") or "").strip()
+        # Переводы строк Windows (\r\n) из браузера — в обычные, чтобы разметка распознавалась одинаково.
+        data["body"] = (data.get("body") or "").replace("\r\n", "\n").strip()
 
 
 class SmsSendAdmin(BaseAdmin, model=SmsSend):
@@ -779,5 +856,6 @@ def create_admin(app) -> Admin:
     admin.add_view(AdAdmin)
     admin.add_view(AdViewStatsAdmin)
     admin.add_view(LandingVisitStatsAdmin)
+    admin.add_view(SiteTextAdmin)
     admin.add_view(SmsSendAdmin)
     return admin

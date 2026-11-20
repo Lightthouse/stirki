@@ -15,7 +15,7 @@ import { PrivacyModal } from '../components/ui/PrivacyModal'
 import { SupportContacts } from '../components/ui/SupportContacts'
 import type { AddressData } from '../components/swipe/AddressCard'
 import type { Tariff } from '../components/swipe/TariffCard'
-import { addonBagPrice, buildPriceMap } from '../components/swipe/ServicesCard'
+import { addonBagPrice, buildPriceMap, toggleAddonSet } from '../components/swipe/ServicesCard'
 import type { AddonItem, CartItem, OrderLimits } from '../components/swipe/ServicesCard'
 import type { ClientInfo, Street, ServiceItem, Handover } from '../types'
 import { acceptHoursText, EMAIL_RE } from '../types'
@@ -64,6 +64,7 @@ export function OrderPage() {
   const [nextDayFromHour, setNextDayFromHour] = useState<number | null>(null)
   const [handover, setHandover] = useState<Handover | null>(null)
   const [handoverError, setHandoverError] = useState(false)
+  const [promoLabel, setPromoLabel] = useState('')
   // Email для чека платного заказа: подставляется сохранённый с прошлого заказа, сохраняется при оформлении.
   const [email, setEmail] = useState('')
   const [emailError, setEmailError] = useState(false)
@@ -109,6 +110,7 @@ export function OrderPage() {
     getAddresses().then((res) => setStreets(res.streets)).catch(() => {})
     getSystemSettings().then((s) => {
       setFreeTariffAvailable(s.free_tariff_is_available)
+      setPromoLabel(s.promo_enabled ? s.promo_label : '')
       setOrderLimits({
         freeBagSlots: s.free_bag_slots,
         freePieceSlots: s.free_piece_slots,
@@ -200,12 +202,7 @@ export function OrderPage() {
   }
 
   function handleToggleAddon(slug: string) {
-    setAddons((prev) => {
-      const next = new Set(prev)
-      if (next.has(slug)) next.delete(slug)
-      else next.add(slug)
-      return next
-    })
+    setAddons((prev) => toggleAddonSet(prev, slug))
   }
 
   function handleClearCart() {
@@ -383,6 +380,7 @@ export function OrderPage() {
           addressValid={!!(address.street && address.house)}
           limits={orderLimits}
           services={services}
+          promoLabel={promoLabel}
         />
       </div>
 

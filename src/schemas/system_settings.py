@@ -7,8 +7,9 @@ class SystemSettings(BaseModel):
     free_piece_slots: int
     paid_bag_slots: int
     paid_piece_slots: int
-    order_accept_from_hour: int
-    order_accept_to_hour: int
+    # «ЧЧ:ММ» по МСК
+    order_accept_from: str
+    order_accept_to: str
     next_day_delivery_from_hour: int
     free_orders_per_address_per_day: int
     ad_count: int
@@ -16,6 +17,9 @@ class SystemSettings(BaseModel):
     support_phone: str
     support_telegram: str
     support_email: str
+    promo_enabled: bool
+    # подпись акции на сайте рядом с зачёркнутой ценой, например «акция 7 дней»
+    promo_label: str
     # Вычисляется на сервере по МСК: принимаются ли заказы прямо сейчас.
     is_accepting_orders: bool
 

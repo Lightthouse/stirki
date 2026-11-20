@@ -11,7 +11,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from src.database import engine
 from src.models.analytics import Ad
 from src.settings import AppSettings
-from src.api.routers import addresses, auth, services, orders, payments, analytics
+from src.api.routers import addresses, auth, services, orders, payments, analytics, texts
 from src.api.dependencies import get_db
 from src.repositories.system_settings import get_system_settings as load_system_settings
 from src.schemas.system_settings import SystemSettings as SystemSettingsSchema
@@ -59,6 +59,7 @@ app.include_router(services.router, prefix="/api/services", tags=["services"])
 app.include_router(orders.router, prefix="/api/orders", tags=["orders"])
 app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 app.include_router(analytics.router, prefix="/api")
+app.include_router(texts.router, prefix="/api/texts", tags=["texts"])
 
 create_admin(app)
 
@@ -81,8 +82,8 @@ async def get_system_settings(session: AsyncSession = Depends(get_db)):
         free_piece_slots=settings.free_piece_slots,
         paid_bag_slots=settings.paid_bag_slots,
         paid_piece_slots=settings.paid_piece_slots,
-        order_accept_from_hour=settings.order_accept_from_hour,
-        order_accept_to_hour=settings.order_accept_to_hour,
+        order_accept_from=settings.order_accept_from,
+        order_accept_to=settings.order_accept_to,
         next_day_delivery_from_hour=settings.next_day_delivery_from_hour,
         free_orders_per_address_per_day=settings.free_orders_per_address_per_day,
         ad_count=settings.ad_count,
@@ -90,6 +91,8 @@ async def get_system_settings(session: AsyncSession = Depends(get_db)):
         support_phone=settings.support_phone,
         support_telegram=settings.support_telegram,
         support_email=settings.support_email,
+        promo_enabled=settings.promo_enabled,
+        promo_label=settings.promo_label,
         is_accepting_orders=is_accepting_orders(settings),
     )
 

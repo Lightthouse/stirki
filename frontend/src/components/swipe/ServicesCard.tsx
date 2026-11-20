@@ -47,17 +47,42 @@ function getMaxItems(tariff: Tariff | null, serviceType: 'bag' | 'piece', limits
 const FALLBACK_PRICES: Record<string, number> = {
   base: 990,
   piece: 190,
-  ironing: 190,
-  ironing_bag: 990,
-  conditioner: 100,
-  vacuum_pack: 150,
+  steaming: 390,
+  steaming_bag: 990,
+  color_catcher_sheets: 50,
+  hypoallergenic_conditioner: 80,
+  laundry_net: 150,
+  no_conditioner: 0,
 }
+
+// Допы, которые нельзя выбрать вместе: выбор одного снимает другой (на бэкенде — EXCLUSIVE_ADDONS в pricing.py).
+const EXCLUSIVE_ADDONS: [string, string][] = [['hypoallergenic_conditioner', 'no_conditioner']]
+
+/** Включить или выключить доп; при включении снимаются несовместимые с ним. */
+export function toggleAddonSet(prev: Set<string>, slug: string): Set<string> {
+  const next = new Set(prev)
+  if (next.has(slug)) {
+    next.delete(slug)
+    return next
+  }
+  next.add(slug)
+  for (const [a, b] of EXCLUSIVE_ADDONS) {
+    if (slug === a) next.delete(b)
+    if (slug === b) next.delete(a)
+  }
+  return next
+}
+
+// Больше стольких допов — компактный список, чтобы карточка «Что стираем» помещалась на экран телефона.
+const COMPACT_DOPS_FROM = 4
 
 // Услуга `<slug>_bag` — цена допуслуги за пакет; сама по себе не выбирается (как BAG_PRICE_SUFFIX на бэкенде).
 const BAG_PRICE_SUFFIX = '_bag'
 
-export function isAddonSlug(slug: string): boolean {
-  return !BASE_SLUGS.has(slug) && !slug.endsWith(BAG_PRICE_SUFFIX)
+/** Доп, который выбирает клиент. `<slug>_bag` при существующем `<slug>` — цена за пакет, не отдельный доп. */
+export function isAddonSlug(slug: string, allSlugs: Set<string>): boolean {
+  if (BASE_SLUGS.has(slug)) return false
+  return !(slug.endsWith(BAG_PRICE_SUFFIX) && allSlugs.has(slug.slice(0, -BAG_PRICE_SUFFIX.length)))
 }
 
 /** Цена допуслуги за пакет: `<slug>_bag`, если задана, иначе обычная цена. */
@@ -85,11 +110,18 @@ interface Props {
   addressValid: boolean
   limits: OrderLimits
   services: ServiceItem[]
+  // надпись акции рядом с зачёркнутой ценой (system_settings.promo_label)
+  promoLabel: string
 }
 
-export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, onAddToCart, adsWatched, adsRequired, onWatchAd, addons, onToggleAddon, addressValid, limits, services }: Props) {
+export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, onAddToCart, adsWatched, adsRequired, onWatchAd, addons, onToggleAddon, addressValid, limits, services, promoLabel }: Props) {
   const prices = buildPriceMap(services)
-  const availableDops = services.filter((s) => isAddonSlug(s.slug))
+  // Обычная цена при действующей акции — зачёркивается рядом с ценой по акции.
+  const regularPrice = (slug: string) => services.find((s) => s.slug === slug)?.regular_price_rub ?? null
+  const shownSlug = serviceType === 'piece' ? 'piece' : 'base'
+  const promoRegular = regularPrice(shownSlug)
+  const allSlugs = new Set(services.map((s) => s.slug))
+  const availableDops = services.filter((s) => isAddonSlug(s.slug, allSlugs))
 
   const [added, setAdded] = useState(false)
   const [needAds, setNeedAds] = useState(false)
@@ -165,7 +197,7 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
 
   return (
     <div className="swipe-card">
-      <div className="card-content">
+      <div className={`card-content${DOPS.length >= COMPACT_DOPS_FROM ? ' services-compact' : ''}`}>
         <div className="hero-title">Что стираем</div>
 
         <div className="service-switch">
@@ -185,37 +217,46 @@ export function ServicesCard({ tariff, serviceType, onServiceTypeChange, cart, o
 
         {isFree ? (
           <div className="price-free-block">
-            <span className="price-strikethrough">{prices.base} ₽</span>
+            <span className="price-strikethrough">{regularPrice('base') ?? prices.base} ₽</span>
             <span className="price-big price-big--free">0 ₽</span>
+          </div>
+        ) : promoRegular !== null ? (
+          <div className="price-free-block">
+            <span className="price-strikethrough">{promoRegular} ₽</span>
+            <span className="price-big">{prices[shownSlug]} ₽</span>
           </div>
         ) : (
           <div className="price-big">
-            {serviceType === 'piece' ? prices.piece : prices.base} ₽
+            {prices[shownSlug]} ₽
           </div>
         )}
         <div className="price-label">
+          {!isFree && promoRegular !== null && promoLabel && <span className="promo-badge">{promoLabel}</span>}
           {isFree
-            ? 'бесплатная стирка'
+            ? 'бесплатная стирка пакета до 3 кг'
             : serviceType === 'piece'
               ? 'стоимость стирки одной вещи'
               : 'стоимость пакета до 3 кг'}
         </div>
 
-        {DOPS.length > 0 && (
-          <div className="price-label" style={{ marginTop: 12 }}>
+        {/* На бесплатном тарифе допы не включаются — подпись про корзину там ни к чему */}
+        {DOPS.length > 0 && !isFree && (
+          <div className="price-label extras-label">
             допы действуют на всю корзину
           </div>
         )}
-        {DOPS.map((dop) => (
-          <div
-            key={dop.key}
-            className={`extra-item${addons.has(dop.key) ? ' active' : ''}${isFree ? ' disabled' : ''}`}
-            onClick={() => toggleAddon(dop.key)}
-          >
-            <div className="extra-name">{dop.label}</div>
-            <div className="extra-price">+{dop.price} ₽</div>
-          </div>
-        ))}
+        <div className="extras">
+          {DOPS.map((dop) => (
+            <div
+              key={dop.key}
+              className={`extra-item${addons.has(dop.key) ? ' active' : ''}${isFree ? ' disabled' : ''}`}
+              onClick={() => toggleAddon(dop.key)}
+            >
+              <div className="extra-name">{dop.label}</div>
+              <div className="extra-price">+{dop.price} ₽</div>
+            </div>
+          ))}
+        </div>
 
         {isFree && adsRequired > 0 && (
           <div

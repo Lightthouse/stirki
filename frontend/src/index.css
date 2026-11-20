@@ -440,7 +440,9 @@ body {
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* центрирование через margin: auto у .card-content — если контент выше экрана, верх не уезжает под шапку,
+     а карточка прокручивается (justify-content: center обрезал бы верх) */
+  justify-content: flex-start;
   padding: 72px 16px 80px 20px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -449,6 +451,11 @@ body {
 .card-content {
   position: relative;
   z-index: 10;
+}
+
+.swipe-card > .card-content {
+  margin-top: auto;
+  margin-bottom: auto;
 }
 
 /* ========== NAV INDICATOR (swipe hint) ========== */
@@ -769,6 +776,24 @@ body {
   margin-bottom: 20px;
 }
 
+.extras-label {
+  margin-top: 12px;
+}
+
+/* Надпись акции в строке под ценой (не отдельной строкой — карточка «Что стираем» и так впритык на маленьких экранах) */
+.promo-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 8px;
+  border-radius: 10px;
+  background: var(--pink);
+  /* тёмный текст: на светло-розовом белый плохо читается */
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
 .extra-item {
   display: flex;
   justify-content: space-between;
@@ -810,6 +835,58 @@ body {
 .extra-price {
   font-weight: 700;
   color: var(--teal);
+  white-space: nowrap;
+}
+
+.extra-item {
+  gap: 12px;
+}
+
+/* 4 и больше допов (COMPACT_DOPS_FROM в ServicesCard.tsx): плотнее отступы, мельче цена и строки допов,
+   чтобы карточка «Что стираем» с 5 допами помещалась даже на iPhone SE (375×553 с панелями Safari).
+   Если допов больше, чем влезает, карточка прокручивается (центрирование .swipe-card не обрезает верх). */
+.services-compact .hero-title {
+  margin-bottom: 10px;
+}
+
+.services-compact .service-switch {
+  margin-bottom: 12px;
+}
+
+.services-compact .switch-opt {
+  padding: 10px;
+}
+
+.services-compact .price-big {
+  font-size: clamp(30px, 9vw, 40px);
+  margin-bottom: 2px;
+}
+
+.services-compact .price-label {
+  margin-bottom: 8px;
+}
+
+.services-compact .price-free-block {
+  margin-bottom: 2px;
+}
+
+.services-compact .price-strikethrough {
+  font-size: 22px;
+}
+
+.services-compact .extras-label {
+  margin-top: 4px;
+}
+
+.services-compact .extra-item {
+  padding: 8px 0;
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.services-compact .extra-item.active {
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 .add-btn {
