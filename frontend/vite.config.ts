@@ -6,6 +6,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // Service worker отдавал сайт из своего кэша, и клиенты видели новую версию только со следующего открытия
+      // (на iPhone «На экране Домой» — днями). selfDestroying: у тех, у кого он уже стоит, при следующем заходе
+      // удаляет себя и кэши (решение 2026-11-20). Манифест остаётся — сайт по-прежнему добавляется на экран «Домой».
+      // Свежесть без него обеспечивают заголовки Cache-Control в Caddyfile.
+      selfDestroying: true,
       registerType: 'autoUpdate',
       workbox: {
         navigateFallbackDenylist: [/^\/admin/],

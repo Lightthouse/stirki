@@ -125,6 +125,13 @@ select
 from landing_visits
 group by 1;
 
+-- Применённые миграции (pg_migrations/, README «Миграции»): каждая миграция в конце пишет сюда своё имя,
+-- поэтому повторный запуск того же файла падает на primary key и откатывается целиком.
+create table schema_migrations (
+    name text primary key,
+    applied_at timestamptz not null default now()
+);
+
 -- Тексты окон сайта, редактируются в админке «Тексты сайта» (src/admin.py, SiteTextAdmin).
 -- Разметка — src/components/ui/RichText.tsx: «## » — заголовок, «- » — пункт списка, **жирный**, остальное — абзацы.
 create table site_texts (

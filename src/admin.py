@@ -169,6 +169,10 @@ class OrderAdmin(BaseAdmin, model=Order):
     name_plural = "Заказы"
     icon = "fa-solid fa-basket-shopping"
 
+    # Заказы не удаляются из админки (решение 2026-11-20): настоящий заказ отменяют, тестовые удаляет
+    # разработчик запросом к БД (README, «Удаление тестовых заказов»).
+    can_delete = False
+
     column_list = [
         Order.id,
         Order.created_at,

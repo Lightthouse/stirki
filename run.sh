@@ -4,12 +4,13 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 usage() {
-    echo "Использование: ./run.sh {local|server|stop|backup}"
+    echo "Использование: ./run.sh {local|server|stop|backup|check-web}"
     echo ""
     echo "  local  — БД + adminer в docker, backend и frontend локально с hot-reload (для разработки)"
     echo "  server — весь стек в docker (backend, frontend, caddy) — так запускается сервер"
     echo "  stop  — остановить всё"
     echo "  backup — дамп БД в \$BACKUP_DIR (по умолчанию /var/backups/stirki), хранятся 14 последних"
+    echo "  check-web — на сервере: Caddy держит порты 80/443, иначе освободить их и пересоздать Caddy (для cron)"
     echo ""
     echo "  Окружение одно: оплата через Точку настоящая везде, SMS включаются флагом в админке"
     echo "  («Системные настройки» → «Вход по SMS»). В .env обязательны SECRET_KEY и ADMIN_PASSWORD."
@@ -40,11 +41,62 @@ cmd_local() {
     wait
 }
 
+# PID-ы процессов, которые слушают TCP-порт $1, кроме Docker (docker-proxy — это Caddy).
+foreign_listeners() {
+    ss -Htlnp "sport = :$1" | grep -v docker-proxy | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u || true
+}
+
+# ISPmanager держит на сервере свой nginx (README, «Сервер»): стоит Caddy остановиться, nginx занимает порт 80,
+# и Caddy после этого не поднимается. Освобождаем 80/443 от всего, что не Docker.
+free_web_ports() {
+    local port pids svc
+    for port in 80 443; do
+        pids=$(foreign_listeners "$port")
+        [ -z "$pids" ] && continue
+        echo "==> Порт $port занят не Docker: $(ps -o comm= -p "$(echo $pids | tr ' ' ',')" | sort -u | tr '\n' ' ')— освобождаем"
+        for svc in nginx apache2 httpd; do
+            if systemctl is-active --quiet "$svc" 2>/dev/null; then timeout 30 systemctl stop "$svc" || true; fi
+        done
+        sleep 1
+        pids=$(foreign_listeners "$port")
+        if [ -n "$pids" ]; then kill $pids 2>/dev/null || true; sleep 1; fi
+    done
+}
+
+caddy_ok() {
+    [ "$(docker inspect -f '{{.State.Running}}' stirki-caddy 2>/dev/null)" = "true" ] \
+        && ss -Htlnp "sport = :80" | grep -q docker-proxy \
+        && ss -Htlnp "sport = :443" | grep -q docker-proxy
+}
+
+# Caddy, запущенный при занятом порте, остаётся без сети — его нужно пересоздать (README, «Первичная установка»).
+ensure_caddy() {
+    caddy_ok && return 0
+    echo "==> $(date '+%F %T') Caddy не держит порты 80/443 — освобождаем порты и пересоздаём Caddy"
+    free_web_ports
+    docker compose --profile prod up -d --force-recreate --no-deps caddy
+    sleep 3
+    if caddy_ok; then
+        echo "==> Caddy работает"
+    else
+        echo "==> ОШИБКА: Caddy так и не занял порты 80/443 — смотрите: ss -tlnp | grep -E ':(80|443) '"
+        return 1
+    fi
+}
+
 cmd_server() {
     echo "==> Сборка frontend без кеша..."
     docker compose --profile prod build --no-cache frontend
+    free_web_ports
     echo "==> Запуск всего стека (без SECRET_KEY и ADMIN_PASSWORD в .env бэкенд не стартует)..."
     docker compose --profile prod up -d --build
+    sleep 3
+    ensure_caddy
+}
+
+# Для cron раз в 5 минут: молчит, пока всё в порядке.
+cmd_check_web() {
+    ensure_caddy
 }
 
 cmd_stop() {
@@ -70,5 +122,6 @@ case "${1:-}" in
     server) cmd_server ;;
     stop)  cmd_stop  ;;
     backup) cmd_backup ;;
+    check-web) cmd_check_web ;;
     *)     usage     ;;
 esac
