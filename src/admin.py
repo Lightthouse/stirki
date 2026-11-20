@@ -131,7 +131,9 @@ _PAYMENT_LABELS = {
     PaymentStatus.CANCELED: "Отменён",
 }
 _WASHING_TYPE_LABELS = {"bag": "Пакет", "piece": "Вещь", "mixed": "Пакеты и вещи"}
-_CHANGED_BY_LABELS = {"system": "Система", "admin": "Администратор", "tochka": "Точка (оплата)"}
+_CHANGED_BY_LABELS = {
+    "system": "Система", "admin": "Администратор", "tochka": "Точка (оплата)", "client": "Клиент",
+}
 
 
 class HelpView(BaseView):

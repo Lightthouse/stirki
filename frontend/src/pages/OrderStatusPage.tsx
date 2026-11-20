@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { isAuthenticated } from '../api/client'
-import { getOrder, getServices, getAddresses } from '../api'
+import { getOrder, getServices, getAddresses, cancelOrder } from '../api'
 import { StatusScreen } from '../components/StatusScreen'
 import { TERMINAL_STATUSES } from '../utils/orderStatuses'
 import type { OrderDetail, ServiceItem, Street } from '../types'
@@ -83,6 +83,14 @@ export function OrderStatusPage() {
       servicePrices={servicePrices}
       streetName={streetName}
       onClose={() => navigate('/')}
+      onCancel={async () => {
+        // Ошибку (например, «уже оплачен») показывает StatusScreen; заказ перечитываем в любом случае.
+        try {
+          await cancelOrder(order.id)
+        } finally {
+          setOrder(await getOrder(order.id))
+        }
+      }}
     />
   )
 }

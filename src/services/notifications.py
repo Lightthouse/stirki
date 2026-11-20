@@ -1,4 +1,4 @@
-"""Email-уведомления операторам: новые заказы и сбои при создании платежа.
+"""Email-уведомления операторам: новые заказы, сбои при создании платежа, оплата отменённого заказа.
 
 Отправка — best effort: выполняется в фоне (thread pool), ошибки только логируются
 и никогда не ломают создание/оплату заказа.
@@ -126,3 +126,35 @@ async def notify_payment_failed(session: AsyncSession, order: Order, client: Cli
         asyncio.get_running_loop().run_in_executor(None, _send, msg, settings)
     except Exception:
         logger.exception("Не удалось подготовить письмо о сбое оплаты заказа %s", order.id)
+
+
+async def notify_paid_after_cancel(session: AsyncSession, order: Order, client: Client) -> None:
+    """Письмо операторам: клиент отменил неоплаченный заказ, а потом оплатил его по старой ссылке.
+
+    Заказ остаётся отменённым, курьер не назначен — оператор связывается с клиентом и либо
+    выполняет заказ, либо возвращает деньги. Не бросает исключений.
+    """
+    settings = SmtpSettings()
+    try:
+        recipients = await _recipients(session)
+        if not (settings.SMTP_HOST and settings.SMTP_USER and recipients):
+            logger.warning("SMTP или получатели не настроены — письмо об оплате отменённого заказа %s не отправлено",
+                           order.id)
+            return
+        msg = EmailMessage()
+        msg["Subject"] = f"Оплачен отменённый заказ {order.number} — свяжитесь с клиентом"
+        msg["From"] = settings.SMTP_USER
+        msg["To"] = ", ".join(recipients)
+        msg.set_content("\n".join([
+            f"Клиент отменил заказ № {order.number}, не оплатив его, а затем оплатил "
+            f"{order.total_price_rub} ₽ по ссылке, которая ещё действовала.",
+            "",
+            "Заказ в админке: статус «Отменено», оплата «Оплачен». Курьер не назначен.",
+            "Свяжитесь с клиентом: либо выполнить заказ (сменить статус в админке на «В пути»),",
+            "либо вернуть деньги в интернет-банке Точки.",
+            "",
+            f"Клиент: {client.name or '—'}, {client.phone}",
+        ]))
+        asyncio.get_running_loop().run_in_executor(None, _send, msg, settings)
+    except Exception:
+        logger.exception("Не удалось подготовить письмо об оплате отменённого заказа %s", order.id)

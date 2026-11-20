@@ -252,6 +252,44 @@ async def create_order(
     )
 
 
+@router.post("/{order_id}/cancel")
+async def cancel_order(
+    order_id: int,
+    client: Client = Depends(get_current_client),
+    session: AsyncSession = Depends(get_db),
+):
+    """Клиент отменяет свой неоплаченный заказ. Оплаченный — только через поддержку.
+
+    Ссылка на оплату в Точке при этом остаётся рабочей до истечения срока: если клиент всё же оплатит,
+    это заметит фоновая сверка (payment_sync.check_paid_after_cancel) и напишет операторам.
+    """
+    order = await OrderService(session).get_by_id(order_id)
+    if not order or order.client_id != client.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Заказ не найден")
+
+    # Сначала сверяем с Точкой: клиент мог оплатить секунду назад.
+    if order.status.slug == OrderStatusName.WAITING_PAYMENT:
+        await sync_order_payment(session, order)
+    if order.status.slug == OrderStatusName.CANCELED:
+        return {"status": order.status.slug}
+    if order.status.slug != OrderStatusName.WAITING_PAYMENT:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Заказ уже оплачен — отменить его можно через поддержку",
+        )
+
+    # Атомарно: если оплата успела пройти, фоновая сверка уже сменила payment_status и отмены не будет.
+    await OrderRepository(session).resolve_payment(
+        order, OrderStatusName.CANCELED, PaymentStatus.CANCELED, changed_by="client",
+    )
+    if order.status.slug != OrderStatusName.CANCELED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Заказ уже оплачен — отменить его можно через поддержку",
+        )
+    return {"status": order.status.slug}
+
+
 @router.get("", response_model=list[OrderListOut])
 async def list_orders(
     client: Client = Depends(get_current_client),

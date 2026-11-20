@@ -207,6 +207,40 @@ class OrderRepository:
         )
         return list(result.scalars().all())
 
+    async def get_canceled_by_client_since(self, since: datetime) -> list[Order]:
+        """Неоплаченные заказы, отменённые клиентом после `since`, — по ним ещё жива ссылка на оплату в Точке."""
+        result = await self.session.execute(
+            select(Order)
+            .join(OrderStatus, Order.status_id == OrderStatus.id)
+            .where(
+                OrderStatus.slug == OrderStatusName.CANCELED,
+                Order.payment_status == PaymentStatus.CANCELED,
+                Order.operation_id.is_not(None),
+                Order.updated_at >= since,
+                Order.id.in_(
+                    select(OrderStatusHistory.order_id).where(OrderStatusHistory.changed_by == "client")
+                ),
+            )
+            .options(selectinload(Order.client), selectinload(Order.status))
+        )
+        return list(result.scalars().all())
+
+    async def mark_paid_after_cancel(self, order: Order) -> bool:
+        """Отметить оплату отменённого заказа: статус остаётся «Отменён», оплата — «Оплачен».
+
+        True — только вызову, который сменил оплату (одно письмо операторам).
+        """
+        result = await self.session.execute(
+            update(Order)
+            .where(Order.id == order.id, Order.payment_status == PaymentStatus.CANCELED)
+            .values(payment_status=PaymentStatus.SUCCEEDED, updated_at=func.now())
+            .returning(Order.id)
+        )
+        changed = result.scalar_one_or_none() is not None
+        await self.session.commit()
+        await self.session.refresh(order, attribute_names=["payment_status", "updated_at"])
+        return changed
+
     async def resolve_payment(
         self,
         order: Order,

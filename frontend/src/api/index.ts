@@ -62,6 +62,10 @@ export async function getOrder(orderId: number) {
   return api.get<OrderDetail>(`/orders/${orderId}`)
 }
 
+export async function cancelOrder(orderId: number) {
+  return api.post<{ status: string }>(`/orders/${orderId}/cancel`)
+}
+
 export async function getOrders() {
   return api.get<OrderListItem[]>('/orders')
 }

@@ -11,6 +11,7 @@ interface Props {
   servicePrices: Record<string, number>
   streetName: string
   onClose: () => void
+  onCancel: () => Promise<void>
 }
 
 const timelineSteps = [
@@ -21,8 +22,24 @@ const timelineSteps = [
   { icon: 'fa-box-open', label: 'Доставлено' },
 ]
 
-export function StatusScreen({ order, serviceNames, servicePrices, streetName, onClose }: Props) {
+export function StatusScreen({ order, serviceNames, servicePrices, streetName, onClose, onCancel }: Props) {
   const [showSupport, setShowSupport] = useState(false)
+  const [showCancel, setShowCancel] = useState(false)
+  const [canceling, setCanceling] = useState(false)
+  const [cancelError, setCancelError] = useState<string | null>(null)
+
+  const confirmCancel = async () => {
+    setCanceling(true)
+    setCancelError(null)
+    try {
+      await onCancel()
+      setShowCancel(false)
+    } catch (e) {
+      setCancelError(e instanceof Error ? e.message : 'Не удалось отменить заказ. Попробуйте ещё раз.')
+    } finally {
+      setCanceling(false)
+    }
+  }
 
   const isCanceled = order.status === 'canceled'
   const pickupPlace = order.handover === 'hand' ? 'из рук' : 'у двери'
@@ -151,7 +168,14 @@ export function StatusScreen({ order, serviceNames, servicePrices, streetName, o
         </div>
       )}
 
+      {cancelError && <div className="small-card"><p><i className="fas fa-exclamation-circle" /> {cancelError}</p></div>}
+
       <div className="status-actions">
+        {isWaitingPayment && (
+          <button className="status-btn" onClick={() => { setCancelError(null); setShowCancel(true) }}>
+            <i className="fas fa-times" /> Отменить заказ
+          </button>
+        )}
         <button className="status-btn" onClick={() => setShowSupport(true)}>
           <i className="fas fa-headset" /> Связаться с поддержкой
         </button>
@@ -159,6 +183,19 @@ export function StatusScreen({ order, serviceNames, servicePrices, streetName, o
           <i className="fas fa-arrow-left" /> На главную
         </button>
       </div>
+
+      {showCancel && (
+        <div className="modal-overlay" onClick={() => !canceling && setShowCancel(false)}>
+          <div className="modal-box" role="alertdialog" aria-labelledby="cancel-title" onClick={(e) => e.stopPropagation()}>
+            <h3 id="cancel-title"><i className="fas fa-times-circle" /> Отменить заказ?</h3>
+            <p>Заказ № ST-{order.id} ещё не оплачен. После отмены оплатить его будет нельзя — при необходимости оформите новый.</p>
+            <button className="btn-pill btn-pill-accent" onClick={confirmCancel} disabled={canceling} style={{ marginBottom: 8 }}>
+              {canceling ? 'Отменяем…' : 'Да, отменить'}
+            </button>
+            <button className="status-btn" onClick={() => setShowCancel(false)} disabled={canceling}>Не отменять</button>
+          </div>
+        </div>
+      )}
 
       {showSupport && (
         <div className="modal-overlay" onClick={() => setShowSupport(false)}>
