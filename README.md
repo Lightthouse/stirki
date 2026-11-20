@@ -198,19 +198,25 @@ docker volume rm stirki_pg_data           # удалить БД
 ./run.sh local                            # или ./run.sh server на сервере — БД создастся из pg_init
 ```
 
-**Миграции (с 2026-11-21 на сервере БД больше не пересоздаётся).** Изменение схемы или начальных данных делается
+**Миграции (с 2026-11-20 на сервере БД больше не пересоздаётся; первая — `pg_migrations/20261120-dopy-akciya-teksty.sql`).** Изменение схемы или начальных данных делается
 двумя правками в одном коммите:
 1. `pg_init/01-schema.sql` — как схема должна выглядеть (для новой БД, в том числе локальной);
 2. `pg_migrations/ГГГГММДД-кратко.sql` — как довести до неё существующую БД: `alter table …`, `insert …`, `update …`.
    Последняя строка файла — `insert into schema_migrations (name) values ('ГГГГММДД-кратко');`.
 
-Применение на сервере — после `git pull`, до `./run.sh server`, сначала бэкап:
+Применение на сервере — после `git pull`, до `./run.sh server`, сначала бэкап. Бэкенд на это время
+останавливается: старый код не должен обращаться к уже изменённым таблицам (сайт недоступен 1–2 минуты):
 
 ```bash
 ./run.sh backup
+docker compose --profile prod stop backend
 docker exec -i stirki-db psql -U stirki -d stirki -v ON_ERROR_STOP=1 -1 < pg_migrations/<файл>.sql
+./run.sh server
 docker exec stirki-db psql -U stirki -d stirki -c "select * from schema_migrations order by applied_at"
 ```
+
+Перед сервером миграцию стоит прогнать локально на копии старой схемы (`git show <коммит на сервере>:pg_init/01-schema.sql`)
+и сравнить `pg_dump --schema-only` с новой БД из `01-schema.sql` — так проверена первая миграция.
 
 `-1` — весь файл одной транзакцией: при ошибке ничего не меняется. Повторный запуск того же файла падает на
 `schema_migrations` и тоже откатывается. Новая БД из `01-schema.sql` уже содержит все изменения — миграции к ней
